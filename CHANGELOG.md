@@ -2,15 +2,39 @@
 
 ## [Unreleased]
 
-### Fixed
+## [1.1.0] - 2026-07-05
 
-- Release pós-merge agora usa a versão exata do arquivo `VERSION`, gera os assets centrais e cria `v1.0.1` sem depender do primeiro cálculo do semantic-release.
-- Builds de Runtime, SDK, Desktop, Mobile e Docker são disparados explicitamente por `workflow_dispatch`, pois tags criadas com `GITHUB_TOKEN` não iniciam outros workflows automaticamente.
-- O empacotamento da release compila o SDK C antes de exigir `libtunnara.so` e `libtunnara.a`.
-- Corrigida a chave Laravel de testes para exatamente 32 bytes em SQLite, PostgreSQL e MySQL.
-- Fixadas versões compatíveis de `pinia` e `vue-router` no Console e sincronizado o lockfile.
-- Retries de `npm ci` não repetem erros determinísticos como `ERESOLVE`.
-- Validações pesadas e matrizes de storage deixaram de executar novamente em cada merge para reduzir tempo e ruído.
+### Docker e operação
+
+- Adicionado bundle `Tunnara-Docker-v1.1.0.zip` instalável diretamente a partir da GitHub Release.
+- Stack Community passou a consumir imagens publicadas no GHCR por padrão, com override separado para build local.
+- Adicionados comandos `quickstart`, `quickstart-build`, `doctor`, `health`, `update`, `backup`, `restore` e `up-production`.
+- Incluídos instalador por GitHub Release, preservação do `.env`, health checks e atualização segura com backup SQLite.
+- Documentados os perfis SQLite/memory do runtime embarcado e SQLite/PostgreSQL/MySQL com Redis/local/database da Control API Laravel.
+- Corrigido o fluxo de atualização para não solicitar `--build` quando o deploy utiliza imagens publicadas.
+
+### Releases e GitHub Actions
+
+- A release agora é coordenada em uma única execução por reusable workflows e permanece em draft até Runtime, SDK, Desktop, Mobile e Containers terminarem.
+- Eliminada a dependência de eventos de tag criados pelo `GITHUB_TOKEN` e de Actions Artifact Storage.
+- Publicação de imagens GHCR adicionada para Server, Agent, Console, Control API, QUIC Bridge e Caddy Cloudflare.
+- Matrizes macOS atualizadas para `macos-15` e `macos-15-intel`; `macos-13` e `macos-14` foram removidos.
+- Validação de PR permanece rápida, sem empacotamento nem geração de artefatos de distribuição.
+- Adicionados validadores dedicados para pipeline de release e estrutura Docker.
+
+### Console e dependências
+
+- Páginas do Console passaram a usar carregamento sob demanda por rota.
+- Build de produção voltou a usar minificação, divisão de chunks e sourcemap opcional.
+- Bundle inicial reduzido e distribuído entre chunks Vue, Tauri e páginas funcionais.
+- Dependências não utilizadas do `semantic-release` foram removidas, reduzindo a instalação raiz para 4 pacotes e a do Console para 57 pacotes.
+- Instalação limpa validada em aproximadamente 1 segundo na raiz e 2 segundos no Console no ambiente de validação.
+
+### Versionamento e documentação
+
+- Sincronização SemVer ampliada para imagens Docker, `.env`, Control API e builds mobile.
+- README, guias de Docker, produção, storage e release foram consolidados para o fluxo real da plataforma.
+- Removidas instruções históricas de patches e branches da documentação principal.
 
 ## [1.0.1] - 2026-07-05
 

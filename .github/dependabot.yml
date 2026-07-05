@@ -5,8 +5,8 @@ updates:
     schedule:
       interval: weekly
     groups:
-      semantic-release:
-        patterns: ['*semantic-release*']
+      root-tooling:
+        patterns: ['*']
 
   - package-ecosystem: npm
     directory: /apps/console

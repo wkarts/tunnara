@@ -71,3 +71,9 @@ sdk/mobile/ios/.wireguard-apple/
 *.mobileprovision
 *.ipa
 *.aab
+
+# CMake e SDK C local
+sdk/c/build/
+**/CMakeFiles/
+**/CMakeCache.txt
+**/cmake_install.cmake

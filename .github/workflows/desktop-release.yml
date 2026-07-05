@@ -1,44 +1,67 @@
 name: Desktop artifacts
 
 on:
+  workflow_call:
+    inputs:
+      release_tag:
+        description: 'Tag da GitHub Release draft que receberá os instaladores desktop'
+        required: true
+        type: string
   workflow_dispatch:
     inputs:
       release_tag:
-        description: 'Tag da GitHub Release que receberá os instaladores desktop'
-        required: false
+        description: 'Tag da GitHub Release existente que receberá os instaladores desktop'
+        required: true
         type: string
-  push:
-    tags:
-      - 'v*.*.*'
 
 permissions:
   contents: write
 
 concurrency:
-  group: desktop-${{ github.ref }}-${{ inputs.release_tag || 'tag' }}
+  group: desktop-${{ inputs.release_tag }}
   cancel-in-progress: false
 
 jobs:
   build:
-    timeout-minutes: 60
+    timeout-minutes: 75
     strategy:
       fail-fast: false
       matrix:
-        platform:
-          - ubuntu-24.04
-          - windows-latest
-          - macos-14
+        include:
+          - platform: ubuntu-24.04
+            suffix: linux-x64
+          - platform: windows-latest
+            suffix: windows-x64
+          - platform: macos-15
+            suffix: macos-arm64
+          - platform: macos-15-intel
+            suffix: macos-x64
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v7
+
+      - name: Ensure target release exists
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.release_tag }}
+        run: gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null
+
       - uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: apps/console/package-lock.json
+
       - uses: dtolnay/rust-toolchain@stable
-      - name: Dependências Linux do Tauri
-        if: startsWith(matrix.platform, 'ubuntu')
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/console/src-tauri -> target
+          shared-key: desktop-${{ matrix.suffix }}
+
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        shell: bash
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -46,15 +69,26 @@ jobs:
             libappindicator3-dev \
             librsvg2-dev \
             patchelf
+
       - name: Install console dependencies
         shell: bash
         run: bash scripts/ci/npm-ci.sh apps/console
-      - uses: tauri-apps/tauri-action@v1
+
+      - name: Build and upload Tauri bundles
+        uses: tauri-apps/tauri-action@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         with:
           projectPath: apps/console
-          tagName: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || inputs.release_tag }}
-          releaseName: Tunnara v__VERSION__
-          releaseDraft: false
+          tagName: ${{ inputs.release_tag }}
+          releaseName: Tunnara Platform __VERSION__
+          releaseDraft: true
           prerelease: false

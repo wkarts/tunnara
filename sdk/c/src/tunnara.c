@@ -21,7 +21,7 @@ typedef int tunnara_socket_t;
 #define tunnara_close close
 #endif
 
-#define TUNNARA_VERSION "1.0.1"
+#define TUNNARA_VERSION "1.1.0"
 #define TUNNARA_MAX_RESPONSE (32u * 1024u * 1024u)
 
 struct tunnara_client {

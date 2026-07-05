@@ -42,6 +42,7 @@ jobs:
           npm run validate:php
           npm run validate:storage
           npm run validate:release
+          npm run validate:docker
       - name: Runtime end-to-end tests
         run: npm run runtime:test
 
@@ -64,3 +65,14 @@ jobs:
           npm run ci:version
           npm run typecheck
           npm run build:web
+
+  docker-config:
+    name: Docker configuration
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - name: Generate safe local environment
+        run: bash deploy/docker/tunnara.sh init
+      - name: Validate Docker Compose model
+        run: docker compose --env-file deploy/docker/.env -f deploy/docker/docker-compose.yml config --quiet

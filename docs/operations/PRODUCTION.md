@@ -1,78 +1,82 @@
-# Implantação de produção — Tunnara 1.0.0
+# Implantação de produção — Tunnara 1.1.0
 
 ## Perfil recomendado
 
-- Ubuntu/Debian atualizado.
+- Ubuntu ou Debian atualizado.
 - Docker Engine e Compose v2.
-- 2 vCPU, 4 GB RAM e SSD para instalação inicial.
-- Domínio na Cloudflare.
-- IPv4/IPv6 público ou hostname de borda.
-
-## Firewall
-
-- `80/tcp`: desafio/redirecionamento HTTP.
-- `443/tcp`: HTTPS HTTP/1.1 e HTTP/2.
-- `443/udp`: HTTP/3.
-- `7443/udp`: QUIC Agent/Relay.
-- `7300/tcp`: fallback TCP/TLS do Relay, se habilitado.
-- faixa configurada `PUBLIC_PORT_MIN..PUBLIC_PORT_MAX` em TCP/UDP.
+- 2 vCPU, 4 GB RAM e SSD para uma instalação inicial.
+- Domínio administrado pela Cloudflare.
+- IPv4 ou IPv6 público.
 
 ## Instalação
 
 ```bash
-cd deploy/docker
-cp .env.example .env
+git clone https://github.com/wkarts/tunnara.git
+cd tunnara/deploy/docker
+./tunnara.sh init
+```
+
+Edite `.env`, depois:
+
+```bash
+./tunnara.sh preflight
+./tunnara.sh up-production
+./tunnara.sh health
+```
+
+## ACME
+
+Para homologação:
+
+```dotenv
+TUNNARA_ACME_CA=https://acme-staging-v02.api.letsencrypt.org/directory
+```
+
+Para produção:
+
+```dotenv
+TUNNARA_ACME_CA=https://acme-v02.api.letsencrypt.org/directory
+```
+
+O volume `caddy_data` preserva conta ACME e certificados.
+
+## Cloudflare
+
+`CLOUDFLARE_ZONE_NAME` é a zona raiz. `TUNNARA_BASE_DOMAIN` pode ser um subdomínio dedicado.
+
+```dotenv
+CLOUDFLARE_ZONE_NAME=seudominio.com.br
+TUNNARA_BASE_DOMAIN=tunnel.seudominio.com.br
+```
+
+O bootstrap gerencia domínio base, wildcard, `control`, `console` e `relay`.
+
+## Atualização
+
+```bash
+./tunnara.sh update-production
+```
+
+A release fixa a versão das imagens por `TUNNARA_VERSION`. Altere a versão ou as imagens no `.env` antes de atualizar.
+
+## Instalação pela release
+
+O pacote Docker publicado em cada release permite instalar sem compilar o monorepo:
+
+```bash
+curl -fsSL \
+  https://raw.githubusercontent.com/wkarts/tunnara/main/deploy/docker/install-from-github.sh \
+  -o /tmp/tunnara-install.sh
+
+TUNNARA_VERSION=1.1.0 \
+TUNNARA_START_MODE=none \
+  sudo -E bash /tmp/tunnara-install.sh
+
+cd /opt/tunnara/deploy/docker
 ./tunnara.sh init
 # edite .env
 ./tunnara.sh preflight
 ./tunnara.sh up-production
 ```
 
-## ACME
-
-Em homologação use:
-
-```dotenv
-TUNNARA_ACME_CA=https://acme-staging-v02.api.letsencrypt.org/directory
-```
-
-Depois altere para produção e reinicie Caddy. O volume `caddy_data` preserva conta, certificados e estado de renovação.
-
-## Cloudflare
-
-Configure `CLOUDFLARE_ZONE_NAME` com a zona raiz da Cloudflare e `TUNNARA_BASE_DOMAIN` com o subdomínio reservado à plataforma.
-
-O bootstrap cria registros para:
-
-- domínio base;
-- wildcard;
-- `control`;
-- `console`;
-- `relay`.
-
-Túneis HTTP/HTTPS com `autoDns=true` criam/removem registros vinculados ao lifecycle. Use `proxied=false` para Relay, TCP e UDP. A nuvem laranja deve ser usada somente em protocolos/portas suportados pela Cloudflare.
-
-## QUIC
-
-O Caddy atende HTTP/3 em `443/udp`. O `tunnara-quic-bridge` atende Agent/Relay em `7443/udp`, usando o wildcard Let’s Encrypt exportado do storage do Caddy.
-
-## Backup
-
-```bash
-./tunnara.sh backup /backup/tunnara.sqlite
-./tunnara.sh restore /backup/tunnara.sqlite
-```
-
-Mantenha cópia externa criptografada do `.env`, banco e volume Caddy.
-
-## Multi-host
-
-Instale o Control central e execute `tunnara-server relay`/`edge` em outros hosts com:
-
-```dotenv
-TUNNARA_INTERNAL_CONTROL_URL=https://control-interno.example
-TUNNARA_CLUSTER_TOKEN=...
-TUNNARA_REGION=sa-east-1
-```
-
-Use load balancer e health checks. Para Control ativo-ativo entre hosts, utilize o plano Laravel/PostgreSQL ou datastore replicado.
+Use primeiro a CA de staging do Let’s Encrypt para validar DNS e firewall. Troque para a CA de produção somente depois que o preflight e os health checks estiverem estáveis.

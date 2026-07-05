@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import path from 'node:path';
 
 const expected = fs.readFileSync('VERSION', 'utf8').trim();
 const readJson = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -6,6 +7,12 @@ function extract(file, pattern, label) {
   const match = fs.readFileSync(file, 'utf8').match(pattern);
   if (!match) throw new Error(`Não foi possível localizar ${label} em ${file}`);
   return match[1];
+}
+function walk(dir) {
+  return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const absolute = path.join(dir, entry.name);
+    return entry.isDirectory() ? walk(absolute) : [absolute];
+  });
 }
 
 const values = [
@@ -30,6 +37,8 @@ const values = [
   ['sdk/mobile/ios/Config/PacketTunnel-Info.plist', extract('sdk/mobile/ios/Config/PacketTunnel-Info.plist', /<key>CFBundleShortVersionString<\/key><string>([^<]+)<\/string>/, 'iOS bundle version')],
   ['sdk/mobile/ios/project.yml (marketing)', extract('sdk/mobile/ios/project.yml', /MARKETING_VERSION: ([^\n]+)/, 'iOS marketing version')],
   ['sdk/mobile/ios/project.yml (short)', extract('sdk/mobile/ios/project.yml', /INFOPLIST_KEY_CFBundleShortVersionString: ([^\n]+)/, 'iOS short version')],
+  ['deploy/docker/.env.example', extract('deploy/docker/.env.example', /^TUNNARA_VERSION=(.+)$/m, 'Docker version')],
+  ['deploy/docker/storage/docker-compose.base.yml', extract('deploy/docker/storage/docker-compose.base.yml', /APP_VERSION:\s*([^\s]+)/, 'Control API Docker version')],
 ];
 
 let failed = false;
@@ -38,13 +47,21 @@ for (const [file, value] of values) {
 }
 const numericVersion = expected.split('-')[0].split('.').map(Number);
 const expectedBuild = String(numericVersion[0] * 10000 + numericVersion[1] * 100 + numericVersion[2]);
-const buildValues = [
+for (const [label, value] of [
   ['Android versionCode', extract('sdk/mobile/android/app/build.gradle.kts', /versionCode = (\d+)/, 'Android versionCode')],
   ['iOS extension CFBundleVersion', extract('sdk/mobile/ios/Config/PacketTunnel-Info.plist', /<key>CFBundleVersion<\/key><string>([^<]+)<\/string>/, 'iOS build')],
   ['iOS project CURRENT_PROJECT_VERSION', extract('sdk/mobile/ios/project.yml', /CURRENT_PROJECT_VERSION: (\d+)/, 'iOS project build')],
-];
-for (const [label, value] of buildValues) {
+]) {
   if (value !== expectedBuild) { console.error(`${label}: ${value} != ${expectedBuild}`); failed = true; }
 }
+
+for (const absolute of walk(path.resolve('deploy/docker'))) {
+  if (!/\.(?:ya?ml|example|md)$/.test(absolute) && !absolute.endsWith('.env.example')) continue;
+  const relative = path.relative(process.cwd(), absolute);
+  const source = fs.readFileSync(absolute, 'utf8');
+  for (const match of source.matchAll(/tunnara-(?:server|agent|console|control-api|caddy-cloudflare|quic-bridge):(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)/g)) {
+    if (match[1] !== expected) { console.error(`${relative}: imagem ${match[1]} != ${expected}`); failed = true; }
+  }
+}
 if (failed) process.exit(1);
-console.log(`Versão sincronizada em ${values.length} pontos e build mobile ${expectedBuild}: ${expected}`);
+console.log(`Versão sincronizada em ${values.length} pontos, Docker e build mobile ${expectedBuild}: ${expected}`);

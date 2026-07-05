@@ -10,6 +10,7 @@ GITHUB_PREFIX="tunnara-platform"
 WEB_PREFIX="tunnara-console-web-v${VERSION}"
 RUNTIME_PREFIX="tunnara-runtime-linux-x64-v${VERSION}"
 SDK_PREFIX="tunnara-sdk-c-linux-x64-v${VERSION}"
+DOCKER_PREFIX="Tunnara-Docker-v${VERSION}"
 ARTIFACTS="$ROOT_DIR/artifacts"
 STAGING="$(mktemp -d)"
 cleanup() { rm -rf "$STAGING"; }
@@ -63,6 +64,7 @@ COMPLETE_DIR="$STAGING/complete/$PREFIX"
 WEB_DIR="$STAGING/web/$WEB_PREFIX"
 RUNTIME_DIR="$STAGING/runtime/$RUNTIME_PREFIX"
 SDK_DIR="$STAGING/sdk/$SDK_PREFIX"
+DOCKER_DIR="$STAGING/docker/$DOCKER_PREFIX"
 
 copy_source "$SOURCE_DIR"
 copy_source "$GITHUB_DIR"
@@ -71,6 +73,7 @@ mkdir -p \
   "$WEB_DIR" \
   "$RUNTIME_DIR/bin" "$RUNTIME_DIR/install" \
   "$SDK_DIR/include" "$SDK_DIR/lib" "$SDK_DIR/examples" \
+  "$DOCKER_DIR" \
   "$COMPLETE_DIR/prebuilt/console-web" \
   "$COMPLETE_DIR/prebuilt/runtime/linux-x64" \
   "$COMPLETE_DIR/prebuilt/sdk-c/linux-x64/include" \
@@ -90,6 +93,16 @@ cp sdk/c/examples/* "$SDK_DIR/examples/"
 cp sdk/c/build/libtunnara.so sdk/c/build/libtunnara.a "$SDK_DIR/lib/"
 cp sdk/c/include/tunnara.h "$COMPLETE_DIR/prebuilt/sdk-c/linux-x64/include/"
 cp sdk/c/build/libtunnara.so sdk/c/build/libtunnara.a "$COMPLETE_DIR/prebuilt/sdk-c/linux-x64/lib/"
+
+mkdir -p "$DOCKER_DIR/deploy" "$DOCKER_DIR/docs/operations"
+cp -a deploy/docker "$DOCKER_DIR/deploy/"
+cp docker.sh README.md LICENSE LICENSE-NOTICE.md SECURITY.md VERSION "$DOCKER_DIR/"
+cp \
+  docs/operations/QUICKSTART.md \
+  docs/operations/DOCKER_DEPLOYMENT.md \
+  docs/operations/PRODUCTION.md \
+  docs/operations/STORAGE_PROVIDERS.md \
+  "$DOCKER_DIR/docs/operations/"
 
 (
   cd "$STAGING/source"
@@ -126,8 +139,25 @@ cp sdk/c/build/libtunnara.so sdk/c/build/libtunnara.a "$COMPLETE_DIR/prebuilt/sd
   cd "$STAGING/sdk"
   zip -q -1 -r "$ARTIFACTS/${SDK_PREFIX}.zip" "$SDK_PREFIX"
 )
+
+(
+  cd "$STAGING/docker"
+  zip -q -1 -r "$ARTIFACTS/${DOCKER_PREFIX}.zip" "$DOCKER_PREFIX"
+)
+node - "$ARTIFACTS" "$VERSION" <<'NODE'
+const fs = require('node:fs');
+const path = require('node:path');
+const [dir, version] = process.argv.slice(2);
+const files = fs.readdirSync(dir).filter((name) => name !== 'release-manifest.json').sort();
+fs.writeFileSync(path.join(dir, 'release-manifest.json'), JSON.stringify({
+  product: 'Tunnara Platform',
+  version,
+  generatedAt: new Date().toISOString(),
+  files,
+}, null, 2) + '\n');
+NODE
 (
   cd "$ARTIFACTS"
-  sha256sum *.zip *.tar.gz *.bundle > SHA256SUMS.txt
+  sha256sum *.zip *.tar.gz *.bundle release-manifest.json > SHA256SUMS.txt
 )
 printf 'Artefatos gerados em %s\n' "$ARTIFACTS"

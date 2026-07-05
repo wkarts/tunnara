@@ -1,0 +1,6 @@
+services:
+  caddy:
+    build:
+      context: ./cloudflare
+      dockerfile: Dockerfile
+    pull_policy: build

@@ -2,10 +2,8 @@ name: ${COMPOSE_PROJECT_NAME:-tunnara}
 
 services:
   tunnara-server:
-    build:
-      context: ../..
-      dockerfile: runtime/node/Dockerfile.server
-    image: ${TUNNARA_SERVER_IMAGE:-ghcr.io/wwsoftwares/tunnara-server:1.0.1}
+    image: ${TUNNARA_SERVER_IMAGE:-ghcr.io/wkarts/tunnara-server:1.1.0}
+    pull_policy: ${TUNNARA_PULL_POLICY:-missing}
     restart: unless-stopped
     environment:
       NODE_NO_WARNINGS: "1"
@@ -27,37 +25,45 @@ services:
       TUNNARA_BOOTSTRAP_ADMIN_TOKEN: ${TUNNARA_BOOTSTRAP_ADMIN_TOKEN:?Execute ./tunnara.sh init}
       TUNNARA_CORS_ORIGIN: ${TUNNARA_CORS_ORIGIN:-http://localhost:7400}
       TUNNARA_LOG_FORMAT: ${TUNNARA_LOG_FORMAT:-json}
-      TUNNARA_MASTER_KEY_BASE64: ${TUNNARA_MASTER_KEY_BASE64:-}
+      TUNNARA_MASTER_KEY_BASE64: ${TUNNARA_MASTER_KEY_BASE64:?Execute ./tunnara.sh init}
+      TUNNARA_CLUSTER_TOKEN: ${TUNNARA_CLUSTER_TOKEN:?Execute ./tunnara.sh init}
       TUNNARA_PUBLIC_PORT_MIN: ${PUBLIC_PORT_MIN:-20000}
       TUNNARA_PUBLIC_PORT_MAX: ${PUBLIC_PORT_MAX:-20100}
     volumes:
       - tunnara_data:/var/lib/tunnara
     ports:
-      - "${CONTROL_PORT:-7100}:7100/tcp"
-      - "${EDGE_BIND:-0.0.0.0}:${EDGE_PORT:-80}:7200/tcp"
-      - "${RELAY_PORT:-7300}:7300/tcp"
-      - "${PUBLIC_PORT_MIN:-20000}-${PUBLIC_PORT_MAX:-20100}:${PUBLIC_PORT_MIN:-20000}-${PUBLIC_PORT_MAX:-20100}/tcp"
-      - "${PUBLIC_PORT_MIN:-20000}-${PUBLIC_PORT_MAX:-20100}:${PUBLIC_PORT_MIN:-20000}-${PUBLIC_PORT_MAX:-20100}/udp"
+      - "${CONTROL_BIND:-127.0.0.1}:${CONTROL_PORT:-7100}:7100/tcp"
+      - "${EDGE_BIND:-0.0.0.0}:${EDGE_PORT:-8080}:7200/tcp"
+      - "${RELAY_BIND:-0.0.0.0}:${RELAY_PORT:-7300}:7300/tcp"
+      - "${PUBLIC_BIND:-0.0.0.0}:${PUBLIC_PORT_MIN:-20000}-${PUBLIC_PORT_MAX:-20100}:${PUBLIC_PORT_MIN:-20000}-${PUBLIC_PORT_MAX:-20100}/tcp"
+      - "${PUBLIC_BIND:-0.0.0.0}:${PUBLIC_PORT_MIN:-20000}-${PUBLIC_PORT_MAX:-20100}:${PUBLIC_PORT_MIN:-20000}-${PUBLIC_PORT_MAX:-20100}/udp"
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:7100/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 10s
       timeout: 5s
-      retries: 10
+      retries: 12
+      start_period: 10s
     networks: [tunnara]
+    security_opt:
+      - no-new-privileges:true
 
   console:
-    build:
-      context: ../../apps/console
-      args:
-        VITE_TUNNARA_API_URL: /control
-    image: ${TUNNARA_CONSOLE_IMAGE:-ghcr.io/wwsoftwares/tunnara-console:1.0.1}
+    image: ${TUNNARA_CONSOLE_IMAGE:-ghcr.io/wkarts/tunnara-console:1.1.0}
+    pull_policy: ${TUNNARA_PULL_POLICY:-missing}
     restart: unless-stopped
     depends_on:
       tunnara-server:
         condition: service_healthy
     ports:
-      - "${CONSOLE_PORT:-7400}:80/tcp"
+      - "${CONSOLE_BIND:-0.0.0.0}:${CONSOLE_PORT:-7400}:80/tcp"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
     networks: [tunnara]
+    security_opt:
+      - no-new-privileges:true
 
 volumes:
   tunnara_data:

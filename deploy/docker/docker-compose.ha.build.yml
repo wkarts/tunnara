@@ -1,0 +1,20 @@
+services:
+  control:
+    build:
+      context: ../..
+      dockerfile: runtime/node/Dockerfile.server
+    pull_policy: build
+
+  console:
+    build:
+      context: ../../apps/console
+      dockerfile: Dockerfile
+      args:
+        VITE_TUNNARA_API_URL: /control
+    pull_policy: build
+
+  caddy:
+    build:
+      context: ./cloudflare
+      dockerfile: Dockerfile
+    pull_policy: build

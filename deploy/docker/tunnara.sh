@@ -1,11 +1,20 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-COMPOSE_FILE="$SCRIPT_DIR/docker-compose.yml"
-CLOUDFLARE_FILE="$SCRIPT_DIR/docker-compose.cloudflare.yml"
-HA_FILE="$SCRIPT_DIR/docker-compose.ha.yml"
-QUIC_FILE="$SCRIPT_DIR/docker-compose.quic.yml"
 ENV_FILE="$SCRIPT_DIR/.env"
+BASE_FILE="$SCRIPT_DIR/docker-compose.yml"
+BASE_BUILD_FILE="$SCRIPT_DIR/docker-compose.build.yml"
+CLOUDFLARE_FILE="$SCRIPT_DIR/docker-compose.cloudflare.yml"
+CLOUDFLARE_BUILD_FILE="$SCRIPT_DIR/docker-compose.cloudflare.build.yml"
+QUIC_FILE="$SCRIPT_DIR/docker-compose.quic.yml"
+QUIC_BUILD_FILE="$SCRIPT_DIR/docker-compose.quic.build.yml"
+HA_FILE="$SCRIPT_DIR/docker-compose.ha.yml"
+HA_BUILD_FILE="$SCRIPT_DIR/docker-compose.ha.build.yml"
+
+info() { printf '[Tunnara] %s\n' "$*"; }
+warn() { printf '[Tunnara] AVISO: %s\n' "$*" >&2; }
+die() { printf '[Tunnara] ERRO: %s\n' "$*" >&2; exit 1; }
 
 random_admin_token() {
   if command -v openssl >/dev/null 2>&1; then
@@ -22,10 +31,10 @@ random_cluster_token() {
   if command -v openssl >/dev/null 2>&1; then
     printf 'tnr_cluster_%s\n' "$(openssl rand -base64 36 | tr -d '\n=/+' | head -c 48)"
   else
-    python3 - <<'PYI'
+    python3 - <<'PY'
 import secrets
 print('tnr_cluster_' + secrets.token_urlsafe(36))
-PYI
+PY
   fi
 }
 
@@ -42,8 +51,11 @@ PY
 
 set_env() {
   local key="$1" value="$2"
+  touch "$ENV_FILE"
   if grep -q "^${key}=" "$ENV_FILE" 2>/dev/null; then
-    sed -i "s|^${key}=.*|${key}=${value}|" "$ENV_FILE"
+    local escaped
+    escaped="$(printf '%s' "$value" | sed 's/[&|]/\\&/g')"
+    sed -i "s|^${key}=.*|${key}=${escaped}|" "$ENV_FILE"
   else
     printf '%s=%s\n' "$key" "$value" >> "$ENV_FILE"
   fi
@@ -56,138 +68,302 @@ get_env() {
 
 init() {
   [[ -f "$ENV_FILE" ]] || cp "$SCRIPT_DIR/.env.example" "$ENV_FILE"
+
   local token master cluster
   token="$(get_env TUNNARA_BOOTSTRAP_ADMIN_TOKEN)"
   master="$(get_env TUNNARA_MASTER_KEY_BASE64)"
   cluster="$(get_env TUNNARA_CLUSTER_TOKEN)"
+
   [[ "$token" == tnr_admin_* ]] || token="$(random_admin_token)"
-  [[ -n "$master" ]] || master="$(random_master_key)"
+  [[ -n "$master" && "$master" != change-me ]] || master="$(random_master_key)"
   [[ "$cluster" == tnr_cluster_* ]] || cluster="$(random_cluster_token)"
+
   set_env TUNNARA_BOOTSTRAP_ADMIN_TOKEN "$token"
   set_env TUNNARA_MASTER_KEY_BASE64 "$master"
   set_env TUNNARA_CLUSTER_TOKEN "$cluster"
   chmod 600 "$ENV_FILE"
-  echo "Ambiente criado em $ENV_FILE"
-  echo "Token administrativo inicial: $token"
-  echo "A chave mestra foi gerada no .env e não será exibida. Faça backup seguro desse arquivo."
+
+  info "Ambiente criado/atualizado em $ENV_FILE"
+  info "Token administrativo inicial: $token"
+  info 'A chave mestra e o cluster token foram gravados no .env. Faça backup seguro.'
 }
 
-compose_base() {
+require_docker() {
+  command -v docker >/dev/null 2>&1 || die 'Docker Engine não está instalado.'
+  docker compose version >/dev/null 2>&1 || die 'Docker Compose v2 não está disponível.'
+  docker info >/dev/null 2>&1 || die 'O daemon Docker não está acessível para o usuário atual.'
+}
+
+deploy_mode() {
+  local mode
+  mode="$(get_env TUNNARA_DEPLOY_MODE)"
+  case "${mode:-image}" in
+    image|build) printf '%s' "${mode:-image}" ;;
+    *) die "TUNNARA_DEPLOY_MODE inválido: $mode. Use image ou build." ;;
+  esac
+}
+
+compose_run() {
+  local stack="$1"; shift
   [[ -f "$ENV_FILE" ]] || init
-  docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
+  require_docker
+
+  local -a files
+  case "$stack" in
+    base)
+      files=(-f "$BASE_FILE")
+      if [[ "$(deploy_mode)" == build ]]; then files+=(-f "$BASE_BUILD_FILE"); fi
+      ;;
+    cloudflare)
+      files=(-f "$BASE_FILE" -f "$CLOUDFLARE_FILE")
+      if [[ "$(deploy_mode)" == build ]]; then files+=(-f "$BASE_BUILD_FILE" -f "$CLOUDFLARE_BUILD_FILE"); fi
+      ;;
+    full)
+      files=(-f "$BASE_FILE" -f "$CLOUDFLARE_FILE" -f "$QUIC_FILE")
+      if [[ "$(deploy_mode)" == build ]]; then
+        files+=(-f "$BASE_BUILD_FILE" -f "$CLOUDFLARE_BUILD_FILE" -f "$QUIC_BUILD_FILE")
+      fi
+      ;;
+    ha)
+      files=(-f "$HA_FILE")
+      if [[ "$(deploy_mode)" == build ]]; then files+=(-f "$HA_BUILD_FILE"); fi
+      ;;
+    *) die "Stack Docker desconhecida: $stack" ;;
+  esac
+
+  docker compose --env-file "$ENV_FILE" "${files[@]}" "$@"
 }
 
-compose_cloudflare() {
-  [[ -f "$ENV_FILE" ]] || init
-  docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" -f "$CLOUDFLARE_FILE" "$@"
+compose_base() { compose_run base "$@"; }
+compose_cloudflare() { compose_run cloudflare "$@"; }
+compose_full() { compose_run full "$@"; }
+compose_ha() { compose_run ha "$@"; }
+
+start_stack() {
+  local stack="$1"; shift || true
+  local mode
+  mode="$(deploy_mode)"
+  if [[ "$mode" == image ]]; then
+    info 'Baixando imagens publicadas no GHCR...'
+    compose_run "$stack" pull
+    compose_run "$stack" up -d --remove-orphans "$@"
+  else
+    info 'Construindo imagens localmente a partir do código-fonte...'
+    compose_run "$stack" up -d --build --remove-orphans "$@"
+  fi
 }
 
-compose_full() {
-  [[ -f "$ENV_FILE" ]] || init
-  docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" -f "$CLOUDFLARE_FILE" -f "$QUIC_FILE" "$@"
-}
+control_port() { local p; p="$(get_env CONTROL_PORT)"; printf '%s' "${p:-7100}"; }
+console_port() { local p; p="$(get_env CONSOLE_PORT)"; printf '%s' "${p:-7400}"; }
+edge_port() { local p; p="$(get_env EDGE_PORT)"; printf '%s' "${p:-8080}"; }
+admin_token() { get_env TUNNARA_BOOTSTRAP_ADMIN_TOKEN; }
 
-compose_ha() {
-  [[ -f "$ENV_FILE" ]] || init
-  docker compose --env-file "$ENV_FILE" -f "$HA_FILE" "$@"
-}
-
-production_preflight() {
-  command -v docker >/dev/null 2>&1 || { echo "Docker não instalado." >&2; exit 1; }
-  docker compose version >/dev/null 2>&1 || { echo "Docker Compose v2 não disponível." >&2; exit 1; }
-  require_cloudflare_env
-  local key value
-  for key in TUNNARA_BASE_DOMAIN CLOUDFLARE_ZONE_NAME TUNNARA_ACME_EMAIL CLOUDFLARE_API_TOKEN TUNNARA_CLOUDFLARE_EDGE_ADDRESS; do
-    value="$(get_env "$key")"
-    [[ -n "$value" && "$value" != "change-me" && "$value" != *example.com* ]] || {
-      echo "Configure $key no arquivo .env antes do deploy de produção." >&2; exit 1;
-    }
-  done
-  echo "Preflight concluído. Verifique externamente as portas 80/tcp, 443/tcp, 443/udp e ${TUNNARA_QUIC_PORT:-7443}/udp."
-}
-
-wait_control() {
-  local port retries=90
-  port="$(control_port)"
-  until curl -fsS "http://127.0.0.1:${port}/healthz" >/dev/null 2>&1; do
-    retries=$((retries - 1)); [[ $retries -gt 0 ]] || { echo "Control API não ficou saudável." >&2; return 1; }
+wait_url() {
+  local url="$1" label="$2" retries="${3:-90}"
+  until curl -fsS "$url" >/dev/null 2>&1; do
+    retries=$((retries - 1))
+    [[ $retries -gt 0 ]] || die "$label não ficou saudável: $url"
     sleep 2
   done
 }
 
-require_cloudflare_env() {
-  local missing=0 key
-  for key in TUNNARA_BASE_DOMAIN TUNNARA_ACME_EMAIL CLOUDFLARE_API_TOKEN; do
-    if [[ -z "$(get_env "$key")" ]]; then
-      echo "Variável obrigatória ausente no .env: $key" >&2
-      missing=1
-    fi
-  done
-  [[ $missing -eq 0 ]] || exit 1
-}
-
-admin_token() { get_env TUNNARA_BOOTSTRAP_ADMIN_TOKEN; }
-control_port() { local p; p="$(get_env CONTROL_PORT)"; printf '%s' "${p:-7100}"; }
+wait_control() { wait_url "http://127.0.0.1:$(control_port)/healthz" 'Control API'; }
 
 api() {
   local method="$1" path="$2" body="${3:-}"
-  local args=(-fsS -X "$method" "http://127.0.0.1:$(control_port)$path" -H "Authorization: Bearer $(admin_token)" -H 'Accept: application/json')
+  local -a args=(-fsS -X "$method" "http://127.0.0.1:$(control_port)$path" -H "Authorization: Bearer $(admin_token)" -H 'Accept: application/json')
   if [[ -n "$body" ]]; then args+=(-H 'Content-Type: application/json' -d "$body"); fi
   curl "${args[@]}"
 }
 
 json_pretty() { if command -v jq >/dev/null 2>&1; then jq .; else cat; fi; }
 
+is_placeholder() {
+  local value="${1:-}"
+  [[ -z "$value" || "$value" == change-me || "$value" == *example.com* || "$value" == 203.0.113.* ]]
+}
+
+require_cloudflare_env() {
+  local key value missing=0
+  for key in TUNNARA_BASE_DOMAIN CLOUDFLARE_ZONE_NAME TUNNARA_ACME_EMAIL CLOUDFLARE_API_TOKEN TUNNARA_CLOUDFLARE_EDGE_ADDRESS; do
+    value="$(get_env "$key")"
+    if is_placeholder "$value"; then
+      echo "Configure $key no arquivo $ENV_FILE." >&2
+      missing=1
+    fi
+  done
+  [[ $missing -eq 0 ]] || exit 1
+}
+
+check_port_available() {
+  local port="$1" protocol="$2" flag
+  [[ "$protocol" == udp ]] && flag=u || flag=t
+  if command -v ss >/dev/null 2>&1 && ss -H -l"${flag}"n 2>/dev/null | awk '{print $5}' | grep -Eq "[:.]${port}$"; then
+    warn "A porta $port/$protocol já está em uso no host."
+    return 1
+  fi
+  return 0
+}
+
+doctor() {
+  [[ -f "$ENV_FILE" ]] || init
+  require_docker
+
+  local failed=0 mode storage
+  mode="$(deploy_mode)"
+  storage="$(get_env TUNNARA_STORAGE_DRIVER)"
+  [[ "$storage" == sqlite || "$storage" == memory ]] || { warn "TUNNARA_STORAGE_DRIVER deve ser sqlite ou memory no runtime embarcado."; failed=1; }
+  [[ "$(admin_token)" == tnr_admin_* ]] || { warn 'Token administrativo inválido.'; failed=1; }
+  [[ -n "$(get_env TUNNARA_MASTER_KEY_BASE64)" && "$(get_env TUNNARA_MASTER_KEY_BASE64)" != change-me ]] || { warn 'Chave mestra ausente.'; failed=1; }
+
+  info "Modo de deploy: $mode"
+  info "Storage embarcado: $storage"
+  info "Versão Docker: $(docker --version)"
+  info "Versão Compose: $(docker compose version --short)"
+
+  compose_base config --quiet || { warn 'A composição básica é inválida.'; failed=1; }
+
+  for item in "$(control_port):tcp" "$(console_port):tcp" "$(edge_port):tcp" "$(get_env RELAY_PORT):tcp"; do
+    local port="${item%%:*}" proto="${item#*:}"
+    [[ -n "$port" ]] && check_port_available "$port" "$proto" || true
+  done
+
+  [[ $failed -eq 0 ]] || die 'Diagnóstico encontrou erros bloqueantes.'
+  info 'Diagnóstico concluído sem erros bloqueantes.'
+}
+
+production_preflight() {
+  doctor
+  require_cloudflare_env
+  compose_full config --quiet
+  info "Preflight de produção concluído. Libere 80/tcp, 443/tcp, 443/udp, $(get_env TUNNARA_QUIC_PORT)/udp e a faixa pública TCP/UDP."
+}
+
 cloudflare_configure() {
   require_cloudflare_env
-  local zone="$(get_env CLOUDFLARE_ZONE_ID)" zone_name base email token
-  zone_name="$(get_env CLOUDFLARE_ZONE_NAME)"; base="$(get_env TUNNARA_BASE_DOMAIN)"; email="$(get_env TUNNARA_ACME_EMAIL)"; token="$(get_env CLOUDFLARE_API_TOKEN)"
+  local zone zone_name base email token
+  zone="$(get_env CLOUDFLARE_ZONE_ID)"
+  zone_name="$(get_env CLOUDFLARE_ZONE_NAME)"
+  base="$(get_env TUNNARA_BASE_DOMAIN)"
+  email="$(get_env TUNNARA_ACME_EMAIL)"
+  token="$(get_env CLOUDFLARE_API_TOKEN)"
   api PUT /api/v1/integrations/cloudflare "{\"apiToken\":\"$token\",\"zoneId\":\"$zone\",\"zoneName\":\"${zone_name:-$base}\",\"managedDomain\":\"$base\",\"acmeEmail\":\"$email\",\"proxied\":false}" | json_pretty
+}
+
+show_urls() {
+  local base scheme
+  base="$(get_env TUNNARA_BASE_DOMAIN)"
+  scheme="$(get_env TUNNARA_PUBLIC_SCHEME)"
+  cat <<EOF
+Console local:  http://127.0.0.1:$(console_port)
+Control local:  http://127.0.0.1:$(control_port)
+Edge local:     http://127.0.0.1:$(edge_port)
+Console público: ${scheme:-http}://console.${base:-tunnara.local}
+Control público: ${scheme:-http}://control.${base:-tunnara.local}
+Domínio de túneis: ${base:-tunnara.local}
+EOF
+}
+
+health() {
+  local failed=0
+  curl -fsS "http://127.0.0.1:$(control_port)/healthz" | json_pretty || failed=1
+  curl -fsS "http://127.0.0.1:$(console_port)/healthz" >/dev/null || failed=1
+  [[ $failed -eq 0 ]] || die 'Um ou mais serviços não estão saudáveis.'
+  info 'Control API e Console estão saudáveis.'
+}
+
+quickstart() {
+  init
+  doctor
+  start_stack base
+  wait_control
+  health
+  show_urls
+  info 'Use ./tunnara.sh provision "Nome do agente" para gerar um token de instalação.'
+}
+
+update_stack() {
+  local stack="${1:-base}"
+  if [[ "$(get_env TUNNARA_STORAGE_DRIVER)" == sqlite ]]; then
+    "$0" backup "$SCRIPT_DIR/backups/pre-update-$(date +%Y%m%d-%H%M%S).sqlite"
+  fi
+  if [[ "$(deploy_mode)" == image ]]; then
+    compose_run "$stack" pull
+    compose_run "$stack" up -d --remove-orphans
+  else
+    compose_run "$stack" up -d --build --remove-orphans
+  fi
+  wait_control
+  health
 }
 
 case "${1:-help}" in
   init) init ;;
-  up) compose_base up -d --build ;;
-  up-cloudflare)
-    require_cloudflare_env
-    compose_cloudflare up -d --build
-    echo "Após o health check, execute: ./tunnara.sh cloudflare-configure && ./tunnara.sh cloudflare-bootstrap"
+  quickstart) quickstart ;;
+  quickstart-build)
+    init
+    set_env TUNNARA_DEPLOY_MODE build
+    quickstart
     ;;
+  doctor) doctor ;;
+  config) init; compose_base config ;;
+  config-production) init; compose_full config ;;
+  version) get_env TUNNARA_VERSION ;;
+  urls) show_urls ;;
+  health) health ;;
+  pull) compose_base pull ;;
+  update) update_stack base ;;
+  update-production) update_stack full ;;
+  up) start_stack base ;;
+  up-build) init; set_env TUNNARA_DEPLOY_MODE build; start_stack base ;;
+  down) compose_base down ;;
+  restart) compose_base restart ;;
+  status) compose_base ps ;;
+  logs) shift; compose_base logs -f --tail=200 "$@" ;;
+  destroy) compose_base down --volumes --remove-orphans ;;
+
   preflight) production_preflight ;;
   up-production)
     production_preflight
-    compose_full up -d --build
+    start_stack full
     wait_control
     cloudflare_configure
     api POST /api/v1/integrations/cloudflare/test '{}' | json_pretty
     api POST /api/v1/integrations/cloudflare/bootstrap-dns '{}' | json_pretty
-    echo "Tunnara produção iniciada com Cloudflare, Let's Encrypt, HTTP/3 e QUIC."
+    health
+    info "Produção iniciada com Cloudflare, Let's Encrypt, HTTP/3 e QUIC."
+    show_urls
     ;;
   down-production) compose_full down ;;
   status-production) compose_full ps ;;
   logs-production) shift; compose_full logs -f --tail=200 "$@" ;;
   destroy-production) compose_full down --volumes --remove-orphans ;;
+
+  up-cloudflare)
+    require_cloudflare_env
+    start_stack cloudflare
+    info 'Depois do health check, execute cloudflare-configure e cloudflare-bootstrap.'
+    ;;
   up-cloudflare-tunnel)
     require_cloudflare_env
-    [[ -n "$(get_env CLOUDFLARED_TUNNEL_TOKEN)" ]] || { echo "CLOUDFLARED_TUNNEL_TOKEN ausente." >&2; exit 1; }
-    compose_cloudflare --profile cloudflare-tunnel up -d --build
+    [[ -n "$(get_env CLOUDFLARED_TUNNEL_TOKEN)" ]] || die 'CLOUDFLARED_TUNNEL_TOKEN ausente.'
+    compose_cloudflare --profile cloudflare-tunnel up -d
     ;;
-  down) compose_base down ;;
-  up-ha) require_cloudflare_env; [[ -n "$(get_env TUNNARA_PUBLIC_HOST)" ]] || { echo "TUNNARA_PUBLIC_HOST ausente." >&2; exit 1; }; compose_ha up -d --build ;;
+  down-cloudflare) compose_cloudflare down ;;
+  status-cloudflare) compose_cloudflare ps ;;
+  logs-cloudflare) shift; compose_cloudflare logs -f --tail=200 "$@" ;;
+
+  up-ha)
+    require_cloudflare_env
+    [[ -n "$(get_env TUNNARA_PUBLIC_HOST)" ]] || die 'TUNNARA_PUBLIC_HOST ausente.'
+    start_stack ha
+    ;;
   down-ha) compose_ha down ;;
   restart-ha) compose_ha restart ;;
   status-ha) compose_ha ps ;;
   logs-ha) shift; compose_ha logs -f --tail=200 "$@" ;;
   destroy-ha) compose_ha down --volumes --remove-orphans ;;
-  down-cloudflare) compose_cloudflare down ;;
-  restart) compose_base restart ;;
-  restart-cloudflare) compose_cloudflare restart ;;
-  destroy) compose_base down --volumes --remove-orphans ;;
-  destroy-cloudflare) compose_cloudflare down --volumes --remove-orphans ;;
-  status) compose_base ps ;;
-  status-cloudflare) compose_cloudflare ps ;;
-  logs) shift; compose_base logs -f --tail=200 "$@" ;;
-  logs-cloudflare) shift; compose_cloudflare logs -f --tail=200 "$@" ;;
+
   token) admin_token ;;
   provision)
     shift || true
@@ -197,63 +373,61 @@ case "${1:-help}" in
   cloudflare-test) api POST /api/v1/integrations/cloudflare/test '{}' | json_pretty ;;
   cloudflare-bootstrap) api POST /api/v1/integrations/cloudflare/bootstrap-dns '{}' | json_pretty ;;
   cloudflare-status) api GET /api/v1/integrations | json_pretty ;;
+
   backup)
     destination="${2:-$SCRIPT_DIR/backups/tunnara-$(date +%Y%m%d-%H%M%S).sqlite}"
-    container_file="/var/lib/tunnara/tunnara-backup-export.sqlite"
+    [[ "$(get_env TUNNARA_STORAGE_DRIVER)" == sqlite ]] || die 'Backup está disponível somente com TUNNARA_STORAGE_DRIVER=sqlite.'
+    container_file='/var/lib/tunnara/tunnara-backup-export.sqlite'
     mkdir -p "$(dirname "$destination")"
     compose_base exec -T tunnara-server node /opt/tunnara/runtime/node/bin/tunnara-server.mjs backup --data-dir /var/lib/tunnara --output "$container_file" >/dev/null
     compose_base cp "tunnara-server:$container_file" "$destination"
     compose_base exec -T tunnara-server rm -f "$container_file"
     chmod 600 "$destination" 2>/dev/null || true
-    echo "Backup SQLite consistente criado: $destination"
+    info "Backup SQLite consistente criado: $destination"
     ;;
   restore)
     source_file="${2:-}"
-    [[ -f "$source_file" ]] || { echo "Uso: ./tunnara.sh restore ARQUIVO.sqlite" >&2; exit 1; }
+    [[ -f "$source_file" ]] || die 'Uso: ./tunnara.sh restore ARQUIVO.sqlite'
+    [[ "$(get_env TUNNARA_STORAGE_DRIVER)" == sqlite ]] || die 'Restore está disponível somente com TUNNARA_STORAGE_DRIVER=sqlite.'
     source_file="$(cd "$(dirname "$source_file")" && pwd)/$(basename "$source_file")"
     compose_base stop tunnara-server
     compose_base run --rm --no-deps -v "$source_file:/restore.sqlite:ro" tunnara-server restore --data-dir /var/lib/tunnara --input /restore.sqlite --force
     compose_base up -d tunnara-server
-    echo "Backup restaurado: $source_file"
+    info "Backup restaurado: $source_file"
     ;;
-  *)
+
+  help|-h|--help|*)
     cat <<'USAGE'
-Uso: ./tunnara.sh <comando>
+Tunnara Docker
 
-Stack básica:
-  init                     cria .env, token administrativo e chave mestra
-  up|down|restart          gerencia a stack sem TLS externo
-  status|logs [serviço]    estado e logs
-  destroy                  remove containers e volumes
+Primeiro uso:
+  ./tunnara.sh quickstart          usa imagens publicadas no GHCR
+  ./tunnara.sh quickstart-build    constrói as imagens pelo código-fonte
 
-Produção completa:
-  preflight                valida ambiente, domínio, token e Docker
-  up-production            sobe Cloudflare + Let's Encrypt + HTTP/3 + QUIC
-  down-production          encerra a stack completa
-  status-production        mostra a stack completa
-  logs-production          acompanha os logs
-  destroy-production       remove containers e volumes
+Operação básica:
+  init | doctor | config | version | urls | health
+  up | up-build | down | restart | status | logs
+  pull | update | destroy
 
-Cloudflare + Let's Encrypt:
-  up-cloudflare            inicia Tunnara + Caddy DNS-01/HTTP3
-  up-cloudflare-tunnel     inclui Cloudflare Tunnel usando QUIC
-  up-ha                    sobe 2 Controls, 2 Relays, 2 Edges e Caddy/HTTP3
-  down-ha|restart-ha       gerencia a stack HA
-  status-ha|logs-ha        estado e logs da stack HA
-  destroy-ha               remove a stack HA e seus volumes
-  down-cloudflare          encerra a stack Cloudflare
-  status-cloudflare        mostra os containers da stack
-  logs-cloudflare          acompanha os logs da stack
-  cloudflare-configure     grava token/zone criptografados no Control API
-  cloudflare-test          valida token e zona
-  cloudflare-bootstrap     cria registros base, wildcard, control, console e relay
-  cloudflare-status        lista integrações configuradas
+Produção Cloudflare/ACME/QUIC:
+  preflight | config-production | up-production
+  down-production | status-production | logs-production
+  update-production | destroy-production
 
-Operação:
-  token                    exibe o token bootstrap do .env
-  provision [nome]         gera token de uso único para Agent
-  backup [arquivo]         cria backup SQLite consistente
-  restore arquivo          restaura backup com reinício controlado
+Alta disponibilidade:
+  up-ha | down-ha | restart-ha | status-ha | logs-ha | destroy-ha
+
+Administração:
+  token
+  provision [nome]
+  backup [arquivo]
+  restore arquivo
+  cloudflare-configure | cloudflare-test | cloudflare-bootstrap | cloudflare-status
+
+Arquivo de configuração:
+  deploy/docker/.env
+  TUNNARA_DEPLOY_MODE=image  -> baixa imagens da release/GHCR
+  TUNNARA_DEPLOY_MODE=build  -> compila localmente pelo código-fonte
 USAGE
     ;;
 esac
