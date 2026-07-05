@@ -77,7 +77,7 @@ jobs:
       TUNNARA_ANDROID_KEY_PASSWORD: ${{ secrets.TUNNARA_ANDROID_KEY_PASSWORD }}
       WANT_PUBLISH: ${{ (github.event_name == 'workflow_dispatch' && inputs.publish_google_play) || vars.TUNNARA_ENABLE_GOOGLE_PLAY_PUBLISH == 'true' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
@@ -136,7 +136,7 @@ jobs:
       TUNNARA_IOS_EXPORT_METHOD: ${{ github.event_name == 'workflow_dispatch' && inputs.ios_export_method || 'development' }}
       WANT_PUBLISH: ${{ (github.event_name == 'workflow_dispatch' && inputs.publish_testflight) || vars.TUNNARA_ENABLE_APPSTORE_PUBLISH == 'true' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Install XcodeGen
         run: brew install xcodegen
       - name: Prepare optional Apple signing
