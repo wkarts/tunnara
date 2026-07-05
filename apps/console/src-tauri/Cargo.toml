@@ -45,5 +45,5 @@ tower-http = { version = "0.6", features = ["cors"] }
 url = "2"
 futures-util = "0.3"
 
-mysql = { version = "25", optional = true }
+mysql = { version = "28", optional = true }
 postgres = { version = "0.19", optional = true }
