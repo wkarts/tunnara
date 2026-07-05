@@ -11,15 +11,6 @@ on:
       - 'Cargo.lock'
       - 'apps/control-api/**'
       - '.github/workflows/native-preview.yml'
-  push:
-    branches: [main, next]
-    paths:
-      - 'crates/**'
-      - 'services/**'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - 'apps/control-api/**'
-      - '.github/workflows/native-preview.yml'
 
 permissions:
   contents: read

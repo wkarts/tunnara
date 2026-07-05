@@ -39,6 +39,14 @@ jobs:
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v6
+      - name: Resolve release tag
+        id: release
+        shell: bash
+        env:
+          REQUESTED_TAG: ${{ inputs.release_tag }}
+        run: |
+          tag="${REQUESTED_TAG:-$GITHUB_REF_NAME}"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
@@ -75,14 +83,14 @@ jobs:
         shell: bash
         run: |
           mkdir -p release-assets
-          tar -C dist -czf "release-assets/Tunnara-Runtime-${{ matrix.suffix }}-${GITHUB_REF_NAME:-manual}.tar.gz" .
+          tar -C dist -czf "release-assets/Tunnara-Runtime-${{ matrix.suffix }}-${{ steps.release.outputs.tag }}.tar.gz" .
           (cd release-assets && shasum -a 256 * > "SHA256SUMS-${{ matrix.suffix }}.txt")
       - name: Package Windows
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path release-assets | Out-Null
-          $name = if ($env:GITHUB_REF_NAME) { $env:GITHUB_REF_NAME } else { 'manual' }
+          $name = '${{ steps.release.outputs.tag }}'
           Compress-Archive -Path dist/* -DestinationPath "release-assets/Tunnara-Runtime-${{ matrix.suffix }}-$name.zip" -Force
           Get-FileHash release-assets/* -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $([IO.Path]::GetFileName($_.Path))" } | Set-Content "release-assets/SHA256SUMS-${{ matrix.suffix }}.txt"
       - name: Attach directly to GitHub Release

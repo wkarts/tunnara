@@ -96,3 +96,40 @@ docs/operations/CI_STORAGE_FIX.md
 docs/operations/GITHUB_ACTIONS.md
 docs/operations/STORAGE_PROVIDERS.md
 ```
+
+# Aplicação da correção pós-merge
+
+A correção deve ser enviada por um novo Pull Request criado a partir da `main` atual.
+
+## Branch
+
+```text
+fix/v1.0.1-post-merge-release-pipeline
+```
+
+## Aplicar o patch
+
+```bash
+git checkout main
+git pull --rebase origin main
+git switch -c fix/v1.0.1-post-merge-release-pipeline
+
+git apply --check Tunnara-Platform-v1.0.1-Post-Merge-Release-Fix.patch
+git apply --index Tunnara-Platform-v1.0.1-Post-Merge-Release-Fix.patch
+
+git commit -m "fix: generate release assets after merge"
+git push -u origin fix/v1.0.1-post-merge-release-pipeline
+```
+
+## Resultado esperado após o merge
+
+O workflow `Release after merge` deve:
+
+1. criar `v1.0.1` usando a versão do arquivo `VERSION`;
+2. gerar e anexar os pacotes centrais;
+3. disparar Runtime, SDK, Desktop, Mobile e Docker por `workflow_dispatch`;
+4. não utilizar Actions Artifact Storage;
+5. não executar `macos-13`;
+6. não depender de um evento de tag criado pelo próprio `GITHUB_TOKEN`.
+
+Caso a release `v1.0.1` já exista parcialmente, execute manualmente o workflow com `force_rebuild=true`.

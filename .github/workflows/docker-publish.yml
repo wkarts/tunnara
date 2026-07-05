@@ -2,6 +2,11 @@ name: Publish container images
 
 on:
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Tag SemVer usada nas imagens GHCR, por exemplo v1.0.1'
+        required: false
+        type: string
   push:
     tags: ['v*.*.*']
 
@@ -12,7 +17,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: containers-${{ github.ref }}
+  group: containers-${{ github.ref }}-${{ inputs.release_tag || 'tag' }}
   cancel-in-progress: false
 
 jobs:
@@ -50,14 +55,25 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Resolve container version
+        id: version
+        shell: bash
+        env:
+          REQUESTED_TAG: ${{ inputs.release_tag }}
+        run: |
+          tag="${REQUESTED_TAG:-$GITHUB_REF_NAME}"
+          version="${tag#v}"
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?$ ]] || { echo "Tag SemVer inválida: $tag" >&2; exit 1; }
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "minor=${version%.*}" >> "$GITHUB_OUTPUT"
       - uses: docker/metadata-action@v5
         id: meta
         with:
           images: ghcr.io/${{ env.GHCR_OWNER }}/tunnara-${{ matrix.image }}
           tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest,enable=${{ !contains(github.ref_name, '-') }}
+            type=raw,value=${{ steps.version.outputs.version }}
+            type=raw,value=${{ steps.version.outputs.minor }}
+            type=raw,value=latest,enable=${{ !contains(steps.version.outputs.version, '-') }}
       - uses: docker/build-push-action@v6
         id: build
         with:

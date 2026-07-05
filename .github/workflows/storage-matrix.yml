@@ -4,12 +4,6 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '41 3 * * 0'
-  push:
-    branches: [main, next]
-    paths:
-      - 'apps/control-api/**'
-      - 'deploy/docker/storage/**'
-      - '.github/workflows/storage-matrix.yml'
 
 permissions:
   contents: read
@@ -20,7 +14,7 @@ concurrency:
 
 env:
   APP_ENV: testing
-  APP_KEY: base64:VGhpcy1pcy1hLXRlc3Qta2V5LXdpdGgtMzItYnl0ZXMhIQ==
+  APP_KEY: base64:VHVubmFyYUNJS2V5LTAxMjM0NTY3ODktQUJDREVGISE=
   APP_DEBUG: 'false'
   CACHE_STORE: array
   SESSION_DRIVER: array
