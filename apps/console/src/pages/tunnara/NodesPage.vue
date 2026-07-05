@@ -1,0 +1,8 @@
+<script setup lang="ts">
+import { onMounted, ref } from "vue"; import BasePage from "../../components/base/BasePage.vue"; import BaseSectionCard from "../../components/base/BaseSectionCard.vue"; import BaseDataGrid from "../../components/base/BaseDataGrid.vue"; import ControlAccessPanel from "../../components/ControlAccessPanel.vue"; import { listNodes } from "../../services/tunnaraApi";
+const columns=[{key:"name",label:"Nó"},{key:"node_type",label:"Função"},{key:"region",label:"Região"},{key:"public_url",label:"URL pública"},{key:"transport",label:"Transporte"},{key:"load",label:"Carga"},{key:"status",label:"Saúde"},{key:"last_seen_at",label:"Último heartbeat"}];
+const rows=ref<Record<string,unknown>[]>([]);const error=ref("");const loading=ref(false);
+async function load(){loading.value=true;error.value="";try{rows.value=(await listNodes()).map(n=>({...n,load:`${n.active_connections}/${n.capacity}`}));}catch(e){error.value=e instanceof Error?e.message:"Falha ao listar nós.";}finally{loading.value=false;}}
+onMounted(load);
+</script>
+<template><BasePage title="Nós Edge / Relay" subtitle="Registro, heartbeat, região, capacidade e saúde dos nós distribuídos." eyebrow="Tunnara Platform 1.0" icon="cloud"><template #actions><button class="primary" :disabled="loading" @click="load">Atualizar</button></template><ControlAccessPanel @saved="load"/><div v-if="error" class="alert error">{{error}}</div><BaseSectionCard title="Infraestrutura registrada" subtitle="Nós usam TUNNARA_CLUSTER_TOKEN para registro e heartbeat no Control API."><BaseDataGrid :rows="rows" :columns="columns" empty-text="Nenhum nó registrado."/></BaseSectionCard></BasePage></template>

@@ -1,0 +1,17 @@
+[package]
+name = "tunnara-quic"
+version.workspace = true
+edition.workspace = true
+license = "Apache-2.0"
+
+[dependencies]
+anyhow.workspace = true
+bytes = "1"
+quinn = "0.11"
+rustls = "0.23"
+rustls-pki-types = "1"
+tokio.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+rcgen = "0.13"

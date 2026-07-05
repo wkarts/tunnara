@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Vulnerabilidade de segurança
+    url: ../../security/advisories/new
+    about: Use um Security Advisory privado; não abra issue pública.

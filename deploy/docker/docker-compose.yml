@@ -1,0 +1,66 @@
+name: ${COMPOSE_PROJECT_NAME:-tunnara}
+
+services:
+  tunnara-server:
+    build:
+      context: ../..
+      dockerfile: runtime/node/Dockerfile.server
+    image: ${TUNNARA_SERVER_IMAGE:-ghcr.io/wwsoftwares/tunnara-server:1.0.1}
+    restart: unless-stopped
+    environment:
+      NODE_NO_WARNINGS: "1"
+      TUNNARA_DATA_DIR: /var/lib/tunnara
+      TUNNARA_CONTROL_HOST: 0.0.0.0
+      TUNNARA_CONTROL_PORT: 7100
+      TUNNARA_EDGE_HOST: 0.0.0.0
+      TUNNARA_EDGE_PORT: 7200
+      TUNNARA_RELAY_HOST: 0.0.0.0
+      TUNNARA_RELAY_PORT: 7300
+      TUNNARA_RELAY_EDGE_HOST: 127.0.0.1
+      TUNNARA_RELAY_EDGE_PORT: 7301
+      TUNNARA_BASE_DOMAIN: ${TUNNARA_BASE_DOMAIN:-tunnara.local}
+      TUNNARA_PUBLIC_SCHEME: ${TUNNARA_PUBLIC_SCHEME:-http}
+      TUNNARA_PUBLIC_CONTROL_URL: ${TUNNARA_PUBLIC_CONTROL_URL:-http://127.0.0.1:7100}
+      TUNNARA_PUBLIC_RELAY_URL: ${TUNNARA_PUBLIC_RELAY_URL:-tcp://127.0.0.1:7300}
+      TUNNARA_BOOTSTRAP_ORGANIZATION: ${TUNNARA_BOOTSTRAP_ORGANIZATION:-Tunnara Community}
+      TUNNARA_BOOTSTRAP_ADMIN_TOKEN: ${TUNNARA_BOOTSTRAP_ADMIN_TOKEN:?Execute ./tunnara.sh init}
+      TUNNARA_CORS_ORIGIN: ${TUNNARA_CORS_ORIGIN:-http://localhost:7400}
+      TUNNARA_LOG_FORMAT: ${TUNNARA_LOG_FORMAT:-json}
+      TUNNARA_MASTER_KEY_BASE64: ${TUNNARA_MASTER_KEY_BASE64:-}
+      TUNNARA_PUBLIC_PORT_MIN: ${PUBLIC_PORT_MIN:-20000}
+      TUNNARA_PUBLIC_PORT_MAX: ${PUBLIC_PORT_MAX:-20100}
+    volumes:
+      - tunnara_data:/var/lib/tunnara
+    ports:
+      - "${CONTROL_PORT:-7100}:7100/tcp"
+      - "${EDGE_BIND:-0.0.0.0}:${EDGE_PORT:-80}:7200/tcp"
+      - "${RELAY_PORT:-7300}:7300/tcp"
+      - "${PUBLIC_PORT_MIN:-20000}-${PUBLIC_PORT_MAX:-20100}:${PUBLIC_PORT_MIN:-20000}-${PUBLIC_PORT_MAX:-20100}/tcp"
+      - "${PUBLIC_PORT_MIN:-20000}-${PUBLIC_PORT_MAX:-20100}:${PUBLIC_PORT_MIN:-20000}-${PUBLIC_PORT_MAX:-20100}/udp"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:7100/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [tunnara]
+
+  console:
+    build:
+      context: ../../apps/console
+      args:
+        VITE_TUNNARA_API_URL: /control
+    image: ${TUNNARA_CONSOLE_IMAGE:-ghcr.io/wwsoftwares/tunnara-console:1.0.1}
+    restart: unless-stopped
+    depends_on:
+      tunnara-server:
+        condition: service_healthy
+    ports:
+      - "${CONSOLE_PORT:-7400}:80/tcp"
+    networks: [tunnara]
+
+volumes:
+  tunnara_data:
+
+networks:
+  tunnara:
+    driver: bridge

@@ -1,0 +1,39 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      semantic-release:
+        patterns: ['*semantic-release*']
+
+  - package-ecosystem: npm
+    directory: /apps/console
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: cargo
+    directory: /apps/console/src-tauri
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: composer
+    directory: /apps/control-api
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: gradle
+    directory: /sdk/mobile/android
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

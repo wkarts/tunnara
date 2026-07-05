@@ -1,0 +1,13 @@
+[package]
+name = "tunnara-agent-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+serde.workspace = true
+tokio.workspace = true
+uuid.workspace = true
+tunnara-protocol = { path = "../tunnara-protocol" }
+tunnara-types = { path = "../tunnara-types" }

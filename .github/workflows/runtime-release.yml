@@ -1,0 +1,85 @@
+name: Runtime executables
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            suffix: linux-x64
+            ext: ''
+          - os: windows-latest
+            suffix: windows-x64
+            ext: '.exe'
+          - os: macos-14
+            suffix: macos-arm64
+            ext: ''
+          - os: macos-13
+            suffix: macos-x64
+            ext: ''
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            apps/console/package-lock.json
+      - run: npm ci
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build QUIC bridge
+        run: cargo build --release -p tunnara-quic-bridge
+      - run: node scripts/release/build-sea.mjs agent dist/tunnara-agent-${{ matrix.suffix }}${{ matrix.ext }}
+      - run: node scripts/release/build-sea.mjs server dist/tunnara-server-${{ matrix.suffix }}${{ matrix.ext }}
+      - name: Copy QUIC bridge
+        shell: bash
+        run: |
+          ext='${{ matrix.ext }}'
+          cp "target/release/tunnara-quic-bridge${ext}" "dist/tunnara-quic-bridge-${{ matrix.suffix }}${ext}"
+      - name: Smoke test
+        shell: bash
+        run: |
+          ./dist/tunnara-agent-${{ matrix.suffix }}${{ matrix.ext }} --version
+          ./dist/tunnara-server-${{ matrix.suffix }}${{ matrix.ext }} version
+          ./dist/tunnara-quic-bridge-${{ matrix.suffix }}${{ matrix.ext }} --version
+      - name: E2E standalone Linux
+        if: runner.os == 'Linux'
+        shell: bash
+        env:
+          TUNNARA_E2E_AGENT_BIN: dist/tunnara-agent-${{ matrix.suffix }}${{ matrix.ext }}
+          TUNNARA_E2E_SERVER_BIN: dist/tunnara-server-${{ matrix.suffix }}${{ matrix.ext }}
+        run: npm run runtime:test
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tunnara-runtime-${{ matrix.suffix }}
+          path: dist/*
+          if-no-files-found: error
+
+  publish:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: tunnara-runtime-*
+          path: release-assets
+          merge-multiple: true
+      - name: Checksums
+        run: cd release-assets && sha256sum * > SHA256SUMS-runtime.txt
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: release-assets/*

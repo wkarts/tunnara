@@ -1,0 +1,14 @@
+{
+  "name": "tunnara-console-cloudpanel-runtime",
+  "version": "1.1.14",
+  "private": true,
+  "type": "module",
+  "description": "Launcher Node.js para executar o binário Linux headless do Tunnara Console no CloudPanel.",
+  "scripts": {
+    "start": "node server.mjs",
+    "health": "node ./scripts/health.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

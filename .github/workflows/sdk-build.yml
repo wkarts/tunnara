@@ -1,0 +1,67 @@
+name: SDK artifacts
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: ['sdk/**', '.github/workflows/sdk-build.yml']
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: write
+
+jobs:
+  c-sdk:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            suffix: linux-x64
+          - os: windows-latest
+            suffix: windows-x64
+          - os: macos-14
+            suffix: macos-arm64
+          - os: macos-13
+            suffix: macos-x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: lukka/get-cmake@latest
+      - name: Configure
+        run: cmake -S sdk/c -B sdk/c/build -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build sdk/c/build --config Release
+      - name: Smoke test Unix
+        if: runner.os != 'Windows'
+        run: ./sdk/c/build/version-example
+      - name: Smoke test Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./sdk/c/build/Release/version-example.exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tunnara-sdk-c-${{ matrix.suffix }}
+          path: |
+            sdk/c/include
+            sdk/c/README.md
+            sdk/c/build/**/*.dll
+            sdk/c/build/**/*.lib
+            sdk/c/build/**/*.so
+            sdk/c/build/**/*.dylib
+            sdk/c/build/**/*.a
+          if-no-files-found: error
+
+  publish:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: c-sdk
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: tunnara-sdk-c-*
+          path: sdk-assets
+      - run: find sdk-assets -type f -print0 | sort -z | xargs -0 sha256sum > sdk-assets/SHA256SUMS-sdk.txt
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: sdk-assets/**/*

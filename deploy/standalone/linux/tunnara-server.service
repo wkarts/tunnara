@@ -1,0 +1,23 @@
+[Unit]
+Description=Tunnara Platform Server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=tunnara
+Group=tunnara
+EnvironmentFile=-/etc/tunnara/server.env
+ExecStart=/usr/local/bin/tunnara-server serve-all --data-dir /var/lib/tunnara
+WorkingDirectory=/var/lib/tunnara
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/tunnara
+LimitNOFILE=1048576
+
+[Install]
+WantedBy=multi-user.target

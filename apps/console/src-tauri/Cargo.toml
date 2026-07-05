@@ -1,0 +1,49 @@
+[package]
+name = "tunnara_console"
+version = "1.0.1"
+description = "Console administrativo híbrido da plataforma Tunnara"
+authors = ["WWSoftware's Sistemas"]
+edition = "2021"
+license = "Apache-2.0"
+
+[lib]
+name = "tunnara_console_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[features]
+default = []
+mysql-db = ["dep:mysql"]
+postgres-db = ["dep:postgres"]
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "image-png"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+rusqlite = { version = "0.31", features = ["bundled"] }
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+dirs = "5"
+argon2 = "0.5"
+rand = "0.8"
+
+sha2 = "0.10"
+
+base64 = "0.22"
+
+generic-license-tauri = { path = "./generic-license-tauri" }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "blocking"] }
+hostname = "0.4"
+hmac = "0.12"
+sha1 = "0.10"
+data-encoding = "2"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "signal"] }
+axum = { version = "0.7", features = ["ws"] }
+tower-http = { version = "0.6", features = ["cors"] }
+url = "2"
+futures-util = "0.3"
+
+mysql = { version = "25", optional = true }
+postgres = { version = "0.19", optional = true }

@@ -1,0 +1,212 @@
+name: Mobile artifacts and optional store publication
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish_google_play:
+        description: 'Publicar o AAB assinado no Google Play'
+        required: false
+        default: false
+        type: boolean
+      publish_testflight:
+        description: 'Publicar o IPA assinado no TestFlight'
+        required: false
+        default: false
+        type: boolean
+      ios_export_method:
+        description: 'Método de exportação iOS'
+        required: false
+        default: 'development'
+        type: choice
+        options:
+          - development
+          - ad-hoc
+          - app-store
+          - app-store-connect
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: write
+
+jobs:
+  build-android:
+    name: Build Android artifacts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    env:
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.TUNNARA_ANDROID_KEYSTORE_BASE64 }}
+      TUNNARA_ANDROID_STORE_PASSWORD: ${{ secrets.TUNNARA_ANDROID_STORE_PASSWORD }}
+      TUNNARA_ANDROID_KEY_ALIAS: ${{ secrets.TUNNARA_ANDROID_KEY_ALIAS }}
+      TUNNARA_ANDROID_KEY_PASSWORD: ${{ secrets.TUNNARA_ANDROID_KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+      - name: Prepare optional Android signing
+        id: android-signing
+        shell: bash
+        run: |
+          ready=false
+          if [[ -n "$ANDROID_KEYSTORE_BASE64" \
+             && -n "$TUNNARA_ANDROID_STORE_PASSWORD" \
+             && -n "$TUNNARA_ANDROID_KEY_ALIAS" \
+             && -n "$TUNNARA_ANDROID_KEY_PASSWORD" ]]; then
+            echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/tunnara-release.jks"
+            echo "TUNNARA_ANDROID_KEYSTORE=$RUNNER_TEMP/tunnara-release.jks" >> "$GITHUB_ENV"
+            ready=true
+          fi
+          echo "ready=$ready" >> "$GITHUB_OUTPUT"
+          echo "Assinatura Android disponível: $ready"
+      - name: Build APK and AAB
+        run: sdk/mobile/android/scripts/build-artifacts.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tunnara-android-release
+          path: sdk/mobile/android/dist/*
+          if-no-files-found: error
+      - name: Attach Android files to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: sdk/mobile/android/dist/*
+          fail_on_unmatched_files: false
+
+  build-ios:
+    name: Build iOS artifacts
+    runs-on: macos-14
+    timeout-minutes: 75
+    env:
+      APPLE_CERTIFICATE_BASE64: ${{ secrets.TUNNARA_APPLE_CERTIFICATE_BASE64 }}
+      APPLE_APP_PROFILE_BASE64: ${{ secrets.TUNNARA_APPLE_APP_PROFILE_BASE64 }}
+      APPLE_PACKET_PROFILE_BASE64: ${{ secrets.TUNNARA_APPLE_PACKET_TUNNEL_PROFILE_BASE64 }}
+      TUNNARA_APPLE_CERTIFICATE_PASSWORD: ${{ secrets.TUNNARA_APPLE_CERTIFICATE_PASSWORD }}
+      TUNNARA_APPLE_TEAM_ID: ${{ secrets.TUNNARA_APPLE_TEAM_ID }}
+      TUNNARA_IOS_EXPORT_METHOD: ${{ github.event_name == 'workflow_dispatch' && inputs.ios_export_method || 'development' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Prepare optional Apple signing
+        id: apple-signing
+        shell: bash
+        run: |
+          ready=false
+          if [[ -n "$APPLE_CERTIFICATE_BASE64" \
+             && -n "$APPLE_APP_PROFILE_BASE64" \
+             && -n "$APPLE_PACKET_PROFILE_BASE64" \
+             && -n "$TUNNARA_APPLE_CERTIFICATE_PASSWORD" \
+             && -n "$TUNNARA_APPLE_TEAM_ID" ]]; then
+            echo "$APPLE_CERTIFICATE_BASE64" | base64 --decode > "$RUNNER_TEMP/tunnara-distribution.p12"
+            echo "$APPLE_APP_PROFILE_BASE64" | base64 --decode > "$RUNNER_TEMP/tunnara-app.mobileprovision"
+            echo "$APPLE_PACKET_PROFILE_BASE64" | base64 --decode > "$RUNNER_TEMP/tunnara-packet.mobileprovision"
+            {
+              echo "TUNNARA_APPLE_CERTIFICATE_P12=$RUNNER_TEMP/tunnara-distribution.p12"
+              echo "TUNNARA_APPLE_APP_PROFILE=$RUNNER_TEMP/tunnara-app.mobileprovision"
+              echo "TUNNARA_APPLE_PACKET_TUNNEL_PROFILE=$RUNNER_TEMP/tunnara-packet.mobileprovision"
+            } >> "$GITHUB_ENV"
+            ready=true
+          fi
+          echo "ready=$ready" >> "$GITHUB_OUTPUT"
+          echo "Assinatura Apple disponível: $ready"
+      - name: Build simulator app, unsigned IPA and optional signed IPA
+        run: sdk/mobile/ios/scripts/build-artifacts.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tunnara-ios-release
+          path: |
+            sdk/mobile/ios/dist/*.ipa
+            sdk/mobile/ios/dist/*.zip
+            sdk/mobile/ios/dist/*.json
+            sdk/mobile/ios/dist/SHA256SUMS.txt
+          if-no-files-found: error
+      - name: Attach iOS files to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            sdk/mobile/ios/dist/*.ipa
+            sdk/mobile/ios/dist/*.zip
+            sdk/mobile/ios/dist/*.json
+            sdk/mobile/ios/dist/SHA256SUMS.txt
+          fail_on_unmatched_files: false
+
+  publish-google-play:
+    name: Optional Google Play publication
+    needs: build-android
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    env:
+      WANT_PUBLISH: ${{ (github.event_name == 'workflow_dispatch' && inputs.publish_google_play) || vars.TUNNARA_ENABLE_GOOGLE_PLAY_PUBLISH == 'true' }}
+      GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.TUNNARA_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: tunnara-android-release
+          path: mobile-artifacts/android
+      - name: Check whether publication is enabled and possible
+        id: ready
+        shell: bash
+        run: |
+          aab="$(find mobile-artifacts/android -type f -name '*release-signed.aab' -print -quit)"
+          ready=false
+          if [[ "$WANT_PUBLISH" == "true" && -n "$GOOGLE_PLAY_SERVICE_ACCOUNT_JSON" && -n "$aab" ]]; then ready=true; fi
+          echo "ready=$ready" >> "$GITHUB_OUTPUT"
+          echo "aab=$aab" >> "$GITHUB_OUTPUT"
+          if [[ "$ready" != true ]]; then
+            echo "::notice::Google Play ignorado. O build Android continua disponível nos artefatos."
+          fi
+      - name: Publish to Google Play
+        if: steps.ready.outputs.ready == 'true'
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.TUNNARA_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: br.com.wwsoftwares.tunnara.mobile
+          releaseFiles: ${{ steps.ready.outputs.aab }}
+          tracks: ${{ vars.TUNNARA_GOOGLE_PLAY_TRACK || 'internal' }}
+          status: completed
+
+  publish-testflight:
+    name: Optional TestFlight publication
+    needs: build-ios
+    runs-on: macos-14
+    continue-on-error: true
+    env:
+      WANT_PUBLISH: ${{ (github.event_name == 'workflow_dispatch' && inputs.publish_testflight) || vars.TUNNARA_ENABLE_APPSTORE_PUBLISH == 'true' }}
+      APPSTORE_ISSUER_ID: ${{ secrets.TUNNARA_APPSTORE_ISSUER_ID }}
+      APPSTORE_API_KEY_ID: ${{ secrets.TUNNARA_APPSTORE_API_KEY_ID }}
+      APPSTORE_API_PRIVATE_KEY: ${{ secrets.TUNNARA_APPSTORE_API_PRIVATE_KEY }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: tunnara-ios-release
+          path: mobile-artifacts/ios
+      - name: Check whether publication is enabled and possible
+        id: ready
+        shell: bash
+        run: |
+          ipa="$(find mobile-artifacts/ios -type f -name '*signed.ipa' -print -quit)"
+          ready=false
+          if [[ "$WANT_PUBLISH" == "true" \
+             && -n "$APPSTORE_ISSUER_ID" \
+             && -n "$APPSTORE_API_KEY_ID" \
+             && -n "$APPSTORE_API_PRIVATE_KEY" \
+             && -n "$ipa" ]]; then ready=true; fi
+          echo "ready=$ready" >> "$GITHUB_OUTPUT"
+          echo "ipa=$ipa" >> "$GITHUB_OUTPUT"
+          if [[ "$ready" != true ]]; then
+            echo "::notice::TestFlight ignorado. O build iOS continua disponível nos artefatos."
+          fi
+      - name: Upload signed IPA to TestFlight
+        if: steps.ready.outputs.ready == 'true'
+        uses: apple-actions/upload-testflight-build@v4
+        with:
+          app-path: ${{ steps.ready.outputs.ipa }}
+          issuer-id: ${{ secrets.TUNNARA_APPSTORE_ISSUER_ID }}
+          api-key-id: ${{ secrets.TUNNARA_APPSTORE_API_KEY_ID }}
+          api-private-key: ${{ secrets.TUNNARA_APPSTORE_API_PRIVATE_KEY }}

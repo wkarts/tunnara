@@ -1,0 +1,38 @@
+name: Relatar falha
+about: Informe um problema reproduzível no Tunnara
+labels: [bug, triage]
+body:
+  - type: markdown
+    attributes:
+      value: Não inclua tokens, chaves, certificados, domínios privados ou dados de clientes.
+  - type: input
+    id: version
+    attributes:
+      label: Versão
+      placeholder: 1.0.0
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Componente
+      options: [Server, Agent, Edge, Relay, Control API, Console, Docker, Instalador, GitHub Actions, Outro]
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Passos para reproduzir
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Resultado esperado
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs sanitizados
+      render: shell

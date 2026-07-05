@@ -1,0 +1,67 @@
+name: Native architecture preview
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'crates/**'
+      - 'services/**'
+      - 'Cargo.toml'
+      - 'apps/control-api/**'
+      - '.github/workflows/native-preview.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  rust-preview:
+    name: Workspace Rust experimental
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+      - run: cargo test --workspace --all-features
+
+  laravel-preview:
+    name: Control API Laravel experimental
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: tunnara_test
+          POSTGRES_USER: tunnara
+          POSTGRES_PASSWORD: tunnara
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_pgsql, pdo_sqlite, intl
+          coverage: none
+          tools: composer:v2
+      - run: composer validate --strict
+        working-directory: apps/control-api
+      - run: composer install --no-interaction --prefer-dist
+        working-directory: apps/control-api
+      - run: cp .env.example .env && php artisan key:generate
+        working-directory: apps/control-api
+      - run: php artisan migrate:fresh --force && php artisan test
+        working-directory: apps/control-api
+        env:
+          DB_CONNECTION: pgsql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_DATABASE: tunnara_test
+          DB_USERNAME: tunnara
+          DB_PASSWORD: tunnara

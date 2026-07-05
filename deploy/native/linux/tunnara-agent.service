@@ -1,0 +1,23 @@
+[Unit]
+Description=Tunnara Agent 0.2
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=tunnara-agent
+Group=tunnara-agent
+Environment=TUNNARA_CONFIG_DIR=/var/lib/tunnara-agent
+ExecStart=/usr/bin/node /opt/tunnara/runtime/node/bin/tunnara.mjs serve --config-dir /var/lib/tunnara-agent
+WorkingDirectory=/opt/tunnara
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/tunnara-agent
+LimitNOFILE=1048576
+
+[Install]
+WantedBy=multi-user.target
