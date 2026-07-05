@@ -1,9 +1,4 @@
-use axum::{
-    http::StatusCode,
-    response::IntoResponse,
-    routing::get,
-    Json, Router,
-};
+use axum::{http::StatusCode, response::IntoResponse, routing::get, Json, Router};
 use tower_http::trace::TraceLayer;
 
 #[tokio::main]

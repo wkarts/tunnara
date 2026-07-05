@@ -1,8 +1,8 @@
 use std::{collections::HashMap, sync::Arc};
 
 use tokio::sync::RwLock;
-use uuid::Uuid;
 use tunnara_types::TunnelDefinition;
+use uuid::Uuid;
 
 #[derive(Clone, Default)]
 pub struct AgentRuntime {

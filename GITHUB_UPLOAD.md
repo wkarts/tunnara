@@ -54,3 +54,45 @@ Não configure as variáveis de publicação até desejar enviar builds às loja
 ## Cloudflare e produção
 
 Configure tokens e domínios no `.env` do servidor ou em secret manager. Nunca armazene segredos de Cloudflare, certificados ou perfis mobile no repositório.
+
+# Aplicação da correção no Pull Request inicial
+
+Branch já existente:
+
+```text
+release/v1.0.1-initial-platform
+```
+
+## Opção 1 — substituir pelo pacote GitHub Ready
+
+Extraia `Tunnara-Platform-v1.0.1-CI-Storage-Fix-GitHub-Ready.zip` sobre o clone local, preservando a pasta `.git`, e execute:
+
+```bash
+git add --all
+git commit -m "fix: stabilize CI and restore configurable storage providers"
+git push origin release/v1.0.1-initial-platform
+```
+
+## Opção 2 — aplicar o patch
+
+Na raiz do clone:
+
+```bash
+git apply --index Tunnara-Platform-v1.0.1-CI-Storage-Fix.patch
+git commit -m "fix: stabilize CI and restore configurable storage providers"
+git push origin release/v1.0.1-initial-platform
+```
+
+## Depois do push
+
+- cancele a execução antiga que ficou aguardando `macos-13`;
+- execute uma vez o workflow `Clean Actions artifact storage` para liberar a cota antiga;
+- o novo PR deve iniciar apenas os checks rápidos aplicáveis às mudanças.
+
+Consulte:
+
+```text
+docs/operations/CI_STORAGE_FIX.md
+docs/operations/GITHUB_ACTIONS.md
+docs/operations/STORAGE_PROVIDERS.md
+```

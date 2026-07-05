@@ -56,3 +56,31 @@ A publicação nas lojas é opcional e não faz parte do job de compilação.
 - `libtunnara.so` e `libtunnara.a`.
 
 Os artefatos Android/iOS são gerados nos runners oficiais, pois Android SDK e Xcode não estão disponíveis no ambiente Linux utilizado para montar este pacote.
+
+## Correção do primeiro PR
+
+Esta revisão inclui:
+
+- CI rápido sem artifacts em PR/push;
+- remoção de `macos-13`;
+- limpeza manual da cota de Actions artifacts;
+- registry npm público;
+- suporte SQLite/PostgreSQL/MySQL;
+- estado em memória, arquivos, banco ou Redis;
+- runtime embedded SQLite/memory;
+- Docker e modelos nativos para os provedores.
+
+## Pacotes
+
+- `Tunnara-Platform-v1.0.1-CI-Storage-Fix-GitHub-Ready.zip`;
+- `Tunnara-Platform-v1.0.1-CI-Storage-Fix-Pacote-Completo.zip`;
+- `Tunnara-Platform-v1.0.1-CI-Storage-Fix-Codigo-Fonte.zip`;
+- `Tunnara-Platform-v1.0.1-CI-Storage-Fix.patch`;
+- `Tunnara-Platform-v1.0.1-CI-Storage-Fix-Arquivos-Alterados.zip`;
+- `Tunnara-Platform-v1.0.1-CI-Storage-Fix-Git-Repository.bundle`;
+- Console Web, Runtime Linux e SDK C Linux;
+- checksums SHA-256.
+
+## Builds mobile
+
+O workflow de release mobile anexa APK, AAB e IPA diretamente a uma GitHub Release e não usa o armazenamento temporário de artifacts. O workflow rápido de PR apenas valida configuração e versões.

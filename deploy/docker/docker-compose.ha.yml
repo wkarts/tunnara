@@ -16,7 +16,7 @@ x-control-env: &control-env
 
 x-node-env: &node-env
   NODE_NO_WARNINGS: "1"
-  TUNNARA_INTERNAL_CONTROL_URL: http://control-lb:7100
+  TUNNARA_INTERNAL_CONTROL_URL: http://control:7100
   TUNNARA_PUBLIC_CONTROL_URL: https://control.${TUNNARA_BASE_DOMAIN}
   TUNNARA_CLUSTER_TOKEN: ${TUNNARA_CLUSTER_TOKEN}
   TUNNARA_BASE_DOMAIN: ${TUNNARA_BASE_DOMAIN}
@@ -25,30 +25,16 @@ x-node-env: &node-env
   TUNNARA_PUBLIC_PORT_MAX: ${PUBLIC_PORT_MAX:-20100}
 
 services:
-  control-a:
+  control:
     image: ${TUNNARA_SERVER_IMAGE:-ghcr.io/wwsoftwares/tunnara-server:1.0.1}
     build: { context: ../.., dockerfile: runtime/node/Dockerfile.server }
     command: ["control"]
-    environment: *control-env
+    environment:
+      <<: *control-env
+      TUNNARA_STORAGE_DRIVER: sqlite
     volumes: [tunnara_data:/var/lib/tunnara]
     restart: unless-stopped
     healthcheck: { test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:7100/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"], interval: 10s, timeout: 5s, retries: 10 }
-    networks: [tunnara]
-
-  control-b:
-    image: ${TUNNARA_SERVER_IMAGE:-ghcr.io/wwsoftwares/tunnara-server:1.0.1}
-    command: ["control"]
-    environment: *control-env
-    volumes: [tunnara_data:/var/lib/tunnara]
-    depends_on: { control-a: { condition: service_healthy } }
-    restart: unless-stopped
-    networks: [tunnara]
-
-  control-lb:
-    image: haproxy:3.0-alpine
-    volumes: [./ha/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro]
-    depends_on: [control-a, control-b]
-    restart: unless-stopped
     networks: [tunnara]
 
   relay-a:
@@ -64,7 +50,7 @@ services:
       TUNNARA_PUBLIC_RELAY_URL: tcp://${TUNNARA_PUBLIC_HOST}:${RELAY_A_PORT:-7300}
       TUNNARA_RELAY_EDGE_PUBLIC_URL: tcp://relay-a:7301
     ports: ["${RELAY_A_PORT:-7300}:7300/tcp"]
-    depends_on: [control-lb]
+    depends_on: [control]
     restart: unless-stopped
     networks: [tunnara]
 
@@ -81,7 +67,7 @@ services:
       TUNNARA_PUBLIC_RELAY_URL: tcp://${TUNNARA_PUBLIC_HOST}:${RELAY_B_PORT:-7302}
       TUNNARA_RELAY_EDGE_PUBLIC_URL: tcp://relay-b:7301
     ports: ["${RELAY_B_PORT:-7302}:7300/tcp"]
-    depends_on: [control-lb]
+    depends_on: [control]
     restart: unless-stopped
     networks: [tunnara]
 
@@ -94,7 +80,7 @@ services:
       TUNNARA_EDGE_HOST: 0.0.0.0
       TUNNARA_EDGE_PORT: 7200
       TUNNARA_PUBLIC_EDGE_URL: https://${TUNNARA_BASE_DOMAIN}
-    depends_on: [control-lb, relay-a, relay-b]
+    depends_on: [control, relay-a, relay-b]
     restart: unless-stopped
     networks: [tunnara]
 
@@ -107,7 +93,7 @@ services:
       TUNNARA_EDGE_HOST: 0.0.0.0
       TUNNARA_EDGE_PORT: 7200
       TUNNARA_PUBLIC_EDGE_URL: https://${TUNNARA_BASE_DOMAIN}
-    depends_on: [control-lb, relay-a, relay-b]
+    depends_on: [control, relay-a, relay-b]
     restart: unless-stopped
     networks: [tunnara]
 
@@ -127,7 +113,7 @@ services:
       CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN}
     volumes: [./ha/Caddyfile:/etc/caddy/Caddyfile:ro, caddy_data:/data, caddy_config:/config]
     ports: ["80:80/tcp", "443:443/tcp", "443:443/udp"]
-    depends_on: [control-lb, edge-a, edge-b, console]
+    depends_on: [control, edge-a, edge-b, console]
     restart: unless-stopped
     networks: [tunnara]
 

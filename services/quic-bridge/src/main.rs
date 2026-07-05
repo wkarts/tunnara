@@ -9,12 +9,23 @@ use std::{
     sync::Arc,
     time::Duration,
 };
-use tokio::{io, io::AsyncWriteExt, net::{TcpListener, TcpStream}, task::JoinSet};
+use tokio::{
+    io,
+    io::AsyncWriteExt,
+    net::{TcpListener, TcpStream},
+    task::JoinSet,
+};
 use tracing::{error, info, warn};
-use tunnara_quic::{make_client_config, make_server_config, QuicClient, QuicServer, QuicTransportConfig};
+use tunnara_quic::{
+    make_client_config, make_server_config, QuicClient, QuicServer, QuicTransportConfig,
+};
 
 #[derive(Debug, Parser)]
-#[command(name = "tunnara-quic-bridge", version, about = "Transporta o protocolo Tunnara sobre QUIC/TLS 1.3.")]
+#[command(
+    name = "tunnara-quic-bridge",
+    version,
+    about = "Transporta o protocolo Tunnara sobre QUIC/TLS 1.3."
+)]
 struct Cli {
     #[command(subcommand)]
     command: Command,
@@ -35,7 +46,11 @@ enum Command {
     },
     /// Abre um listener TCP local e transporta conexões ao servidor QUIC remoto.
     Client {
-        #[arg(long, env = "TUNNARA_QUIC_LOCAL_LISTEN", default_value = "127.0.0.1:17300")]
+        #[arg(
+            long,
+            env = "TUNNARA_QUIC_LOCAL_LISTEN",
+            default_value = "127.0.0.1:17300"
+        )]
         listen: SocketAddr,
         #[arg(long, env = "TUNNARA_QUIC_REMOTE")]
         remote: SocketAddr,
@@ -49,17 +64,21 @@ enum Command {
 }
 
 fn load_certificates(path: &Path) -> Result<Vec<CertificateDer<'static>>> {
-    let file = File::open(path).with_context(|| format!("não foi possível abrir o certificado {}", path.display()))?;
+    let file = File::open(path)
+        .with_context(|| format!("não foi possível abrir o certificado {}", path.display()))?;
     let mut reader = BufReader::new(file);
     let certs = rustls_pemfile::certs(&mut reader)
         .collect::<std::result::Result<Vec<_>, _>>()
         .context("certificado PEM inválido")?;
-    if certs.is_empty() { bail!("nenhum certificado foi encontrado em {}", path.display()); }
+    if certs.is_empty() {
+        bail!("nenhum certificado foi encontrado em {}", path.display());
+    }
     Ok(certs)
 }
 
 fn load_private_key(path: &Path) -> Result<PrivateKeyDer<'static>> {
-    let file = File::open(path).with_context(|| format!("não foi possível abrir a chave {}", path.display()))?;
+    let file = File::open(path)
+        .with_context(|| format!("não foi possível abrir a chave {}", path.display()))?;
     let mut reader = BufReader::new(file);
     rustls_pemfile::private_key(&mut reader)
         .context("chave privada PEM inválida")?
@@ -84,7 +103,9 @@ async fn proxy_quic_to_tcp(
     };
     let tcp_to_quic = async {
         io::copy(&mut tcp_read, &mut quic_send).await?;
-        quic_send.finish().context("falha ao finalizar stream QUIC")?;
+        quic_send
+            .finish()
+            .context("falha ao finalizar stream QUIC")?;
         Result::<()>::Ok(())
     };
     tokio::try_join!(quic_to_tcp, tcp_to_quic)?;
@@ -111,11 +132,18 @@ async fn serve_connection(connection: quinn::Connection, upstream: SocketAddr) {
         }
     }
     while let Some(result) = tasks.join_next().await {
-        if let Ok(Err(error)) = result { warn!(%error, "stream QUIC encerrado com falha"); }
+        if let Ok(Err(error)) = result {
+            warn!(%error, "stream QUIC encerrado com falha");
+        }
     }
 }
 
-async fn run_server(listen: SocketAddr, upstream: SocketAddr, cert: PathBuf, key: PathBuf) -> Result<()> {
+async fn run_server(
+    listen: SocketAddr,
+    upstream: SocketAddr,
+    cert: PathBuf,
+    key: PathBuf,
+) -> Result<()> {
     let config = QuicTransportConfig::default();
     let server = Arc::new(QuicServer::bind(
         listen,
@@ -132,12 +160,17 @@ async fn run_server(listen: SocketAddr, upstream: SocketAddr, cert: PathBuf, key
 
 async fn proxy_tcp_to_quic(local: TcpStream, connection: quinn::Connection) -> Result<()> {
     local.set_nodelay(true)?;
-    let (mut quic_send, mut quic_recv) = connection.open_bi().await.context("não foi possível abrir stream QUIC")?;
+    let (mut quic_send, mut quic_recv) = connection
+        .open_bi()
+        .await
+        .context("não foi possível abrir stream QUIC")?;
     let (mut tcp_read, mut tcp_write) = local.into_split();
 
     let tcp_to_quic = async {
         io::copy(&mut tcp_read, &mut quic_send).await?;
-        quic_send.finish().context("falha ao finalizar stream QUIC")?;
+        quic_send
+            .finish()
+            .context("falha ao finalizar stream QUIC")?;
         Result::<()>::Ok(())
     };
     let quic_to_tcp = async {
@@ -149,15 +182,23 @@ async fn proxy_tcp_to_quic(local: TcpStream, connection: quinn::Connection) -> R
     Ok(())
 }
 
-async fn connect_quic(remote: SocketAddr, server_name: &str, ca: Option<&Path>) -> Result<(QuicClient, quinn::Connection)> {
+async fn connect_quic(
+    remote: SocketAddr,
+    server_name: &str,
+    ca: Option<&Path>,
+) -> Result<(QuicClient, quinn::Connection)> {
     let mut roots = rustls::RootCertStore::empty();
     if let Some(ca) = ca {
         let (added, ignored) = roots.add_parsable_certificates(load_certificates(ca)?);
-        if added == 0 { bail!("nenhum certificado CA válido foi carregado; ignorados: {ignored}"); }
+        if added == 0 {
+            bail!("nenhum certificado CA válido foi carregado; ignorados: {ignored}");
+        }
     } else {
         let native = rustls_native_certs::load_native_certs();
         let (added, ignored) = roots.add_parsable_certificates(native.certs);
-        if added == 0 { bail!("nenhuma CA do sistema foi carregada; certificados ignorados: {ignored}; erros: {:?}", native.errors); }
+        if added == 0 {
+            bail!("nenhuma CA do sistema foi carregada; certificados ignorados: {ignored}; erros: {:?}", native.errors);
+        }
     }
     let client = QuicClient::bind(
         SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0),
@@ -174,15 +215,24 @@ async fn run_client(
     ca: Option<PathBuf>,
     reconnect_seconds: u64,
 ) -> Result<()> {
-    let listener = TcpListener::bind(listen).await.with_context(|| format!("não foi possível abrir {listen}"))?;
+    let listener = TcpListener::bind(listen)
+        .await
+        .with_context(|| format!("não foi possível abrir {listen}"))?;
     info!(%listen, %remote, server_name, "Tunnara QUIC Bridge Client iniciado");
 
     let mut current: Option<(QuicClient, quinn::Connection)> = None;
     loop {
-        if current.as_ref().map_or(true, |(_, connection)| connection.close_reason().is_some()) {
+        if current
+            .as_ref()
+            .map_or(true, |(_, connection)| connection.close_reason().is_some())
+        {
             loop {
                 match connect_quic(remote, &server_name, ca.as_deref()).await {
-                    Ok(value) => { current = Some(value); info!(%remote, "canal QUIC conectado"); break; }
+                    Ok(value) => {
+                        current = Some(value);
+                        info!(%remote, "canal QUIC conectado");
+                        break;
+                    }
                     Err(error) => {
                         warn!(%error, retry_seconds = reconnect_seconds, "falha ao conectar QUIC");
                         tokio::time::sleep(Duration::from_secs(reconnect_seconds.max(1))).await;
@@ -192,7 +242,11 @@ async fn run_client(
         }
 
         let (socket, peer) = listener.accept().await?;
-        let connection = current.as_ref().expect("conexão QUIC inicializada").1.clone();
+        let connection = current
+            .as_ref()
+            .expect("conexão QUIC inicializada")
+            .1
+            .clone();
         tokio::spawn(async move {
             if let Err(error) = proxy_tcp_to_quic(socket, connection).await {
                 warn!(%peer, %error, "stream local/QUIC encerrado com falha");
@@ -208,11 +262,21 @@ async fn main() -> Result<()> {
         .with_target(false)
         .init();
     match Cli::parse().command {
-        Command::Server { listen, upstream, cert, key } => run_server(listen, upstream, cert, key).await,
-        Command::Client { listen, remote, server_name, ca, reconnect_seconds } => {
-            run_client(listen, remote, server_name, ca, reconnect_seconds).await
-        }
-    }.map_err(|error| {
+        Command::Server {
+            listen,
+            upstream,
+            cert,
+            key,
+        } => run_server(listen, upstream, cert, key).await,
+        Command::Client {
+            listen,
+            remote,
+            server_name,
+            ca,
+            reconnect_seconds,
+        } => run_client(listen, remote, server_name, ca, reconnect_seconds).await,
+    }
+    .map_err(|error| {
         error!(%error, "Tunnara QUIC Bridge encerrado");
         error
     })

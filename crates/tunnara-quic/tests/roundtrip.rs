@@ -1,12 +1,19 @@
 use rustls::pki_types::{PrivateKeyDer, PrivatePkcs8KeyDer};
-use std::{net::{IpAddr, Ipv4Addr, SocketAddr}, sync::Arc};
-use tunnara_quic::{make_client_config, make_server_config, QuicClient, QuicServer, QuicTransportConfig};
+use std::{
+    net::{IpAddr, Ipv4Addr, SocketAddr},
+    sync::Arc,
+};
+use tunnara_quic::{
+    make_client_config, make_server_config, QuicClient, QuicServer, QuicTransportConfig,
+};
 
 #[tokio::test]
 async fn bidirectional_stream_roundtrip() -> anyhow::Result<()> {
     let certified = rcgen::generate_simple_self_signed(vec!["localhost".to_string()])?;
     let certificate = certified.cert.der().clone();
-    let private_key = PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(certified.signing_key.serialize_der()));
+    let private_key = PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(
+        certified.signing_key.serialize_der(),
+    ));
     let config = QuicTransportConfig::default();
     let server = Arc::new(QuicServer::bind(
         SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0),

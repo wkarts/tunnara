@@ -1,30 +1,16 @@
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 use tunnara_types::TunnelDefinition;
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", content = "payload", rename_all = "snake_case")]
 pub enum ControlMessage {
-    Hello {
-        agent_id: Uuid,
-        version: String,
-    },
-    Heartbeat {
-        agent_id: Uuid,
-        sequence: u64,
-    },
+    Hello { agent_id: Uuid, version: String },
+    Heartbeat { agent_id: Uuid, sequence: u64 },
     ConfigureTunnel(TunnelDefinition),
-    CloseTunnel {
-        tunnel_id: Uuid,
-        reason: String,
-    },
-    Ack {
-        message_id: Uuid,
-    },
-    Error {
-        code: String,
-        message: String,
-    },
+    CloseTunnel { tunnel_id: Uuid, reason: String },
+    Ack { message_id: Uuid },
+    Error { code: String, message: String },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

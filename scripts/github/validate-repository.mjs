@@ -8,7 +8,8 @@ const required = [
   'README.md', 'LICENSE', 'SECURITY.md', 'CONTRIBUTING.md', 'CODE_OF_CONDUCT.md',
   '.gitignore', '.gitattributes', '.github/workflows/ci.yml', '.github/workflows/release.yml',
   'runtime/node/bin/tunnara.mjs', 'runtime/node/bin/tunnara-server.mjs',
-  'deploy/docker/docker-compose.yml', 'VERSION',
+  'deploy/docker/docker-compose.yml', 'deploy/docker/storage/storage.sh',
+  'docs/operations/STORAGE_PROVIDERS.md', 'docs/operations/GITHUB_ACTIONS.md', 'VERSION',
 ];
 const forbiddenNames = new Set(['.env', 'tunnara.sqlite', 'tunnara.sqlite-wal', 'tunnara.sqlite-shm']);
 const forbiddenDirs = new Set(['node_modules', 'vendor', 'target', '.build', 'artifacts', 'dist', 'data', 'backups', 'runtime-data', 'agent-data']);
@@ -40,6 +41,31 @@ if (fs.existsSync(path.join(root, '.git'))) {
     const parts = rel.split('/');
     if (parts.some((part) => forbiddenDirs.has(part)) || forbiddenNames.has(parts.at(-1))) {
       findings.push(`Arquivo gerado/operacional está versionado: ${rel}`);
+    }
+  }
+}
+
+
+const lockfiles = ['package-lock.json', 'apps/console/package-lock.json'];
+for (const rel of lockfiles) {
+  const file = path.join(root, rel);
+  if (!fs.existsSync(file)) continue;
+  const content = fs.readFileSync(file, 'utf8');
+  if (/applied-caas-gateway|internal\.api\.openai\.org/i.test(content)) {
+    findings.push(`Lockfile contém registry interno não acessível pelo GitHub Actions: ${rel}`);
+  }
+}
+
+const workflowsDir = path.join(root, '.github', 'workflows');
+if (fs.existsSync(workflowsDir)) {
+  for (const name of fs.readdirSync(workflowsDir)) {
+    if (!name.endsWith('.yml') && !name.endsWith('.yaml')) continue;
+    const rel = path.join('.github', 'workflows', name);
+    const content = fs.readFileSync(path.join(workflowsDir, name), 'utf8');
+    if (/macos-13/.test(content)) findings.push(`Runner removido ainda referenciado: ${rel}`);
+    const runsOnPullRequest = /(^|\n)\s*pull_request\s*:/m.test(content);
+    if (runsOnPullRequest && /actions\/(?:upload|download)-artifact@/i.test(content)) {
+      findings.push(`Workflow de pull request não pode criar/baixar artifacts: ${rel}`);
     }
   }
 }

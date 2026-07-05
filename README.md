@@ -1,4 +1,4 @@
-# Tunnara Platform 1.0.0
+# Tunnara Platform 1.0.1
 
 A Tunnara é uma plataforma self-hosted de conectividade para publicar serviços atrás de NAT/CGNAT, criar túneis HTTP/HTTPS/TCP/UDP, formar redes privadas WireGuard e integrar aplicações por SDK.
 
@@ -227,6 +227,32 @@ Os builds mobile são independentes das lojas:
 - Google Play e TestFlight são jobs opcionais, desabilitados por padrão, e não impedem a geração dos binários.
 
 O IPA sem assinatura serve para CI, auditoria e assinatura posterior, mas não instala em dispositivos iOS comuns. Consulte `docs/mobile/BUILD_AND_DISTRIBUTION.md`.
+
+
+## Bancos, cache e modos de implantação
+
+A Tunnara não ficou limitada ao SQLite. Há dois perfis explícitos:
+
+- **runtime embarcado:** SQLite persistente ou memória efêmera;
+- **Control API distribuída:** SQLite, PostgreSQL ou MySQL, combinados com estado em memória, arquivos locais, tabelas do banco ou Redis.
+
+Exemplos Docker:
+
+```bash
+cd deploy/docker/storage
+./storage.sh init
+./storage.sh up sqlite local
+./storage.sh up postgres redis
+./storage.sh up mysql database
+```
+
+Consulte `docs/operations/STORAGE_PROVIDERS.md`. A composição de alta disponibilidade não compartilha mais um único arquivo SQLite entre dois Controls: ela mantém um Control embarcado e redundância no plano de dados. Para HA completa do plano de gestão, utilize PostgreSQL/MySQL e Redis.
+
+## Validações rápidas no GitHub
+
+Pull requests e commits não geram artifacts de distribuição. Os checks rápidos executam testes, typecheck e validações estáticas; SDKs, executáveis, mobile e desktop são compilados somente em tags ou execução manual e anexados diretamente à GitHub Release.
+
+O runner `macos-13` foi removido de todas as matrizes. Há também um workflow manual para limpar artifacts antigos que estejam consumindo a cota. Consulte `docs/operations/GITHUB_ACTIONS.md`.
 
 ## GitHub
 

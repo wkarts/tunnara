@@ -7,7 +7,11 @@ import { envInt, ensureDir, log, parseCli, VERSION } from '../lib/utils.mjs';
 const { positional, options } = parseCli(process.argv.slice(2));
 const command = positional[0] || 'help';
 const dataDir = path.resolve(String(options['data-dir'] || process.env.TUNNARA_DATA_DIR || path.join(process.cwd(), 'data')));
-const dbFile = path.join(dataDir, 'tunnara.sqlite');
+const storageDriver = String(process.env.TUNNARA_STORAGE_DRIVER || 'sqlite').trim().toLowerCase();
+if (!['sqlite', 'memory'].includes(storageDriver)) {
+  throw new Error(`TUNNARA_STORAGE_DRIVER inválido: ${storageDriver}. Use sqlite ou memory no runtime embarcado.`);
+}
+const dbFile = storageDriver === 'memory' ? ':memory:' : path.join(dataDir, 'tunnara.sqlite');
 let db = null;
 
 function help() {
@@ -20,7 +24,7 @@ function help() {
 `  tunnara-server restore --input ./backup.sqlite --force\n` +
 `  tunnara-server doctor [--data-dir ./data]\n\n` +
 `Variáveis principais:\n` +
-`  TUNNARA_CONTROL_PORT=7100\n  TUNNARA_EDGE_PORT=7200\n  TUNNARA_RELAY_PORT=7300\n  TUNNARA_RELAY_EDGE_PORT=7301\n  TUNNARA_BASE_DOMAIN=tunnara.local\n`);
+`  TUNNARA_STORAGE_DRIVER=sqlite|memory\n  TUNNARA_CONTROL_PORT=7100\n  TUNNARA_EDGE_PORT=7200\n  TUNNARA_RELAY_PORT=7300\n  TUNNARA_RELAY_EDGE_PORT=7301\n  TUNNARA_BASE_DOMAIN=tunnara.local\n`);
 }
 
 function validateSqliteFile(file) {
@@ -54,7 +58,11 @@ function restoreDatabase() {
 async function start() {
   if (command === 'help' || options.help) { help(); return; }
   if (command === 'version' || options.version) { console.log(VERSION); return; }
-  if (command === 'restore') { restoreDatabase(); return; }
+  if (command === 'restore') {
+    if (storageDriver === 'memory') throw new Error('Restore não está disponível com TUNNARA_STORAGE_DRIVER=memory.');
+    restoreDatabase();
+    return;
+  }
 
   const [{ TunnaraDatabase }, { ControlServer, EdgeServer, RelayServer, TcpIngressManager, UdpIngressManager }, { ClusterControlClient, NodeRegistrar }] = await Promise.all([
     import('../lib/database.mjs'),
@@ -65,8 +73,8 @@ async function start() {
 
   if (command === 'doctor') {
     const result = {
-      status: 'ok', version: VERSION, dataDir, database: dbFile,
-      databaseExists: fs.existsSync(dbFile),
+      status: 'ok', version: VERSION, storageDriver, dataDir, database: dbFile,
+      databaseExists: storageDriver === 'memory' ? true : fs.existsSync(dbFile),
       organizationsInitialized: db.hasOrganizations(),
       ports: {
         control: envInt('TUNNARA_CONTROL_PORT', 7100), edge: envInt('TUNNARA_EDGE_PORT', 7200),
@@ -78,6 +86,7 @@ async function start() {
   }
 
   if (command === 'backup') {
+    if (storageDriver === 'memory') throw new Error('Backup não está disponível com TUNNARA_STORAGE_DRIVER=memory.');
     const output = path.resolve(String(options.output || path.join(process.cwd(), `tunnara-backup-${Date.now()}.sqlite`)));
     ensureDir(path.dirname(output));
     if (fs.existsSync(output)) fs.rmSync(output);

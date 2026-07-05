@@ -1,7 +1,8 @@
-name: CI
+name: CI fast
 
 on:
   pull_request:
+    branches: [main, next]
   push:
     branches: [main, next]
 
@@ -9,45 +10,39 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-fast-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
-jobs:
-  repository:
-    name: Repository integrity
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci
-      - run: npm run repository:check
-      - run: npm run version:check
-      - run: npm run validate:node
-      - run: npm run validate:shell
-      - run: npm run validate:php
+env:
+  NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
+  NPM_CONFIG_AUDIT: 'false'
+  NPM_CONFIG_FUND: 'false'
 
-  runtime:
-    name: Runtime HTTP tunnel E2E
+jobs:
+  core:
+    name: Core and runtime
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
-      - run: npm run runtime:test
-      - run: node scripts/release/build-sea.mjs agent dist/tunnara-agent-linux-x64
-      - run: node scripts/release/build-sea.mjs server dist/tunnara-server-linux-x64
-      - name: E2E com executáveis standalone
-        env:
-          TUNNARA_E2E_AGENT_BIN: dist/tunnara-agent-linux-x64
-          TUNNARA_E2E_SERVER_BIN: dist/tunnara-server-linux-x64
+          cache-dependency-path: package-lock.json
+      - name: Install root dependencies
+        run: bash scripts/ci/npm-ci.sh .
+      - name: Repository integrity
+        run: npm run repository:check
+      - name: Version synchronization
+        run: npm run version:check
+      - name: Static syntax checks
+        run: |
+          npm run validate:node
+          npm run validate:shell
+          npm run validate:php
+          npm run validate:storage
+      - name: Runtime end-to-end tests
         run: npm run runtime:test
 
   console:
@@ -55,17 +50,17 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: apps/console/package-lock.json
-      - run: npm ci
+      - name: Install console dependencies
+        run: bash scripts/ci/npm-ci.sh apps/console
+      - name: Typecheck and production build
         working-directory: apps/console
-      - run: npm run ci:version
-        working-directory: apps/console
-      - run: npm run typecheck
-        working-directory: apps/console
-      - run: npm run build:web
-        working-directory: apps/console
+        run: |
+          npm run ci:version
+          npm run typecheck
+          npm run build:web

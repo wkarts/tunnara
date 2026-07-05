@@ -35,7 +35,12 @@ impl Default for QuicTransportConfig {
 fn transport_config(config: &QuicTransportConfig) -> Result<quinn::TransportConfig> {
     let mut transport = quinn::TransportConfig::default();
     transport
-        .max_idle_timeout(Some(config.idle_timeout.try_into().context("idle timeout inválido")?))
+        .max_idle_timeout(Some(
+            config
+                .idle_timeout
+                .try_into()
+                .context("idle timeout inválido")?,
+        ))
         .keep_alive_interval(Some(config.keep_alive_interval))
         .max_concurrent_bidi_streams(config.max_concurrent_bidi_streams.into())
         .max_concurrent_uni_streams(config.max_concurrent_uni_streams.into())
@@ -70,7 +75,9 @@ pub struct QuicServer {
 
 impl QuicServer {
     pub fn bind(address: SocketAddr, server_config: ServerConfig) -> Result<Self> {
-        Ok(Self { endpoint: Endpoint::server(server_config, address)? })
+        Ok(Self {
+            endpoint: Endpoint::server(server_config, address)?,
+        })
     }
 
     pub fn local_addr(&self) -> Result<SocketAddr> {
@@ -78,7 +85,11 @@ impl QuicServer {
     }
 
     pub async fn accept(&self) -> Result<Connection> {
-        let incoming = self.endpoint.accept().await.context("endpoint QUIC encerrado")?;
+        let incoming = self
+            .endpoint
+            .accept()
+            .await
+            .context("endpoint QUIC encerrado")?;
         incoming.await.context("handshake QUIC recusado")
     }
 
@@ -112,7 +123,10 @@ impl QuicClient {
 }
 
 pub async fn send_request(connection: &Connection, payload: &[u8]) -> Result<Vec<u8>> {
-    let (mut send, mut recv) = connection.open_bi().await.context("não foi possível abrir stream QUIC")?;
+    let (mut send, mut recv) = connection
+        .open_bi()
+        .await
+        .context("não foi possível abrir stream QUIC")?;
     send.write_all(payload).await?;
     send.finish()?;
     Ok(recv.read_to_end(64 * 1024 * 1024).await?)

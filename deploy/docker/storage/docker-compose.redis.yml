@@ -1,0 +1,40 @@
+services:
+  redis:
+    image: redis:8-alpine
+    restart: unless-stopped
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --requirepass
+      - ${REDIS_PASSWORD:?Execute ./storage.sh init}
+    volumes:
+      - tunnara_redis:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a '$${REDIS_PASSWORD}' ping | grep PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [tunnara-control]
+
+  control-api:
+    environment:
+      CACHE_STORE: redis
+      SESSION_DRIVER: redis
+      QUEUE_CONNECTION: redis
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_DB: "0"
+      REDIS_CACHE_DB: "1"
+      REDIS_SESSION_DB: "2"
+      REDIS_QUEUE_DB: "3"
+      REDIS_CACHE_CONNECTION: cache
+      REDIS_QUEUE_CONNECTION: queue
+      SESSION_CONNECTION: session
+    depends_on:
+      redis:
+        condition: service_healthy
+
+volumes:
+  tunnara_redis:

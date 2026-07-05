@@ -1,0 +1,32 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-tunnara}
+      POSTGRES_USER: ${DB_USERNAME:-tunnara}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Execute ./storage.sh init}
+    volumes:
+      - tunnara_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-tunnara} -d ${DB_DATABASE:-tunnara}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [tunnara-control]
+
+  control-api:
+    environment:
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_DATABASE: ${DB_DATABASE:-tunnara}
+      DB_USERNAME: ${DB_USERNAME:-tunnara}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_SSLMODE: disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  tunnara_postgres:

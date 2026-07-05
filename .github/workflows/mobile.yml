@@ -1,13 +1,15 @@
-name: Mobile build validation
+name: Mobile configuration validation
 
 on:
   workflow_dispatch:
   pull_request:
+    branches: [main, next]
     paths:
       - 'sdk/mobile/**'
       - '.github/workflows/mobile.yml'
       - '.github/workflows/mobile-release.yml'
       - 'scripts/version/**'
+      - 'scripts/ci/validate-mobile-config.mjs'
       - 'VERSION'
   push:
     branches: [main, next]
@@ -16,51 +18,29 @@ on:
       - '.github/workflows/mobile.yml'
       - '.github/workflows/mobile-release.yml'
       - 'scripts/version/**'
+      - 'scripts/ci/validate-mobile-config.mjs'
       - 'VERSION'
 
 permissions:
   contents: read
 
-jobs:
-  android:
-    name: Android APK/AAB without store credentials
-    runs-on: ubuntu-24.04
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-      - uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.10.2'
-      - name: Build installable debug APK and unsigned release artifacts
-        run: sdk/mobile/android/scripts/build-artifacts.sh
-      - uses: actions/upload-artifact@v4
-        with:
-          name: tunnara-android-${{ github.sha }}
-          path: sdk/mobile/android/dist/*
-          if-no-files-found: error
-          retention-days: 14
+concurrency:
+  group: mobile-config-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
-  ios:
-    name: iOS simulator app and unsigned IPA
-    runs-on: macos-14
-    timeout-minutes: 60
+jobs:
+  validate:
+    name: Mobile config only — no APK/IPA artifacts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
-      - name: Install XcodeGen
-        run: brew install xcodegen
-      - name: Build without Apple signing credentials
-        run: sdk/mobile/ios/scripts/build-artifacts.sh
-      - uses: actions/upload-artifact@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
-          name: tunnara-ios-${{ github.sha }}
-          path: |
-            sdk/mobile/ios/dist/*.ipa
-            sdk/mobile/ios/dist/*.zip
-            sdk/mobile/ios/dist/*.json
-            sdk/mobile/ios/dist/SHA256SUMS.txt
-          if-no-files-found: error
-          retention-days: 14
+          node-version-file: .nvmrc
+      - name: Validate scripts and synchronized versions
+        run: |
+          bash -n sdk/mobile/android/scripts/build-artifacts.sh
+          bash -n sdk/mobile/ios/scripts/build-artifacts.sh
+          bash -n sdk/mobile/ios/scripts/sign-and-export.sh
+          node scripts/ci/validate-mobile-config.mjs

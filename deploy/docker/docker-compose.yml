@@ -9,6 +9,7 @@ services:
     restart: unless-stopped
     environment:
       NODE_NO_WARNINGS: "1"
+      TUNNARA_STORAGE_DRIVER: ${TUNNARA_STORAGE_DRIVER:-sqlite}
       TUNNARA_DATA_DIR: /var/lib/tunnara
       TUNNARA_CONTROL_HOST: 0.0.0.0
       TUNNARA_CONTROL_PORT: 7100

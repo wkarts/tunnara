@@ -6,7 +6,7 @@
 
 control.{$TUNNARA_BASE_DOMAIN} {
   tls { dns cloudflare {$CLOUDFLARE_API_TOKEN} }
-  reverse_proxy control-lb:7100
+  reverse_proxy control:7100
 }
 
 console.{$TUNNARA_BASE_DOMAIN} {

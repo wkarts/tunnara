@@ -13,9 +13,9 @@ use axum::{
 use futures_util::{SinkExt, StreamExt};
 use tokio::sync::RwLock;
 use tower_http::trace::TraceLayer;
-use uuid::Uuid;
 use tunnara_protocol::{ControlEnvelope, ControlMessage};
 use tunnara_types::{AgentRegistration, RegisteredAgent};
+use uuid::Uuid;
 
 #[derive(Clone, Default)]
 struct AppState {

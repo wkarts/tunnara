@@ -1,0 +1,9 @@
+services:
+  control-api:
+    environment:
+      DB_CONNECTION: sqlite
+      DB_DATABASE: /app/storage/database.sqlite
+      DB_FOREIGN_KEYS: "true"
+      DB_BUSY_TIMEOUT: "5000"
+      DB_JOURNAL_MODE: WAL
+      DB_SYNCHRONOUS: NORMAL

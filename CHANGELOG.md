@@ -40,3 +40,17 @@
 ## [0.2.1] - 2026-07-05
 
 - Primeiro vertical slice HTTP/WebSocket e preparação GitHub-ready.
+
+### Correções de CI e armazenamento da primeira publicação
+
+- removidos builds de SDK, runtime e mobile das validações de pull request;
+- removido definitivamente o runner `macos-13/macOS x64`;
+- binários de release passam a ser anexados diretamente à GitHub Release, sem Actions Artifact Storage;
+- adicionado workflow manual de limpeza de artifacts antigos;
+- normalizados os lockfiles para `registry.npmjs.org` e ativado cache/retry do npm;
+- corrigidas permissões de scripts mobile e validações sem geração de APK/IPA em PR;
+- CodeQL deixa de bloquear PR privado sem Code Scanning habilitado;
+- adicionada matriz agendada/manual para SQLite, PostgreSQL, MySQL e Redis;
+- Control API passa a suportar SQLite, PostgreSQL e MySQL com cache/sessão/fila em memória, arquivos, banco ou Redis;
+- runtime embarcado passa a aceitar `TUNNARA_STORAGE_DRIVER=sqlite|memory`;
+- composição HA deixa de compartilhar SQLite entre dois processos Control.

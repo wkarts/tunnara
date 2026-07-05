@@ -19,34 +19,42 @@ rm -rf "$ARTIFACTS"
 mkdir -p "$ARTIFACTS"
 
 [[ -f apps/console/dist/index.html ]] || { echo 'Execute npm run console:build antes de empacotar.' >&2; exit 1; }
-[[ -x dist/tunnara-agent-linux-x64 && -x dist/tunnara-server-linux-x64 ]] || {
-  echo 'Execute o build SEA Linux antes de empacotar.' >&2; exit 1;
-}
+[[ -x dist/tunnara-agent-linux-x64 && -x dist/tunnara-server-linux-x64 ]] || { echo 'Gere os executáveis SEA Linux antes de empacotar.' >&2; exit 1; }
+[[ -f sdk/c/build/libtunnara.so && -f sdk/c/build/libtunnara.a ]] || { echo 'Execute npm run sdk:c:build antes de empacotar.' >&2; exit 1; }
 node scripts/github/validate-repository.mjs
 
-copy_project() {
-  local destination="$1" include_builds="$2"
-  local -a excludes=(
-    --exclude='./.git'
-    --exclude='./artifacts'
-    --exclude='./node_modules'
-    --exclude='./*/node_modules'
-    --exclude='./target'
-    --exclude='./*/target'
-    --exclude='./vendor'
-    --exclude='./*/vendor'
-    --exclude='./.env'
-    --exclude='./*/.env'
-    --exclude='./.build'
-    --exclude='./data'
-    --exclude='./backups'
-    --exclude='./*.sqlite'
-    --exclude='./*.sqlite-wal'
-    --exclude='./*.sqlite-shm'
-  )
-  if [[ "$include_builds" != 'true' ]]; then excludes+=(--exclude='./apps/console/dist' --exclude='./dist' --exclude='./sdk/c/build' --exclude='./sdk/mobile/android/.gradle' --exclude='./sdk/mobile/android/app/build'); fi
+copy_source() {
+  local destination="$1"
   mkdir -p "$destination"
-  tar "${excludes[@]}" -cf - . | tar -C "$destination" -xf -
+  tar \
+    --exclude='.git' \
+    --exclude='artifacts' \
+    --exclude='node_modules' \
+    --exclude='*/node_modules' \
+    --exclude='vendor' \
+    --exclude='*/vendor' \
+    --exclude='target' \
+    --exclude='*/target' \
+    --exclude='.build' \
+    --exclude='*/.build' \
+    --exclude='dist' \
+    --exclude='*/dist' \
+    --exclude='sdk/c/build' \
+    --exclude='sdk/mobile/android/.gradle' \
+    --exclude='sdk/mobile/android/app/build' \
+    --exclude='sdk/mobile/ios/TunnaraMobile.xcodeproj' \
+    --exclude='.env' \
+    --exclude='*/.env' \
+    --exclude='data' \
+    --exclude='*/data' \
+    --exclude='backups' \
+    --exclude='*/backups' \
+    --exclude='*.sqlite' \
+    --exclude='*.sqlite-wal' \
+    --exclude='*.sqlite-shm' \
+    --exclude='CMakeCache.txt' \
+    --exclude='CMakeFiles' \
+    -cf - . | tar -C "$destination" -xf -
 }
 
 SOURCE_DIR="$STAGING/source/$PREFIX"
@@ -56,19 +64,32 @@ WEB_DIR="$STAGING/web/$WEB_PREFIX"
 RUNTIME_DIR="$STAGING/runtime/$RUNTIME_PREFIX"
 SDK_DIR="$STAGING/sdk/$SDK_PREFIX"
 
-copy_project "$SOURCE_DIR" false
-copy_project "$GITHUB_DIR" false
-copy_project "$COMPLETE_DIR" true
-mkdir -p "$WEB_DIR" "$RUNTIME_DIR/bin" "$RUNTIME_DIR/install" "$SDK_DIR/include" "$SDK_DIR/lib" "$SDK_DIR/examples"
+copy_source "$SOURCE_DIR"
+copy_source "$GITHUB_DIR"
+copy_source "$COMPLETE_DIR"
+mkdir -p \
+  "$WEB_DIR" \
+  "$RUNTIME_DIR/bin" "$RUNTIME_DIR/install" \
+  "$SDK_DIR/include" "$SDK_DIR/lib" "$SDK_DIR/examples" \
+  "$COMPLETE_DIR/prebuilt/console-web" \
+  "$COMPLETE_DIR/prebuilt/runtime/linux-x64" \
+  "$COMPLETE_DIR/prebuilt/sdk-c/linux-x64/include" \
+  "$COMPLETE_DIR/prebuilt/sdk-c/linux-x64/lib"
+
 cp -a apps/console/dist/. "$WEB_DIR/"
+cp -a apps/console/dist/. "$COMPLETE_DIR/prebuilt/console-web/"
 cp dist/tunnara-agent-linux-x64 "$RUNTIME_DIR/bin/tunnara"
 cp dist/tunnara-server-linux-x64 "$RUNTIME_DIR/bin/tunnara-server"
+cp dist/tunnara-agent-linux-x64 "$COMPLETE_DIR/prebuilt/runtime/linux-x64/tunnara"
+cp dist/tunnara-server-linux-x64 "$COMPLETE_DIR/prebuilt/runtime/linux-x64/tunnara-server"
 cp -a deploy/standalone/linux/. "$RUNTIME_DIR/install/"
 cp README.md VERSION LICENSE LICENSE-NOTICE.md SECURITY.md "$RUNTIME_DIR/"
 cp sdk/c/include/tunnara.h "$SDK_DIR/include/"
 cp sdk/c/README.md "$SDK_DIR/"
 cp sdk/c/examples/* "$SDK_DIR/examples/"
 cp sdk/c/build/libtunnara.so sdk/c/build/libtunnara.a "$SDK_DIR/lib/"
+cp sdk/c/include/tunnara.h "$COMPLETE_DIR/prebuilt/sdk-c/linux-x64/include/"
+cp sdk/c/build/libtunnara.so sdk/c/build/libtunnara.a "$COMPLETE_DIR/prebuilt/sdk-c/linux-x64/lib/"
 
 (
   cd "$STAGING/source"

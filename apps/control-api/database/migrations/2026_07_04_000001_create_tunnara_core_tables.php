@@ -47,7 +47,7 @@ return new class extends Migration
             $table->string('public_hostname')->nullable()->unique();
             $table->unsignedSmallInteger('public_port')->nullable();
             $table->string('status')->default('pending')->index();
-            $table->jsonb('configuration')->nullable();
+            $table->json('configuration')->nullable();
             $table->timestampsTz();
         });
 
@@ -59,7 +59,7 @@ return new class extends Migration
                 ->cascadeOnDelete();
             $table->string('name');
             $table->char('token_hash', 64)->unique();
-            $table->jsonb('abilities')->nullable();
+            $table->json('abilities')->nullable();
             $table->timestampTz('last_used_at')->nullable();
             $table->timestampTz('expires_at')->nullable();
             $table->timestampTz('revoked_at')->nullable();
@@ -78,7 +78,7 @@ return new class extends Migration
             $table->string('resource_type')->nullable();
             $table->string('resource_id')->nullable();
             $table->ipAddress('ip_address')->nullable();
-            $table->jsonb('context')->nullable();
+            $table->json('context')->nullable();
             $table->timestampTz('created_at')->useCurrent();
         });
     }

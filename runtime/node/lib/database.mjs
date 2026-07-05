@@ -30,10 +30,17 @@ function cidrRange(cidr) {
 
 export class TunnaraDatabase {
   constructor(file) {
-    ensureDir(path.dirname(file));
-    this.file = file;
-    this.db = new DatabaseSync(file);
-    this.db.exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;');
+    const databaseFile = String(file || '').trim() || ':memory:';
+    const isMemory = databaseFile === ':memory:';
+    if (!isMemory) ensureDir(path.dirname(databaseFile));
+    this.file = databaseFile;
+    this.driver = isMemory ? 'memory' : 'sqlite';
+    this.db = new DatabaseSync(databaseFile);
+    this.db.exec(
+      isMemory
+        ? 'PRAGMA synchronous=OFF; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;'
+        : 'PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;'
+    );
     this.migrate();
   }
 
@@ -673,6 +680,9 @@ export class TunnaraDatabase {
   }
 
   backup(destination) {
+    if (this.driver === 'memory') {
+      throw new Error('Backup não está disponível quando TUNNARA_STORAGE_DRIVER=memory.');
+    }
     const escaped = String(destination).replaceAll("'", "''");
     this.db.exec(`VACUUM INTO '${escaped}'`);
     return destination;

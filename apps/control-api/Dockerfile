@@ -16,6 +16,7 @@ RUN apk add --no-cache \
         icu-dev \
         libpq-dev \
         libxml2-dev \
+        sqlite-dev \
         nginx \
         oniguruma-dev \
         supervisor \
@@ -24,7 +25,9 @@ RUN apk add --no-cache \
         mbstring \
         opcache \
         pcntl \
+        pdo_mysql \
         pdo_pgsql \
+        pdo_sqlite \
         xml \
     && pecl install redis \
     && docker-php-ext-enable redis \

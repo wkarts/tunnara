@@ -48,3 +48,49 @@ Continuam dependentes do proprietário:
 - assinatura Android/iOS/macOS/Windows;
 - instalação de IPA em dispositivo físico;
 - publicação em lojas, GHCR e App Store Connect.
+
+# Relatório de validação — correção de CI e storage
+
+Versão: `1.0.1`
+
+## Problemas reproduzidos pelos logs
+
+- `npm ci` tentava baixar pacotes de um registry interno indisponível no GitHub Actions;
+- uploads falhavam por cota esgotada do Actions Artifact Storage;
+- o job `macos-13/macOS x64` permanecia aguardando runner;
+- scripts mobile falhavam com `Permission denied`;
+- `cargo fmt --check` encontrou arquivos sem formatação;
+- CodeQL em repositório privado falhava no envio de resultados;
+- health check PostgreSQL era executado sem usuário/banco explícitos.
+
+## Correções aplicadas
+
+- lockfiles e `.npmrc` apontam para o registry público;
+- instalação npm possui cache, timeout e repetição controlada;
+- PR/commit não cria artifacts;
+- releases usam arquivos da GitHub Release;
+- `macos-13` foi removido;
+- scripts mobile são chamados explicitamente com `bash`;
+- CodeQL saiu do evento de PR e é opt-in em repositório privado;
+- matriz de storage é agendada/manual e não bloqueia o PR;
+- PostgreSQL, MySQL, SQLite e Redis foram configurados e documentados;
+- migrações `json` e tabelas de runtime são portáveis;
+- runtime embedded suporta SQLite e memória;
+- compartilhamento de SQLite entre Controls no compose HA foi removido.
+
+## Validações locais executadas
+
+- sintaxe Node.js;
+- sintaxe PHP;
+- sintaxe Bash;
+- parse dos YAML/JSON/TOML;
+- busca por `macos-13`;
+- busca por `actions/upload-artifact` e `actions/download-artifact` nos workflows;
+- validação do runtime em SQLite e memória;
+- testes end-to-end do runtime;
+- typecheck e build Vue;
+- build e smoke test do SDK C;
+- verificação de registry nos lockfiles;
+- integridade dos pacotes finais.
+
+PostgreSQL, MySQL e Redis são validados pelo workflow `Storage compatibility matrix`, porque este ambiente local não possui Docker nem os drivers PDO correspondentes.
