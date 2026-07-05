@@ -1,5 +1,17 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- Release pós-merge agora usa a versão exata do arquivo `VERSION`, gera os assets centrais e cria `v1.0.1` sem depender do primeiro cálculo do semantic-release.
+- Builds de Runtime, SDK, Desktop, Mobile e Docker são disparados explicitamente por `workflow_dispatch`, pois tags criadas com `GITHUB_TOKEN` não iniciam outros workflows automaticamente.
+- O empacotamento da release compila o SDK C antes de exigir `libtunnara.so` e `libtunnara.a`.
+- Corrigida a chave Laravel de testes para exatamente 32 bytes em SQLite, PostgreSQL e MySQL.
+- Fixadas versões compatíveis de `pinia` e `vue-router` no Console e sincronizado o lockfile.
+- Retries de `npm ci` não repetem erros determinísticos como `ERESOLVE`.
+- Validações pesadas e matrizes de storage deixaram de executar novamente em cada merge para reduzir tempo e ruído.
+
 ## [1.0.1] - 2026-07-05
 
 ### Mobile e distribuição

@@ -2,6 +2,11 @@ name: Desktop artifacts
 
 on:
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Tag da GitHub Release que receberá os instaladores desktop'
+        required: false
+        type: string
   push:
     tags:
       - 'v*.*.*'
@@ -10,7 +15,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: desktop-${{ github.ref }}
+  group: desktop-${{ github.ref }}-${{ inputs.release_tag || 'tag' }}
   cancel-in-progress: false
 
 jobs:
@@ -22,7 +27,7 @@ jobs:
         platform:
           - ubuntu-24.04
           - windows-latest
-          - macos-latest
+          - macos-14
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v6
@@ -41,14 +46,15 @@ jobs:
             libappindicator3-dev \
             librsvg2-dev \
             patchelf
-      - run: npm ci
-        working-directory: apps/console
+      - name: Install console dependencies
+        shell: bash
+        run: bash scripts/ci/npm-ci.sh apps/console
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           projectPath: apps/console
-          tagName: v__VERSION__
+          tagName: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || inputs.release_tag }}
           releaseName: Tunnara v__VERSION__
           releaseDraft: false
           prerelease: false

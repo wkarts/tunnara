@@ -9,7 +9,7 @@ const required = [
   '.gitignore', '.gitattributes', '.github/workflows/ci.yml', '.github/workflows/release.yml',
   'runtime/node/bin/tunnara.mjs', 'runtime/node/bin/tunnara-server.mjs',
   'deploy/docker/docker-compose.yml', 'deploy/docker/storage/storage.sh',
-  'docs/operations/STORAGE_PROVIDERS.md', 'docs/operations/GITHUB_ACTIONS.md', 'VERSION',
+  'docs/operations/STORAGE_PROVIDERS.md', 'docs/operations/GITHUB_ACTIONS.md', 'docs/operations/POST_MERGE_RELEASE.md', 'VERSION',
 ];
 const forbiddenNames = new Set(['.env', 'tunnara.sqlite', 'tunnara.sqlite-wal', 'tunnara.sqlite-shm']);
 const forbiddenDirs = new Set(['node_modules', 'vendor', 'target', '.build', 'artifacts', 'dist', 'data', 'backups', 'runtime-data', 'agent-data']);

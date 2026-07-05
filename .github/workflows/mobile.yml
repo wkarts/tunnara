@@ -11,15 +11,6 @@ on:
       - 'scripts/version/**'
       - 'scripts/ci/validate-mobile-config.mjs'
       - 'VERSION'
-  push:
-    branches: [main, next]
-    paths:
-      - 'sdk/mobile/**'
-      - '.github/workflows/mobile.yml'
-      - '.github/workflows/mobile-release.yml'
-      - 'scripts/version/**'
-      - 'scripts/ci/validate-mobile-config.mjs'
-      - 'VERSION'
 
 permissions:
   contents: read

@@ -12,6 +12,7 @@ export default {
           'node scripts/version/set-version.mjs ${nextRelease.version}',
           'npm --prefix apps/console ci',
           'npm --prefix apps/console run build:web',
+          'npm run sdk:c:build',
           'node scripts/release/build-sea.mjs agent dist/tunnara-agent-linux-x64',
           'node scripts/release/build-sea.mjs server dist/tunnara-server-linux-x64',
           'TUNNARA_E2E_AGENT_BIN=dist/tunnara-agent-linux-x64 TUNNARA_E2E_SERVER_BIN=dist/tunnara-server-linux-x64 npm run runtime:test',

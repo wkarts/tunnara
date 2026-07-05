@@ -1,57 +1,95 @@
 # Política dos GitHub Actions
 
-## Pull requests e commits
+## Pull requests
 
-Os workflows executados em PR e push para `main`/`next` são apenas validações rápidas:
+Os workflows de Pull Request são exclusivamente de validação:
 
 - `CI fast`;
-- `Native fast checks`, somente quando Rust/PHP mudarem;
-- `Mobile configuration validation`, somente quando mobile mudar.
+- `Native fast checks`, quando Rust/PHP mudarem;
+- `Mobile configuration validation`, quando a configuração mobile mudar.
 
-Eles não compilam pacotes de distribuição e não usam `actions/upload-artifact`.
+Eles não compilam pacotes de distribuição, não criam GitHub Releases e não usam `actions/upload-artifact` ou `actions/download-artifact`.
+
+## Merge em `main`
+
+O workflow `Release after merge` é o único fluxo automático iniciado por um merge em `main`.
+
+Ele:
+
+1. lê a versão do arquivo `VERSION`;
+2. ignora a execução quando a release correspondente já existe;
+3. repete as validações obrigatórias;
+4. compila Console, Runtime Linux e SDK C;
+5. gera os pacotes centrais;
+6. cria e publica a GitHub Release;
+7. envia os arquivos diretamente para a release;
+8. dispara explicitamente os builds de Runtime, SDK, Desktop, Mobile e Docker.
+
+O disparo explícito usa `workflow_dispatch`. Isso evita depender de eventos `push.tags` gerados pelo `GITHUB_TOKEN`, que não iniciam novas execuções de workflow.
 
 ## Builds de distribuição
 
-SDKs, runtimes, desktop, mobile e containers executam somente:
+Os workflows abaixo executam por chamada do release, tag criada externamente ou execução manual:
 
-- em tags SemVer;
-- manualmente por `workflow_dispatch`;
-- no processo de release.
+- `Runtime executables`;
+- `SDK release builds`;
+- `Desktop artifacts`;
+- `Mobile release assets and optional stores`;
+- `Publish container images`.
 
-Os binários são anexados diretamente a uma GitHub Release. Isso evita consumir a cota do armazenamento temporário de artifacts durante validações.
+Os binários são anexados diretamente à GitHub Release. Não existe consumo do armazenamento temporário de Actions artifacts.
+
+## Nova versão
+
+Antes do merge:
+
+```bash
+npm run version:set -- 1.0.2
+npm run version:check
+```
+
+Depois do merge, será criada a release `v1.0.2`.
+
+## Rebuild da versão atual
+
+Execute manualmente `Release after merge` com:
+
+```text
+force_rebuild=true
+```
+
+Os assets centrais são substituídos com `--clobber` e os builds de plataforma são disparados novamente.
 
 ## macOS
 
-A matriz automática não utiliza `macos-13`. O SDK C usa apenas o runner macOS ainda ativo definido no workflow e não agenda o antigo job `macos-13/macOS x64`.
+Nenhum workflow utiliza `macos-13`. As matrizes usam `macos-14` para os builds macOS configurados.
 
-## Limpeza da cota existente
+## Limpeza da cota antiga
 
-O workflow manual `Clean Actions artifact storage` permite listar ou remover artifacts antigos:
+O workflow manual `Clean Actions artifact storage` continua disponível somente para remover artifacts históricos criados por workflows anteriores:
 
 1. Abra **Actions**.
 2. Selecione **Clean Actions artifact storage**.
-3. Execute primeiro com `dry_run=true`.
+3. Execute com `dry_run=true`.
 4. Revise os itens.
-5. Execute novamente com `dry_run=false`.
+5. Execute com `dry_run=false`.
 
-`older_than_days=0` remove todos os artifacts temporários armazenados. GitHub Releases e seus arquivos não são removidos.
+GitHub Releases e seus arquivos não são removidos.
 
-## CodeQL em repositório privado
+## CodeQL
 
-O CodeQL não é executado em pull requests. Em repositórios privados, ele só inicia quando a variável do repositório abaixo estiver habilitada:
+O CodeQL roda manualmente ou por agendamento. Em repositórios privados, exige:
 
 ```text
 TUNNARA_ENABLE_CODEQL=true
 ```
 
-Isso evita falha de upload SARIF quando o plano/permissão do repositório não disponibiliza Code Scanning.
-
 ## Matriz de bancos
 
-O workflow `Storage compatibility matrix` valida semanalmente e sob demanda:
+O workflow `Storage compatibility matrix` roda semanalmente ou manualmente e cobre:
 
 - SQLite + estado em memória;
 - PostgreSQL + Redis;
 - MySQL + Redis.
 
-Ele não roda em pull requests e não produz artifacts.
+A chave Laravel de teste possui exatamente 32 bytes após a decodificação Base64.

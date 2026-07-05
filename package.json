@@ -34,7 +34,8 @@
     "mobile:android:build": "bash sdk/mobile/android/scripts/build-artifacts.sh",
     "mobile:ios:build": "bash sdk/mobile/ios/scripts/build-artifacts.sh",
     "mobile:validate:scripts": "bash -n sdk/mobile/android/scripts/build-artifacts.sh && bash -n sdk/mobile/ios/scripts/build-artifacts.sh && bash -n sdk/mobile/ios/scripts/sign-and-export.sh",
-    "validate:storage": "node scripts/ci/validate-storage-profiles.mjs"
+    "validate:storage": "node scripts/ci/validate-storage-profiles.mjs",
+    "validate:release": "node scripts/ci/validate-release-pipeline.mjs"
   },
   "devDependencies": {
     "@semantic-release/changelog": "^6.0.3",
