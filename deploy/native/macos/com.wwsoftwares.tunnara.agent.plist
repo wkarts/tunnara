@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>Label</key><string>com.wwsoftwares.tunnara.agent</string>
+  <key>ProgramArguments</key><array>
+    <string>/usr/local/bin/node</string>
+    <string>/Library/Application Support/Tunnara/runtime/node/bin/tunnara.mjs</string>
+    <string>serve</string>
+    <string>--config-dir</string><string>/Library/Application Support/Tunnara/agent</string>
+  </array>
+  <key>RunAtLoad</key><true/><key>KeepAlive</key><true/>
+  <key>StandardOutPath</key><string>/Library/Logs/Tunnara/agent.log</string>
+  <key>StandardErrorPath</key><string>/Library/Logs/Tunnara/agent-error.log</string>
+</dict></plist>

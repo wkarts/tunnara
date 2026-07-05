@@ -1,0 +1,96 @@
+name: Runtime executables
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Tag de uma GitHub Release existente ou nova (opcional)'
+        required: false
+        type: string
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: runtime-release-${{ github.ref }}-${{ inputs.release_tag || 'tag' }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            suffix: linux-x64
+            ext: ''
+            archive: tar.gz
+          - os: windows-latest
+            suffix: windows-x64
+            ext: '.exe'
+            archive: zip
+          - os: macos-14
+            suffix: macos-arm64
+            ext: ''
+            archive: tar.gz
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install dependencies
+        shell: bash
+        run: bash scripts/ci/npm-ci.sh .
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build QUIC bridge
+        run: cargo build --release -p tunnara-quic-bridge
+      - name: Build Agent and Server
+        shell: bash
+        run: |
+          node scripts/release/build-sea.mjs agent "dist/tunnara-agent-${{ matrix.suffix }}${{ matrix.ext }}"
+          node scripts/release/build-sea.mjs server "dist/tunnara-server-${{ matrix.suffix }}${{ matrix.ext }}"
+          cp "target/release/tunnara-quic-bridge${{ matrix.ext }}" "dist/tunnara-quic-bridge-${{ matrix.suffix }}${{ matrix.ext }}"
+      - name: Smoke test
+        shell: bash
+        run: |
+          ./dist/tunnara-agent-${{ matrix.suffix }}${{ matrix.ext }} --version
+          ./dist/tunnara-server-${{ matrix.suffix }}${{ matrix.ext }} version
+          ./dist/tunnara-quic-bridge-${{ matrix.suffix }}${{ matrix.ext }} --version
+      - name: E2E standalone Linux
+        if: runner.os == 'Linux'
+        shell: bash
+        env:
+          TUNNARA_E2E_AGENT_BIN: dist/tunnara-agent-${{ matrix.suffix }}
+          TUNNARA_E2E_SERVER_BIN: dist/tunnara-server-${{ matrix.suffix }}
+        run: npm run runtime:test
+      - name: Package Unix
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          mkdir -p release-assets
+          tar -C dist -czf "release-assets/Tunnara-Runtime-${{ matrix.suffix }}-${GITHUB_REF_NAME:-manual}.tar.gz" .
+          (cd release-assets && shasum -a 256 * > "SHA256SUMS-${{ matrix.suffix }}.txt")
+      - name: Package Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path release-assets | Out-Null
+          $name = if ($env:GITHUB_REF_NAME) { $env:GITHUB_REF_NAME } else { 'manual' }
+          Compress-Archive -Path dist/* -DestinationPath "release-assets/Tunnara-Runtime-${{ matrix.suffix }}-$name.zip" -Force
+          Get-FileHash release-assets/* -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $([IO.Path]::GetFileName($_.Path))" } | Set-Content "release-assets/SHA256SUMS-${{ matrix.suffix }}.txt"
+      - name: Attach directly to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/') || inputs.release_tag != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || inputs.release_tag }}
+          target_commitish: ${{ github.sha }}
+          generate_release_notes: false
+          files: release-assets/*
+          fail_on_unmatched_files: true

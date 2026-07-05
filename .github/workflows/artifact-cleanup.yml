@@ -1,0 +1,44 @@
+name: Clean Actions artifact storage
+
+on:
+  workflow_dispatch:
+    inputs:
+      older_than_days:
+        description: 'Excluir artefatos mais antigos que esta quantidade de dias; 0 exclui todos'
+        required: true
+        default: '0'
+        type: string
+      dry_run:
+        description: 'Somente listar, sem excluir'
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: List or delete stored workflow artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DAYS: ${{ inputs.older_than_days }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          now="$(date +%s)"
+          cutoff=$((now - DAYS * 86400))
+          gh api --paginate "repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" --jq '.artifacts[] | [.id,.name,.created_at,.size_in_bytes] | @tsv' |
+          while IFS=$'\t' read -r id name created size; do
+            created_epoch="$(date -d "$created" +%s)"
+            if [[ "$DAYS" == 0 || "$created_epoch" -lt "$cutoff" ]]; then
+              echo "artifact=$id name=$name created=$created bytes=$size"
+              if [[ "$DRY_RUN" != true ]]; then
+                gh api --method DELETE "repos/$GITHUB_REPOSITORY/actions/artifacts/$id"
+              fi
+            fi
+          done

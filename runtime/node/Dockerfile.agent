@@ -1,0 +1,11 @@
+FROM node:22.16-bookworm-slim
+ENV NODE_ENV=production NODE_NO_WARNINGS=1 TUNNARA_CONFIG_DIR=/var/lib/tunnara-agent
+WORKDIR /opt/tunnara
+COPY runtime/node ./runtime/node
+RUN useradd --system --uid 10002 --home /var/lib/tunnara-agent --create-home tunnara \
+    && mkdir -p /var/lib/tunnara-agent \
+    && chown -R tunnara:tunnara /var/lib/tunnara-agent /opt/tunnara
+USER tunnara
+VOLUME ["/var/lib/tunnara-agent"]
+ENTRYPOINT ["node", "/opt/tunnara/runtime/node/bin/tunnara.mjs"]
+CMD ["serve"]

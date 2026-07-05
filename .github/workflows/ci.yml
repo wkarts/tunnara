@@ -1,0 +1,66 @@
+name: CI fast
+
+on:
+  pull_request:
+    branches: [main, next]
+  push:
+    branches: [main, next]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-fast-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
+  NPM_CONFIG_AUDIT: 'false'
+  NPM_CONFIG_FUND: 'false'
+
+jobs:
+  core:
+    name: Core and runtime
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install root dependencies
+        run: bash scripts/ci/npm-ci.sh .
+      - name: Repository integrity
+        run: npm run repository:check
+      - name: Version synchronization
+        run: npm run version:check
+      - name: Static syntax checks
+        run: |
+          npm run validate:node
+          npm run validate:shell
+          npm run validate:php
+          npm run validate:storage
+      - name: Runtime end-to-end tests
+        run: npm run runtime:test
+
+  console:
+    name: Console Vue
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: apps/console/package-lock.json
+      - name: Install console dependencies
+        run: bash scripts/ci/npm-ci.sh apps/console
+      - name: Typecheck and production build
+        working-directory: apps/console
+        run: |
+          npm run ci:version
+          npm run typecheck
+          npm run build:web

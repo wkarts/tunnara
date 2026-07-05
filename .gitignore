@@ -1,34 +1,73 @@
-# Sistema
-.DS_Store
-Thumbs.db
-desktop.ini
-
-# Logs
-*.log
-logs/
-
-# Ambiente
+# Segredos e configuração local
 .env
 .env.*
 !.env.example
+!.env.model
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
 
-# Node/PHP/Python/Rust comuns
+# Dependências e caches
 node_modules/
+**/node_modules/
 vendor/
-__pycache__/
+**/vendor/
 target/
+**/target/
+.build/
+.cache/
+
+# Builds e artefatos
 dist/
-build/
-coverage/
+artifacts/
+apps/console/dist/
+apps/console/release/
+apps/console/src-tauri/target/
+*.zip
+*.tar.gz
+*.tgz
 
-# IDE
-.vscode/
+# Dados operacionais
+/data/
+/backups/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.db
+*.log
+runtime-data/
+agent-data/
+
+# Laravel
+apps/control-api/storage/logs/*.log
+apps/control-api/bootstrap/cache/*.php
+!apps/control-api/bootstrap/cache/.gitkeep
+!apps/control-api/storage/logs/.gitkeep
+
+# IDE e SO
+.DS_Store
+Thumbs.db
 .idea/
+.vscode/*.local.json
+*.swp
+*.swo
 
-# Docker local
-docker-compose.override.yml
+# Cobertura e relatórios locais
+coverage/
+.nyc_output/
+phpunit.xml.cache
 
-# Temporarios
-tmp/
-temp/
-*.tmp
+# Mobile builds e credenciais
+sdk/mobile/android/.gradle/
+sdk/mobile/android/app/build/
+sdk/mobile/android/dist/
+sdk/mobile/ios/TunnaraMobile.xcodeproj/
+sdk/mobile/ios/dist/
+sdk/mobile/ios/.wireguard-apple/
+*.jks
+*.keystore
+*.mobileprovision
+*.ipa
+*.aab

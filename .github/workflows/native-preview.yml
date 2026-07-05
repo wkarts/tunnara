@@ -1,0 +1,59 @@
+name: Native fast checks
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main, next]
+    paths:
+      - 'crates/**'
+      - 'services/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'apps/control-api/**'
+      - '.github/workflows/native-preview.yml'
+  push:
+    branches: [main, next]
+    paths:
+      - 'crates/**'
+      - 'services/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'apps/control-api/**'
+      - '.github/workflows/native-preview.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-fast-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rust-format:
+    name: Rust format
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - run: cargo fmt --all --check
+
+  laravel-static:
+    name: Laravel static validation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v6
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_sqlite, pdo_mysql, pdo_pgsql, intl, redis
+          coverage: none
+          tools: composer:v2
+      - name: Composer manifest and PHP syntax
+        working-directory: apps/control-api
+        run: |
+          composer validate --strict --no-check-publish
+          find app bootstrap config database routes tests -type f -name '*.php' -print0 | xargs -0 -n1 php -l

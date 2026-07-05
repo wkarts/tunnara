@@ -1,0 +1,28 @@
+[Unit]
+Description=Tunnara Agent
+Documentation=https://github.com/WWSoftware-Sistemas/tunnara
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+Environment=TUNNARA_LOCAL_PORT=8080
+EnvironmentFile=-/etc/tunnara/agent.env
+ExecStart=/usr/local/bin/tunnara-agent serve --local-port ${TUNNARA_LOCAL_PORT}
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+LockPersonality=true
+RestrictSUIDSGID=true
+StateDirectory=tunnara
+RuntimeDirectory=tunnara
+
+[Install]
+WantedBy=multi-user.target

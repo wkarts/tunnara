@@ -1,0 +1,63 @@
+name: SDK release builds
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sdk-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  c-sdk:
+    name: c-sdk (${{ matrix.suffix }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            suffix: linux-x64
+          - os: windows-latest
+            suffix: windows-x64
+          - os: macos-14
+            suffix: macos-arm64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+      - uses: lukka/get-cmake@latest
+      - name: Configure
+        run: cmake -S sdk/c -B sdk/c/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}/sdk/c/stage"
+      - name: Build and install
+        run: |
+          cmake --build sdk/c/build --config Release
+          cmake --install sdk/c/build --config Release
+      - name: Smoke test Unix
+        if: runner.os != 'Windows'
+        run: ./sdk/c/build/version-example
+      - name: Smoke test Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./sdk/c/build/Release/version-example.exe
+      - name: Package Unix
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          mkdir -p dist
+          tar -C sdk/c/stage -czf "dist/Tunnara-SDK-C-${{ matrix.suffix }}-${GITHUB_REF_NAME}.tar.gz" .
+      - name: Package Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Compress-Archive -Path sdk/c/stage/* -DestinationPath "dist/Tunnara-SDK-C-${{ matrix.suffix }}-$env:GITHUB_REF_NAME.zip" -Force
+      - name: Attach SDK to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          fail_on_unmatched_files: true

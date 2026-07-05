@@ -1,0 +1,11 @@
+[package]
+name = "tunnara-sdk-c"
+version.workspace = true
+edition.workspace = true
+license = "Apache-2.0"
+
+[lib]
+crate-type = ["cdylib", "staticlib", "rlib"]
+
+[dependencies]
+tunnara-agent-core = { path = "../tunnara-agent-core" }

@@ -1,0 +1,32 @@
+{
+  email {$TUNNARA_ACME_EMAIL}
+  acme_ca {$TUNNARA_ACME_CA:https://acme-v02.api.letsencrypt.org/directory}
+  admin 0.0.0.0:2019
+  servers {
+    protocols h1 h2 h3
+  }
+}
+
+control.{$TUNNARA_BASE_DOMAIN} {
+  tls {
+    dns cloudflare {$CLOUDFLARE_API_TOKEN}
+    resolvers 1.1.1.1 1.0.0.1
+  }
+  reverse_proxy tunnara-server:7100
+}
+
+console.{$TUNNARA_BASE_DOMAIN} {
+  tls {
+    dns cloudflare {$CLOUDFLARE_API_TOKEN}
+    resolvers 1.1.1.1 1.0.0.1
+  }
+  reverse_proxy console:80
+}
+
+{$TUNNARA_BASE_DOMAIN}, *.{$TUNNARA_BASE_DOMAIN} {
+  tls {
+    dns cloudflare {$CLOUDFLARE_API_TOKEN}
+    resolvers 1.1.1.1 1.0.0.1
+  }
+  reverse_proxy tunnara-server:7200
+}

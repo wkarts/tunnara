@@ -1,0 +1,18 @@
+[package]
+name = "tunnara-quic-bridge"
+version.workspace = true
+edition.workspace = true
+license = "Apache-2.0"
+description = "Bridge QUIC/TLS 1.3 operacional para transportar conexões Tunnara Agent-Relay."
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+quinn = "0.11"
+rustls = "0.23"
+rustls-pemfile = "2"
+rustls-native-certs = "0.8"
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+tunnara-quic = { path = "../../crates/tunnara-quic" }

@@ -1,0 +1,170 @@
+name: Storage compatibility matrix
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '41 3 * * 0'
+  push:
+    branches: [main, next]
+    paths:
+      - 'apps/control-api/**'
+      - 'deploy/docker/storage/**'
+      - '.github/workflows/storage-matrix.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: storage-matrix-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  APP_ENV: testing
+  APP_KEY: base64:VGhpcy1pcy1hLXRlc3Qta2V5LXdpdGgtMzItYnl0ZXMhIQ==
+  APP_DEBUG: 'false'
+  CACHE_STORE: array
+  SESSION_DRIVER: array
+  QUEUE_CONNECTION: sync
+
+jobs:
+  sqlite:
+    name: SQLite + memory state
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_sqlite, intl
+          coverage: none
+          tools: composer:v2
+      - name: Install
+        working-directory: apps/control-api
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Migrate and test
+        working-directory: apps/control-api
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: database/testing.sqlite
+        run: |
+          rm -f database/testing.sqlite
+          touch database/testing.sqlite
+          php artisan migrate --force
+          php artisan test
+
+  postgres:
+    name: PostgreSQL + Redis
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: tunnara_test
+          POSTGRES_USER: tunnara
+          POSTGRES_PASSWORD: tunnara_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U tunnara -d tunnara_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+      redis:
+        image: redis:8-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_pgsql, intl, redis
+          coverage: none
+          tools: composer:v2
+      - name: Install
+        working-directory: apps/control-api
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Migrate and test
+        working-directory: apps/control-api
+        env:
+          DB_CONNECTION: pgsql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_DATABASE: tunnara_test
+          DB_USERNAME: tunnara
+          DB_PASSWORD: tunnara_test
+          DB_SSLMODE: disable
+          CACHE_STORE: redis
+          SESSION_DRIVER: redis
+          QUEUE_CONNECTION: redis
+          REDIS_HOST: 127.0.0.1
+          REDIS_PORT: 6379
+          REDIS_CACHE_CONNECTION: cache
+          REDIS_QUEUE_CONNECTION: queue
+          SESSION_CONNECTION: session
+        run: |
+          php artisan migrate --force
+          php artisan test
+
+  mysql:
+    name: MySQL + Redis
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_DATABASE: tunnara_test
+          MYSQL_USER: tunnara
+          MYSQL_PASSWORD: tunnara_test
+          MYSQL_ROOT_PASSWORD: root_test
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -u root -proot_test --silent"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 30
+      redis:
+        image: redis:8-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_mysql, intl, redis
+          coverage: none
+          tools: composer:v2
+      - name: Install
+        working-directory: apps/control-api
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Migrate and test
+        working-directory: apps/control-api
+        env:
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: tunnara_test
+          DB_USERNAME: tunnara
+          DB_PASSWORD: tunnara_test
+          CACHE_STORE: redis
+          SESSION_DRIVER: redis
+          QUEUE_CONNECTION: redis
+          REDIS_HOST: 127.0.0.1
+          REDIS_PORT: 6379
+          REDIS_CACHE_CONNECTION: cache
+          REDIS_QUEUE_CONNECTION: queue
+          SESSION_CONNECTION: session
+        run: |
+          php artisan migrate --force
+          php artisan test

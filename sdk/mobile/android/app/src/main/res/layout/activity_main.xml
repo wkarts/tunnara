@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:padding="20dp">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Tunnara Mobile" android:textSize="26sp" android:textStyle="bold" />
+        <TextView android:id="@+id/status" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="Desconectado" />
+        <EditText android:id="@+id/config" android:layout_width="match_parent" android:layout_height="320dp" android:layout_marginTop="16dp" android:gravity="top|start" android:hint="@string/wireguard_config_hint" android:inputType="textMultiLine|textNoSuggestions" android:fontFamily="monospace" />
+        <Button android:id="@+id/connect" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:text="Conectar rede privada" />
+        <Button android:id="@+id/disconnect" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="Desconectar" />
+    </LinearLayout>
+</ScrollView>

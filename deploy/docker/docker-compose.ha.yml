@@ -1,0 +1,125 @@
+name: ${COMPOSE_PROJECT_NAME:-tunnara-ha}
+
+x-control-env: &control-env
+  NODE_NO_WARNINGS: "1"
+  TUNNARA_DATA_DIR: /var/lib/tunnara
+  TUNNARA_CONTROL_HOST: 0.0.0.0
+  TUNNARA_CONTROL_PORT: 7100
+  TUNNARA_BASE_DOMAIN: ${TUNNARA_BASE_DOMAIN}
+  TUNNARA_PUBLIC_SCHEME: https
+  TUNNARA_PUBLIC_CONTROL_URL: https://control.${TUNNARA_BASE_DOMAIN}
+  TUNNARA_BOOTSTRAP_ORGANIZATION: ${TUNNARA_BOOTSTRAP_ORGANIZATION:-Tunnara Community}
+  TUNNARA_BOOTSTRAP_ADMIN_TOKEN: ${TUNNARA_BOOTSTRAP_ADMIN_TOKEN}
+  TUNNARA_MASTER_KEY_BASE64: ${TUNNARA_MASTER_KEY_BASE64}
+  TUNNARA_CLUSTER_TOKEN: ${TUNNARA_CLUSTER_TOKEN}
+  TUNNARA_CORS_ORIGIN: https://console.${TUNNARA_BASE_DOMAIN}
+
+x-node-env: &node-env
+  NODE_NO_WARNINGS: "1"
+  TUNNARA_INTERNAL_CONTROL_URL: http://control:7100
+  TUNNARA_PUBLIC_CONTROL_URL: https://control.${TUNNARA_BASE_DOMAIN}
+  TUNNARA_CLUSTER_TOKEN: ${TUNNARA_CLUSTER_TOKEN}
+  TUNNARA_BASE_DOMAIN: ${TUNNARA_BASE_DOMAIN}
+  TUNNARA_REGION: ${TUNNARA_REGION:-primary}
+  TUNNARA_PUBLIC_PORT_MIN: ${PUBLIC_PORT_MIN:-20000}
+  TUNNARA_PUBLIC_PORT_MAX: ${PUBLIC_PORT_MAX:-20100}
+
+services:
+  control:
+    image: ${TUNNARA_SERVER_IMAGE:-ghcr.io/wwsoftwares/tunnara-server:1.0.1}
+    build: { context: ../.., dockerfile: runtime/node/Dockerfile.server }
+    command: ["control"]
+    environment:
+      <<: *control-env
+      TUNNARA_STORAGE_DRIVER: sqlite
+    volumes: [tunnara_data:/var/lib/tunnara]
+    restart: unless-stopped
+    healthcheck: { test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:7100/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"], interval: 10s, timeout: 5s, retries: 10 }
+    networks: [tunnara]
+
+  relay-a:
+    image: ${TUNNARA_SERVER_IMAGE:-ghcr.io/wwsoftwares/tunnara-server:1.0.1}
+    command: ["relay"]
+    environment:
+      <<: *node-env
+      TUNNARA_NODE_NAME: relay-a
+      TUNNARA_RELAY_HOST: 0.0.0.0
+      TUNNARA_RELAY_PORT: 7300
+      TUNNARA_RELAY_EDGE_HOST: 0.0.0.0
+      TUNNARA_RELAY_EDGE_PORT: 7301
+      TUNNARA_PUBLIC_RELAY_URL: tcp://${TUNNARA_PUBLIC_HOST}:${RELAY_A_PORT:-7300}
+      TUNNARA_RELAY_EDGE_PUBLIC_URL: tcp://relay-a:7301
+    ports: ["${RELAY_A_PORT:-7300}:7300/tcp"]
+    depends_on: [control]
+    restart: unless-stopped
+    networks: [tunnara]
+
+  relay-b:
+    image: ${TUNNARA_SERVER_IMAGE:-ghcr.io/wwsoftwares/tunnara-server:1.0.1}
+    command: ["relay"]
+    environment:
+      <<: *node-env
+      TUNNARA_NODE_NAME: relay-b
+      TUNNARA_RELAY_HOST: 0.0.0.0
+      TUNNARA_RELAY_PORT: 7300
+      TUNNARA_RELAY_EDGE_HOST: 0.0.0.0
+      TUNNARA_RELAY_EDGE_PORT: 7301
+      TUNNARA_PUBLIC_RELAY_URL: tcp://${TUNNARA_PUBLIC_HOST}:${RELAY_B_PORT:-7302}
+      TUNNARA_RELAY_EDGE_PUBLIC_URL: tcp://relay-b:7301
+    ports: ["${RELAY_B_PORT:-7302}:7300/tcp"]
+    depends_on: [control]
+    restart: unless-stopped
+    networks: [tunnara]
+
+  edge-a:
+    image: ${TUNNARA_SERVER_IMAGE:-ghcr.io/wwsoftwares/tunnara-server:1.0.1}
+    command: ["edge"]
+    environment:
+      <<: *node-env
+      TUNNARA_NODE_NAME: edge-a
+      TUNNARA_EDGE_HOST: 0.0.0.0
+      TUNNARA_EDGE_PORT: 7200
+      TUNNARA_PUBLIC_EDGE_URL: https://${TUNNARA_BASE_DOMAIN}
+    depends_on: [control, relay-a, relay-b]
+    restart: unless-stopped
+    networks: [tunnara]
+
+  edge-b:
+    image: ${TUNNARA_SERVER_IMAGE:-ghcr.io/wwsoftwares/tunnara-server:1.0.1}
+    command: ["edge"]
+    environment:
+      <<: *node-env
+      TUNNARA_NODE_NAME: edge-b
+      TUNNARA_EDGE_HOST: 0.0.0.0
+      TUNNARA_EDGE_PORT: 7200
+      TUNNARA_PUBLIC_EDGE_URL: https://${TUNNARA_BASE_DOMAIN}
+    depends_on: [control, relay-a, relay-b]
+    restart: unless-stopped
+    networks: [tunnara]
+
+  console:
+    image: ${TUNNARA_CONSOLE_IMAGE:-ghcr.io/wwsoftwares/tunnara-console:1.0.1}
+    build: { context: ../../apps/console }
+    restart: unless-stopped
+    networks: [tunnara]
+
+  caddy:
+    build: { context: ./cloudflare }
+    image: ${TUNNARA_CADDY_IMAGE:-tunnara-caddy-cloudflare:1.0.1}
+    environment:
+      TUNNARA_BASE_DOMAIN: ${TUNNARA_BASE_DOMAIN}
+      TUNNARA_ACME_EMAIL: ${TUNNARA_ACME_EMAIL}
+      TUNNARA_ACME_CA: ${TUNNARA_ACME_CA:-https://acme-v02.api.letsencrypt.org/directory}
+      CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN}
+    volumes: [./ha/Caddyfile:/etc/caddy/Caddyfile:ro, caddy_data:/data, caddy_config:/config]
+    ports: ["80:80/tcp", "443:443/tcp", "443:443/udp"]
+    depends_on: [control, edge-a, edge-b, console]
+    restart: unless-stopped
+    networks: [tunnara]
+
+volumes:
+  tunnara_data:
+  caddy_data:
+  caddy_config:
+networks:
+  tunnara: { driver: bridge }

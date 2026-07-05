@@ -1,0 +1,46 @@
+name: Mobile configuration validation
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main, next]
+    paths:
+      - 'sdk/mobile/**'
+      - '.github/workflows/mobile.yml'
+      - '.github/workflows/mobile-release.yml'
+      - 'scripts/version/**'
+      - 'scripts/ci/validate-mobile-config.mjs'
+      - 'VERSION'
+  push:
+    branches: [main, next]
+    paths:
+      - 'sdk/mobile/**'
+      - '.github/workflows/mobile.yml'
+      - '.github/workflows/mobile-release.yml'
+      - 'scripts/version/**'
+      - 'scripts/ci/validate-mobile-config.mjs'
+      - 'VERSION'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-config-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Mobile config only — no APK/IPA artifacts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+      - name: Validate scripts and synchronized versions
+        run: |
+          bash -n sdk/mobile/android/scripts/build-artifacts.sh
+          bash -n sdk/mobile/ios/scripts/build-artifacts.sh
+          bash -n sdk/mobile/ios/scripts/sign-and-export.sh
+          node scripts/ci/validate-mobile-config.mjs

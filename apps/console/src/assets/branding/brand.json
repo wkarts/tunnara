@@ -1,0 +1,18 @@
+{
+  "brand": "tunnara-platform",
+  "appName": "Tunnara Console",
+  "productName": "Tunnara Platform",
+  "identifier": "br.com.wwsoftwares.tunnara.console",
+  "publisher": "WWSoftware's Sistemas",
+  "tagline": "túneis seguros • redes privadas • edge platform",
+  "theme": "tunnara-blue",
+  "colors": {
+    "primary": "#2F6FED",
+    "primaryHover": "#2457C5",
+    "primarySoft": "#E7F1FF",
+    "accent": "#12C6D4",
+    "navy": "#071426"
+  },
+  "transparentAssets": true,
+  "version": "1.0.1"
+}

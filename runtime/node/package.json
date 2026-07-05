@@ -1,0 +1,21 @@
+{
+  "name": "@tunnara/runtime-node",
+  "version": "1.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Runtime funcional de referência da Tunnara 1.0, sem dependências externas.",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "bin": {
+    "tunnara": "./bin/tunnara.mjs",
+    "tunnara-server": "./bin/tunnara-server.mjs"
+  },
+  "scripts": {
+    "server": "node ./bin/tunnara-server.mjs serve-all",
+    "bootstrap": "node ./bin/tunnara-server.mjs bootstrap",
+    "test": "node --test ./tests/*.test.mjs",
+    "test:e2e": "node ./tests/e2e-http-tunnel.mjs"
+  },
+  "license": "AGPL-3.0-or-later"
+}

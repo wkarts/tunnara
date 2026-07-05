@@ -1,0 +1,58 @@
+name: CloudPanel Linux Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Arquitetura do release"
+        required: true
+        default: "all"
+        type: choice
+        options:
+          - x64
+          - x86
+          - all
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  build:
+    name: Build CloudPanel release Debian/Ubuntu
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install Debian/Ubuntu build dependencies
+        run: bash ./scripts/linux/install-cloudpanel-build-deps.sh --all
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-gnu,i686-unknown-linux-gnu
+
+      - name: Build x64 release
+        if: ${{ github.event.inputs.target == 'x64' || github.event.inputs.target == 'all' || github.event_name == 'push' }}
+        run: bash ./scripts/linux/build-cloudpanel-release.sh --x64
+
+      - name: Build x86 release
+        if: ${{ github.event.inputs.target == 'x86' || github.event.inputs.target == 'all' || github.event_name == 'push' }}
+        run: BUILD_WEB=false bash ./scripts/linux/build-cloudpanel-release.sh --x86
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: cloudpanel-linux-release
+          path: |
+            release/cloudpanel/*.tar.gz
+            release/cloudpanel/*.sha256
+          if-no-files-found: error

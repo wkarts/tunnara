@@ -1,0 +1,39 @@
+[workspace]
+resolver = "2"
+members = [
+  "crates/tunnara-types",
+  "crates/tunnara-protocol",
+  "crates/tunnara-config",
+  "crates/tunnara-transport",
+  "crates/tunnara-quic",
+  "crates/tunnara-agent-core",
+  "crates/tunnara-sdk-c",
+  "services/coordinator",
+  "services/edge",
+  "services/relay",
+  "services/agent",
+  "services/quic-bridge"
+]
+exclude = ["apps/console/src-tauri"]
+
+[workspace.package]
+version = "1.0.1"
+edition = "2021"
+authors = ["WWSoftware's Sistemas"]
+license = "AGPL-3.0-or-later"
+rust-version = "1.82"
+
+[workspace.dependencies]
+anyhow = "1"
+async-trait = "0.1"
+axum = { version = "0.8", features = ["ws"] }
+clap = { version = "4", features = ["derive", "env"] }
+futures-util = "0.3"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+tower-http = { version = "0.6", features = ["cors", "trace"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+uuid = { version = "1", features = ["v4", "serde"] }

@@ -1,0 +1,51 @@
+services:
+  tunnara-server:
+    environment:
+      TUNNARA_PUBLIC_RELAY_URL: quic://${TUNNARA_QUIC_PUBLIC_HOST:-relay.${TUNNARA_BASE_DOMAIN}}:${TUNNARA_QUIC_PORT:-7443}
+
+  quic-cert-exporter:
+    image: alpine:3.22
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "/opt/tunnara/export-caddy-cert.sh"]
+    environment:
+      CADDY_DATA_DIR: /caddy-data/caddy/certificates
+      TARGET_DIR: /certs
+    volumes:
+      - caddy_data:/caddy-data:ro
+      - quic_certs:/certs
+      - ./quic/export-caddy-cert.sh:/opt/tunnara/export-caddy-cert.sh:ro
+    depends_on: [caddy]
+    networks: [tunnara]
+
+  quic-bridge:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/quic/Dockerfile
+    image: ${TUNNARA_QUIC_IMAGE:-ghcr.io/wwsoftwares/tunnara-quic-bridge:1.0.1}
+    restart: unless-stopped
+    command:
+      - server
+      - --listen
+      - 0.0.0.0:7443
+      - --upstream
+      - tunnara-server:7300
+      - --cert
+      - /certs/fullchain.pem
+      - --key
+      - /certs/privkey.pem
+    environment:
+      TUNNARA_QUIC_CERT_WAIT_SECONDS: ${TUNNARA_QUIC_CERT_WAIT_SECONDS:-300}
+      RUST_LOG: ${TUNNARA_QUIC_LOG:-info}
+    volumes:
+      - quic_certs:/certs:ro
+    ports:
+      - "${TUNNARA_QUIC_PORT:-7443}:7443/udp"
+    depends_on:
+      tunnara-server:
+        condition: service_healthy
+      quic-cert-exporter:
+        condition: service_started
+    networks: [tunnara]
+
+volumes:
+  quic_certs:

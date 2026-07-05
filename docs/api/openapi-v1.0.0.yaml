@@ -1,0 +1,187 @@
+openapi: 3.1.0
+info:
+  title: Tunnara Control API
+  version: 1.0.0
+  description: API de gestão, provisionamento, Cloudflare/DNS, nós distribuídos e redes privadas.
+servers:
+  - url: https://control.example.com
+security:
+  - bearerAuth: []
+paths:
+  /healthz:
+    get:
+      security: []
+      responses:
+        '200': {description: Serviço saudável}
+  /api/v1/session:
+    get:
+      responses:
+        '200': {description: Sessão e organização autenticadas}
+  /api/v1/overview:
+    get:
+      responses:
+        '200': {description: Métricas operacionais}
+  /api/v1/agents:
+    get:
+      responses:
+        '200': {description: Agents da organização}
+  /api/v1/agents/register:
+    post:
+      security: []
+      parameters:
+        - in: header
+          name: X-Tunnara-Provisioning-Token
+          required: true
+          schema: {type: string}
+      responses:
+        '201': {description: Agent registrado}
+  /api/v1/agents/{id}/revoke:
+    post:
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200': {description: Agent revogado}
+  /api/v1/provisioning-tokens:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: {type: string}
+                ttlSeconds: {type: integer, minimum: 60}
+      responses:
+        '201': {description: Token descartável criado}
+  /api/v1/tunnels:
+    get:
+      responses:
+        '200': {description: Túneis da organização}
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/TunnelInput'}
+      responses:
+        '201': {description: Túnel criado}
+  /api/v1/tunnels/{id}:
+    delete:
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '204': {description: Túnel excluído}
+  /api/v1/nodes:
+    get:
+      responses:
+        '200': {description: Edges e Relays registrados}
+  /api/v1/networks:
+    get:
+      responses:
+        '200': {description: Redes privadas}
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, cidr]
+              properties:
+                name: {type: string}
+                cidr: {type: string, example: 10.91.0.0/24}
+                dnsDomain: {type: string}
+                mode: {type: string, enum: [mesh, hub-spoke]}
+      responses:
+        '201': {description: Rede criada}
+  /api/v1/networks/{id}:
+    delete:
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '204': {description: Rede excluída}
+  /api/v1/networks/{id}/peers:
+    get:
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200': {description: Peers da rede}
+    post:
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '201': {description: Peer criado ou atualizado}
+  /api/v1/integrations/cloudflare:
+    get:
+      responses:
+        '200': {description: Configuração sem expor o token}
+    put:
+      responses:
+        '200': {description: Integração salva com segredo criptografado}
+  /api/v1/integrations/cloudflare/test:
+    post:
+      responses:
+        '200': {description: Token e zona validados}
+  /api/v1/integrations/cloudflare/bootstrap-dns:
+    post:
+      responses:
+        '200': {description: Registros base e wildcard criados}
+  /api/v1/dns/records:
+    get:
+      responses:
+        '200': {description: Registros administrados}
+    post:
+      responses:
+        '201': {description: Registro criado}
+  /api/v1/dns/records/{id}:
+    delete:
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '204': {description: Registro removido}
+  /api/v1/certificates:
+    get:
+      responses:
+        '200': {description: Catálogo de certificados gerenciados}
+  /api/v1/api-tokens:
+    get:
+      responses:
+        '200': {description: Tokens administrativos}
+    post:
+      responses:
+        '201': {description: Token criado e exibido uma única vez}
+  /api/v1/api-tokens/{id}/revoke:
+    post:
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200': {description: Token revogado}
+  /api/v1/audit:
+    get:
+      responses:
+        '200': {description: Eventos de auditoria}
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  parameters:
+    Id:
+      in: path
+      name: id
+      required: true
+      schema: {type: string, format: uuid}
+  schemas:
+    TunnelInput:
+      type: object
+      required: [protocol, targetPort]
+      properties:
+        name: {type: string}
+        protocol: {type: string, enum: [http, https, tcp, udp]}
+        hostname: {type: string}
+        targetHost: {type: string, default: 127.0.0.1}
+        targetPort: {type: integer, minimum: 1, maximum: 65535}
+        publicPort: {type: integer, minimum: 1, maximum: 65535}
+        autoDns: {type: boolean, default: false}
+        transport: {type: string, enum: [auto, tcp, tls, quic]}

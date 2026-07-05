@@ -1,0 +1,11 @@
+[package]
+name = "tunnara-relay"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tunnara-config = { path = "../../crates/tunnara-config" }

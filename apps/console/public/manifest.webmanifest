@@ -1,0 +1,22 @@
+{
+  "name": "Tunnara Console",
+  "short_name": "Tunnara",
+  "description": "Console multiplataforma para túneis seguros, agentes, edges, relays e redes privadas.",
+  "start_url": "/#/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#F5F9FF",
+  "theme_color": "#2F6FED",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

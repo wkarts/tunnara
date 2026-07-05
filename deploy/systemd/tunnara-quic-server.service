@@ -1,0 +1,21 @@
+[Unit]
+Description=Tunnara QUIC Bridge Server
+After=network-online.target tunnara-server.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=tunnara
+Group=tunnara
+EnvironmentFile=-/etc/tunnara/quic-server.env
+ExecStart=/usr/local/bin/tunnara-quic-bridge server
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/tunnara /var/log/tunnara
+
+[Install]
+WantedBy=multi-user.target

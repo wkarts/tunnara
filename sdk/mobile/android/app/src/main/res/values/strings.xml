@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Tunnara</string>
+    <string name="wireguard_config_hint">Cole aqui a configuração WireGuard fornecida pelo Tunnara Control.</string>
+</resources>
