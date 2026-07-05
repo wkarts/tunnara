@@ -53,7 +53,7 @@
     "deps:linux:cloudpanel:x86": "bash ./scripts/linux/install-cloudpanel-build-deps.sh --x86"
   },
   "dependencies": {
-    "@tauri-apps/api": "^2.0.0",
+    "@tauri-apps/api": "^2.11.1",
     "pinia": "2.3.1",
     "vue": "^3.5.39",
     "vue-router": "4.6.4"
