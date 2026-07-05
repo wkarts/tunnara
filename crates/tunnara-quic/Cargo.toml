@@ -14,4 +14,4 @@ tokio.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
-rcgen = "0.13"
+rcgen = "0.14"
