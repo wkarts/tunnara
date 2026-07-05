@@ -49,7 +49,7 @@ jobs:
       - name: Install console dependencies
         shell: bash
         run: bash scripts/ci/npm-ci.sh apps/console
-      - uses: tauri-apps/tauri-action@v0
+      - uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
