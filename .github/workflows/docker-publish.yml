@@ -44,7 +44,7 @@ jobs:
             context: deploy/docker/cloudflare
             file: deploy/docker/cloudflare/Dockerfile
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Normaliza owner para GHCR
         shell: bash
         run: echo "GHCR_OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
