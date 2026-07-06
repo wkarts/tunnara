@@ -6,16 +6,19 @@ on:
   workflow_dispatch:
     inputs:
       bump:
-        description: 'Tipo de incremento SemVer'
+        description: 'Incremento SemVer (auto mantém RC ou incrementa patch)'
         required: false
-        default: patch
+        default: auto
         type: choice
         options:
+          - auto
+          - prerelease
+          - stable
           - patch
           - minor
           - major
       release:
-        description: 'Criar release após sincronizar a versão'
+        description: 'Sincronizar a versão e criar a release'
         required: false
         default: true
         type: boolean
@@ -60,7 +63,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           EVENT_NAME: ${{ github.event_name }}
-          MANUAL_BUMP: ${{ inputs.bump || 'patch' }}
+          MANUAL_BUMP: ${{ inputs.bump || 'auto' }}
           MANUAL_RELEASE: ${{ github.event_name != 'workflow_dispatch' || inputs.release }}
         run: |
           set -Eeuo pipefail
@@ -75,26 +78,29 @@ jobs:
                 --jq '.[0].labels | map(.name) | join(",")' 2>/dev/null || true
             )"
             case ",${pr_labels}," in
-              *,release:none,*)  should_release=false ;;
-              *,release:major,*) bump=major ;;
-              *,release:minor,*) bump=minor ;;
-              *,release:patch,*) bump=patch ;;
-              *)                 bump=patch ;;
+              *,release:none,*)       should_release=false ;;
+              *,release:major,*)      bump=major ;;
+              *,release:minor,*)      bump=minor ;;
+              *,release:patch,*)      bump=patch ;;
+              *,release:stable,*)     bump=stable ;;
+              *,release:prerelease,*) bump=prerelease ;;
+              *)                      bump=auto ;;
             esac
           elif [[ "$MANUAL_RELEASE" != 'true' ]]; then
             should_release=false
           fi
 
           current_version="$(tr -d '[:space:]' < VERSION)"
-          latest_version="$(
-            gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
-              --jq '.[] | select(.draft == false and .prerelease == false) | .tag_name' \
-              | sed -nE 's/^v([0-9]+\.[0-9]+\.[0-9]+)$/\1/p' \
-              | sort -V \
-              | tail -n 1
+          known_versions="$(
+            {
+              gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+                --jq '.[].tag_name' 2>/dev/null || true
+              git tag --list 'v*'
+            } \
+              | sed -nE 's/^v([0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?)$/\1/p' \
+              | LC_ALL=C sort -u
           )"
-          latest_version="${latest_version:-0.0.0}"
-
+          latest_version="$(printf '%s\n' "$known_versions" | node scripts/version/max-version.mjs)"
           version="$(node scripts/version/next-version.mjs "$current_version" "$latest_version" "$bump")"
 
           {
@@ -110,16 +116,20 @@ jobs:
             echo '## Versionamento após merge'
             echo
             echo "- Versão do repositório antes do job: \`$current_version\`"
-            echo "- Última versão publicada: \`$latest_version\`"
+            echo "- Maior versão reservada por release ou tag, incluindo drafts e prereleases: \`$latest_version\`"
             echo "- Labels do Pull Request: \`${pr_labels:-nenhuma}\`"
             echo "- Incremento selecionado: \`$bump\`"
             echo "- Próxima versão: \`$version\`"
             echo "- Criar release: \`$should_release\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Synchronize version files
+      - name: Synchronize and validate version files
         if: steps.resolve.outputs.should_release == 'true'
-        run: npm run version:set -- "${{ steps.resolve.outputs.version }}"
+        run: |
+          npm run version:set -- "${{ steps.resolve.outputs.version }}"
+          npm run version:check
+          npm run version:test
+          npm run validate:mobile
 
       - name: Commit synchronized version
         id: commit
@@ -142,16 +152,18 @@ jobs:
 
           echo "release_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
-      - name: Dispatch coordinated release
+      - name: Dispatch coordinated immutable release
         if: steps.resolve.outputs.should_release == 'true'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.resolve.outputs.version }}
+          RELEASE_SHA: ${{ steps.commit.outputs.release_sha }}
         run: |
           set -Eeuo pipefail
           gh workflow run release.yml \
             --repo "$GITHUB_REPOSITORY" \
             --ref main \
-            -f release_version="$VERSION"
-          echo "::notice::Release v$VERSION solicitada após sincronização da main."
+            -f release_version="$VERSION" \
+            -f release_sha="$RELEASE_SHA"
+          echo "::notice::Release imutável v$VERSION solicitada para o commit $RELEASE_SHA."

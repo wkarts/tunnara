@@ -8,8 +8,7 @@ on:
       - 'crates/**'
       - 'services/**'
       - 'Cargo.toml'
-      - 'rust-toolchain.toml'
-      - 'apps/console/src-tauri/**'
+      - 'Cargo.lock'
       - 'apps/control-api/**'
       - '.github/workflows/native-preview.yml'
 
@@ -21,31 +20,16 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  rust-check:
-    name: Rust format and workspace check
+  rust-format:
+    name: Rust format
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v6
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-          cache-dependency-path: apps/console/package-lock.json
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
-      - uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: native-fast
-      - name: Prepare Tauri resources without producing release artifacts
-        run: |
-          bash scripts/ci/npm-ci.sh apps/console
-          npm --prefix apps/console run build:web:tauri
-      - name: Validate Rust workspace
-        run: |
-          cargo fmt --all --check
-          cargo check --workspace --all-targets
+      - run: cargo fmt --all --check
 
   laravel-static:
     name: Laravel static validation

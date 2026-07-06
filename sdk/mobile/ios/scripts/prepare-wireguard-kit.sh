@@ -2,24 +2,66 @@
 set -Eeuo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SOURCE="${1:-${TUNNARA_WIREGUARD_SOURCE:-$ROOT/.wireguard-apple}}"
+SOURCE="${1:-${TUNNARA_WIREGUARD_APPLE_DIR:-}}"
 
-if [[ ! -d "$SOURCE" ]]; then
-  git clone --depth 1 --branch 1.0.16-27 https://git.zx2c4.com/wireguard-apple "$SOURCE"
+if [[ -z "$SOURCE" ]]; then
+  SOURCE="$ROOT/.wireguard-apple"
+  if [[ ! -d "$SOURCE/.git" ]]; then
+    git clone --depth 1 --branch 1.0.16-27 https://git.zx2c4.com/wireguard-apple "$SOURCE"
+  fi
 fi
 
-# Xcode 16+ exige os tipos C99 explícitos. O patch é intencionalmente idempotente.
-while IFS= read -r -d '' header; do
-  if ! grep -q '^#include <stdint.h>' "$header"; then
-    tmp="${header}.tunnara.tmp"
-    { printf '#include <stdint.h>\n'; cat "$header"; } > "$tmp"
-    mv "$tmp" "$header"
-  fi
-  perl -0pi -e 's/\bu_int32_t\b/uint32_t/g; s/\bu_int16_t\b/uint16_t/g; s/\bu_char\b/uint8_t/g' "$header"
-done < <(grep -rlZE '\b(u_int32_t|u_int16_t|u_char)\b' "$SOURCE/Sources" --include='*.h' 2>/dev/null || true)
+[[ -d "$SOURCE" ]] || { echo "Checkout wireguard-apple não encontrado: $SOURCE" >&2; exit 1; }
 
-while IFS= read -r -d '' makefile; do
-  perl -0pi -e 's/^(GOOS_iphonesimulator\s*:?=\s*)\S+/$1ios/m' "$makefile"
-done < <(find "$SOURCE" -type f \( -name Makefile -o -name '*.mk' \) -print0)
+python3 - "$SOURCE" <<'PYWG'
+from pathlib import Path
+import re
+import sys
 
-echo "WireGuardKit preparado em $SOURCE."
+source = Path(sys.argv[1])
+replacements = {
+    'u_int32_t': 'uint32_t',
+    'u_int16_t': 'uint16_t',
+    'u_char': 'uint8_t',
+}
+patched = 0
+
+for header in (source / 'Sources').rglob('*.h'):
+    text = header.read_text(errors='ignore')
+    updated = text
+    for old, new in replacements.items():
+        updated = updated.replace(old, new)
+    if updated != text and '#include <stdint.h>' not in updated:
+        lines = updated.splitlines()
+        insert_at = 0
+        while insert_at < len(lines) and (
+            lines[insert_at].startswith('/*')
+            or lines[insert_at].startswith(' *')
+            or lines[insert_at].startswith('*/')
+            or not lines[insert_at].strip()
+        ):
+            insert_at += 1
+        lines.insert(insert_at, '#include <stdint.h>')
+        updated = '\n'.join(lines) + ('\n' if text.endswith('\n') else '')
+    if updated != text:
+        header.write_text(updated)
+        patched += 1
+
+for makefile in (source / 'Sources').rglob('Makefile'):
+    text = makefile.read_text(errors='ignore')
+    updated = text
+    if 'GOOS_iphonesimulator :=' in updated:
+        updated = re.sub(
+            r'^GOOS_iphonesimulator\s*:=.*$',
+            'GOOS_iphonesimulator := ios',
+            updated,
+            flags=re.M,
+        )
+    elif 'GOOS_iphoneos :=' in updated:
+        updated += '\nGOOS_iphonesimulator := ios\n'
+    if updated != text:
+        makefile.write_text(updated)
+        patched += 1
+
+print(f'WireGuardKit preparado de forma idempotente em {source} ({patched} arquivo(s) ajustado(s)).')
+PYWG

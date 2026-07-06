@@ -1,17 +1,16 @@
 name: Release after merge
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - VERSION
   workflow_dispatch:
     inputs:
-      force_rebuild:
-        description: 'Retomar e substituir assets de uma release ainda em draft'
-        required: false
-        default: false
-        type: boolean
+      release_version:
+        description: 'Versão SemVer já sincronizada na main'
+        required: true
+        type: string
+      release_sha:
+        description: 'Commit imutável que receberá a tag e será compilado'
+        required: true
+        type: string
 
 permissions:
   actions: read
@@ -21,7 +20,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: release-${{ github.repository }}
+  group: release-${{ inputs.release_version }}
   cancel-in-progress: false
 
 env:
@@ -38,63 +37,89 @@ jobs:
     outputs:
       version: ${{ steps.release.outputs.version }}
       tag: ${{ steps.release.outputs.tag }}
+      release_sha: ${{ steps.release.outputs.release_sha }}
       release_id: ${{ steps.release.outputs.release_id }}
-      prerelease: ${{ steps.release.outputs.prerelease }}
-      should_build: ${{ steps.release.outputs.should_build }}
     steps:
       - uses: actions/checkout@v7
         with:
+          ref: ${{ inputs.release_sha }}
           fetch-depth: 0
 
-      - name: Resolve deterministic immutable release
+      - name: Resolve deterministic release version
         id: release
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          FORCE_REBUILD: ${{ github.event_name == 'workflow_dispatch' && inputs.force_rebuild || false }}
+          REQUESTED_VERSION: ${{ inputs.release_version }}
+          REQUESTED_SHA: ${{ inputs.release_sha }}
         run: |
           set -Eeuo pipefail
           version="$(tr -d '[:space:]' < VERSION)"
+          actual_sha="$(git rev-parse HEAD)"
           tag="v${version}"
+
           [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?$ ]] || {
             echo "VERSION inválida: $version" >&2
             exit 1
           }
-          prerelease=false
-          [[ "$version" == *-* ]] && prerelease=true
+          [[ "$REQUESTED_VERSION" == "$version" ]] || {
+            echo "Versão solicitada ($REQUESTED_VERSION) difere do VERSION do commit ($version)." >&2
+            exit 1
+          }
+          [[ "$REQUESTED_SHA" == "$actual_sha" ]] || {
+            echo "Commit solicitado ($REQUESTED_SHA) difere do checkout ($actual_sha)." >&2
+            exit 1
+          }
+
           notes_file="docs/releases/v${version}.md"
+          if git rev-parse -q --verify "refs/tags/$tag" >/dev/null 2>&1; then
+            tag_sha="$(git rev-list -n 1 "$tag")"
+            [[ "$tag_sha" == "$actual_sha" ]] || {
+              echo "A tag existente $tag aponta para $tag_sha, não para $actual_sha. Tags publicadas são imutáveis." >&2
+              exit 1
+            }
+          fi
 
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            release_json="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag")"
-            is_draft="$(jq -r .draft <<<"$release_json")"
-            if [[ "$is_draft" != true ]]; then
-              echo "::error::A release publicada $tag é imutável. Incremente VERSION antes do merge; não reabra a release nem mova a tag." >&2
+            release_json="$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json isDraft,targetCommitish)"
+            is_draft="$(jq -r .isDraft <<<"$release_json")"
+            existing_target="$(jq -r .targetCommitish <<<"$release_json")"
+            if [[ "$is_draft" != 'true' ]]; then
+              echo "A release publicada $tag é imutável. Gere uma nova versão em vez de reabri-la." >&2
               exit 1
             fi
-            git fetch --force --tags origin
-            existing_sha="$(git rev-list -n1 "$tag" 2>/dev/null || true)"
-            if [[ -n "$existing_sha" && "$existing_sha" != "$GITHUB_SHA" ]]; then
-              echo "::error::O draft $tag pertence ao commit $existing_sha, mas o workflow executa $GITHUB_SHA. Use uma nova versão." >&2
+            if [[ "$existing_target" != "$actual_sha" ]]; then
+              echo "A draft $tag pertence ao commit $existing_target, não ao commit solicitado $actual_sha." >&2
+              echo "Gere uma nova versão ou reexecute a draft com o SHA original." >&2
               exit 1
             fi
-            echo "::notice::Retomando o draft imutável $tag no mesmo commit."
-            if [[ "$FORCE_REBUILD" != true && "${{ github.event_name }}" == workflow_dispatch ]]; then
-              echo "::notice::Execução manual sem force_rebuild: o draft existente será retomado normalmente."
-            fi
+            echo "::notice::Retomando a release draft $tag do mesmo commit; assets serão substituídos de forma idempotente."
+            edit_args=(--repo "$GITHUB_REPOSITORY" --title "Tunnara Platform $version" --draft=true)
+            if [[ -f "$notes_file" ]]; then edit_args+=(--notes-file "$notes_file"); fi
+            gh release edit "$tag" "${edit_args[@]}"
           else
-            create_args=(--repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Tunnara Platform $version" --draft --latest=false)
-            [[ "$prerelease" == true ]] && create_args+=(--prerelease)
-            if [[ -f "$notes_file" ]]; then create_args+=(--notes-file "$notes_file"); else create_args+=(--generate-notes); fi
+            create_args=(
+              --repo "$GITHUB_REPOSITORY"
+              --target "$actual_sha"
+              --title "Tunnara Platform $version"
+              --draft
+            )
+            if [[ "$version" == *-* ]]; then create_args+=(--prerelease); fi
+            if [[ -f "$notes_file" ]]; then
+              create_args+=(--notes-file "$notes_file")
+            else
+              create_args+=(--generate-notes)
+            fi
             gh release create "$tag" "${create_args[@]}"
           fi
 
-          release_id="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" --jq .id)"
+          release_id="$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json databaseId --jq .databaseId)"
+
           {
             echo "version=$version"
             echo "tag=$tag"
+            echo "release_sha=$actual_sha"
             echo "release_id=$release_id"
-            echo "prerelease=$prerelease"
-            echo "should_build=true"
           } >> "$GITHUB_OUTPUT"
 
       - name: Release summary
@@ -104,22 +129,21 @@ jobs:
             echo '## Release Tunnara'
             echo
             echo '- Versão: `${{ steps.release.outputs.version }}`'
-            echo '- Tag imutável: `${{ steps.release.outputs.tag }}`'
-            echo '- Release ID: `${{ steps.release.outputs.release_id }}`'
-            echo '- Pré-release: `${{ steps.release.outputs.prerelease }}`'
+            echo '- Tag: `${{ steps.release.outputs.tag }}`'
+            echo '- Commit: `${{ steps.release.outputs.release_sha }}`'
+            echo '- A release publicada nunca será reaberta nem terá a tag movida.'
             echo '- A release permanece em draft até todos os builds obrigatórios terminarem.'
           } >> "$GITHUB_STEP_SUMMARY"
 
   core:
     name: Build and upload core assets
     needs: prepare
-    if: needs.prepare.outputs.should_build == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ needs.prepare.outputs.tag }}
+          ref: ${{ needs.prepare.outputs.release_sha }}
           fetch-depth: 0
 
       - uses: actions/setup-node@v6
@@ -139,6 +163,7 @@ jobs:
         run: |
           npm run repository:check
           npm run version:check
+          npm run version:test
           npm run validate:node
           npm run validate:shell
           npm run validate:php
@@ -160,57 +185,50 @@ jobs:
             npm run runtime:test
           npm run artifacts:package
 
-      - name: Upload core assets sequentially
+      - name: Upload core assets to draft release
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.prepare.outputs.tag }}
         run: |
           set -Eeuo pipefail
-          mapfile -d '' files < <(find artifacts -maxdepth 1 -type f -print0 | sort -z)
-          ((${#files[@]} > 0)) || { echo 'Nenhum artefato foi gerado.' >&2; exit 1; }
-          bash scripts/release/upload-release-assets.sh "$TAG" "${files[@]}"
+          bash scripts/release/upload-release-assets.sh "$TAG" artifacts
 
   runtime:
     name: Runtime executables
     needs: [prepare, core]
-    if: needs.prepare.outputs.should_build == 'true'
     uses: ./.github/workflows/runtime-release.yml
     with:
       release_tag: ${{ needs.prepare.outputs.tag }}
-      release_ref: ${{ needs.prepare.outputs.tag }}
+      source_sha: ${{ needs.prepare.outputs.release_sha }}
     secrets: inherit
 
   sdk:
     name: SDK binaries
     needs: [prepare, core]
-    if: needs.prepare.outputs.should_build == 'true'
     uses: ./.github/workflows/sdk-build.yml
     with:
       release_tag: ${{ needs.prepare.outputs.tag }}
-      release_ref: ${{ needs.prepare.outputs.tag }}
+      source_sha: ${{ needs.prepare.outputs.release_sha }}
     secrets: inherit
 
   desktop:
     name: Desktop applications
     needs: [prepare, core]
-    if: needs.prepare.outputs.should_build == 'true'
     uses: ./.github/workflows/desktop-release.yml
     with:
       release_tag: ${{ needs.prepare.outputs.tag }}
-      release_ref: ${{ needs.prepare.outputs.tag }}
+      source_sha: ${{ needs.prepare.outputs.release_sha }}
       release_id: ${{ needs.prepare.outputs.release_id }}
-      prerelease: ${{ needs.prepare.outputs.prerelease == 'true' }}
     secrets: inherit
 
   mobile:
     name: Mobile applications
     needs: [prepare, core]
-    if: needs.prepare.outputs.should_build == 'true'
     uses: ./.github/workflows/mobile-release.yml
     with:
       release_tag: ${{ needs.prepare.outputs.tag }}
-      release_ref: ${{ needs.prepare.outputs.tag }}
+      source_sha: ${{ needs.prepare.outputs.release_sha }}
       publish_google_play: false
       publish_testflight: false
       ios_export_method: development
@@ -219,17 +237,16 @@ jobs:
   containers:
     name: Container images
     needs: [prepare, core]
-    if: needs.prepare.outputs.should_build == 'true'
     uses: ./.github/workflows/docker-publish.yml
     with:
       release_tag: ${{ needs.prepare.outputs.tag }}
-      release_ref: ${{ needs.prepare.outputs.tag }}
+      source_sha: ${{ needs.prepare.outputs.release_sha }}
     secrets: inherit
 
   finalize:
     name: Publish completed release
     needs: [prepare, core, runtime, sdk, desktop, mobile, containers]
-    if: always() && needs.prepare.outputs.should_build == 'true'
+    if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -262,19 +279,11 @@ jobs:
             exit 1
           fi
 
-      - name: Publish release with correct channel
-        shell: bash
+      - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.prepare.outputs.tag }}
-          PRERELEASE: ${{ needs.prepare.outputs.prerelease }}
-        run: |
-          set -Eeuo pipefail
-          if [[ "$PRERELEASE" == true ]]; then
-            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false --prerelease --latest=false
-          else
-            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false --prerelease=false --latest
-          fi
+        run: gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false
 
       - name: Final summary
         shell: bash
@@ -283,8 +292,8 @@ jobs:
             echo '## Release publicada'
             echo
             echo '- Tag: `${{ needs.prepare.outputs.tag }}`'
-            echo '- Pré-release: `${{ needs.prepare.outputs.prerelease }}`'
+            echo '- Commit: `${{ needs.prepare.outputs.release_sha }}`'
             echo '- Core, runtimes, SDKs, desktop, mobile e containers concluídos.'
-            echo '- Assets possuem nomes exclusivos e uploads idempotentes.'
-            echo '- Imagens publicadas no GHCR com SBOM/provenance.'
+            echo '- Os binários foram anexados diretamente à GitHub Release.'
+            echo '- As imagens foram publicadas no GHCR.'
           } >> "$GITHUB_STEP_SUMMARY"

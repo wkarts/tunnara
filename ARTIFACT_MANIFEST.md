@@ -26,7 +26,7 @@
 - Console Web compilado;
 - Agent e Server standalone Linux x64;
 - SDK C dinâmico e estático Linux x64;
-- Docker single-node, produção, distribuído TCP/QUIC e observabilidade;
+- Docker single-node, produção, distribuído e observabilidade;
 - Helm Chart;
 - Control API Laravel, runtime, serviços Rust e projetos mobile;
 - documentação, OpenAPI, testes, workflows e scripts de release.
@@ -42,4 +42,4 @@
 
 ## Política
 
-Pull Requests não criam artefatos de distribuição. A release/tag publicada é imutável e o draft permanece aberto até a conclusão dos workflows obrigatórios e os arquivos finais são anexados diretamente à GitHub Release.
+Pull Requests não criam artefatos de distribuição. A release permanece em draft até a conclusão dos workflows obrigatórios e os arquivos finais são anexados diretamente à GitHub Release.

@@ -63,8 +63,8 @@ cd deploy/docker
 ./tunnara.sh init
 # configure TUNNARA_BASE_DOMAIN, TUNNARA_PUBLIC_HOST,
 # CLOUDFLARE_API_TOKEN e TUNNARA_ACME_EMAIL
-./tunnara.sh up-distributed-quic
-./tunnara.sh status-distributed-quic
+./tunnara.sh up-distributed
+./tunnara.sh status-distributed
 ```
 
 Detalhes: [`deploy/docker/distributed/README.md`](deploy/docker/distributed/README.md).
@@ -147,9 +147,7 @@ npm run runtime:test:security
 npm run runtime:test:load
 ```
 
-A CI de Pull Request não cria artefatos. Builds completos são coordenados por uma única release draft, usam a tag imutável como ref e publicam assets com nomes exclusivos.
-
-> O runtime funcional oficial desta RC é o plano de dados Node.js 22. Os serviços Agent/Edge/Relay Rust permanecem em preview até passarem pela mesma matriz E2E, carga e soak; consulte `docs/STATUS.md`.
+A CI de Pull Request não cria artefatos. Builds completos são executados por tag, release ou workflow manual.
 
 ## Estado da release
 
@@ -159,9 +157,6 @@ A CI de Pull Request não cria artefatos. Builds completos são coordenados por 
 - [`docs/architecture/COMPETITIVE_GAP.md`](docs/architecture/COMPETITIVE_GAP.md)
 - [`docs/releases/v2.0.0-rc.2.md`](docs/releases/v2.0.0-rc.2.md)
 - [`docs/security/MATURITY_GATES.md`](docs/security/MATURITY_GATES.md)
-- [`docs/operations/PRODUCTION_READINESS.md`](docs/operations/PRODUCTION_READINESS.md)
-- [`docs/operations/UPGRADE_ROLLBACK.md`](docs/operations/UPGRADE_ROLLBACK.md)
-- [`docs/operations/DISASTER_RECOVERY.md`](docs/operations/DISASTER_RECOVERY.md)
 
 ## Estrutura
 

@@ -13,7 +13,6 @@ HA_FILE="$SCRIPT_DIR/docker-compose.ha.yml"
 HA_BUILD_FILE="$SCRIPT_DIR/docker-compose.ha.build.yml"
 OBSERVABILITY_FILE="$SCRIPT_DIR/docker-compose.observability.yml"
 DISTRIBUTED_FILE="$SCRIPT_DIR/docker-compose.distributed.yml"
-DISTRIBUTED_QUIC_FILE="$SCRIPT_DIR/docker-compose.distributed.quic.yml"
 
 info() { printf '[Tunnara] %s\n' "$*"; }
 warn() { printf '[Tunnara] AVISO: %s\n' "$*" >&2; }
@@ -104,9 +103,9 @@ init() {
   db_password="$(get_env DB_PASSWORD)"
   redis_password="$(get_env REDIS_PASSWORD)"
 
-  [[ "$token" =~ ^tnr_admin_[A-Za-z0-9_-]{32,}$ && "$token" != *change* && "$token" != *example* ]] || token="$(random_admin_token)"
-  [[ -n "$master" && "$master" != change-me && "$master" != change_me ]] || master="$(random_master_key)"
-  [[ "$cluster" =~ ^tnr_cluster_[A-Za-z0-9_-]{40,}$ && "$cluster" != *change* && "$cluster" != *example* ]] || cluster="$(random_cluster_token)"
+  [[ "$token" == tnr_admin_* ]] || token="$(random_admin_token)"
+  [[ -n "$master" && "$master" != change-me ]] || master="$(random_master_key)"
+  [[ "$cluster" == tnr_cluster_* ]] || cluster="$(random_cluster_token)"
   [[ -n "$grafana_password" && "$grafana_password" != change_me ]] || grafana_password="$(random_password)"
   [[ "$app_key" == base64:* ]] || app_key="$(random_app_key)"
   [[ -n "$db_password" && "$db_password" != change_me ]] || db_password="$(random_password)"
@@ -173,9 +172,6 @@ compose_run() {
     distributed)
       files=(-f "$DISTRIBUTED_FILE")
       ;;
-    distributed-quic)
-      files=(-f "$DISTRIBUTED_FILE" -f "$DISTRIBUTED_QUIC_FILE")
-      ;;
     *) die "Stack Docker desconhecida: $stack" ;;
   esac
 
@@ -188,7 +184,6 @@ compose_full() { compose_run full "$@"; }
 compose_ha() { compose_run ha "$@"; }
 compose_observability() { compose_run observability "$@"; }
 compose_distributed() { compose_run distributed "$@"; }
-compose_distributed_quic() { compose_run distributed-quic "$@"; }
 
 start_stack() {
   local stack="$1"; shift || true
@@ -264,7 +259,7 @@ doctor() {
   mode="$(deploy_mode)"
   storage="$(get_env TUNNARA_STORAGE_DRIVER)"
   [[ "$storage" == sqlite || "$storage" == memory ]] || { warn "TUNNARA_STORAGE_DRIVER deve ser sqlite ou memory no runtime embarcado."; failed=1; }
-  [[ "$(admin_token)" =~ ^tnr_admin_[A-Za-z0-9_-]{32,}$ && "$(admin_token)" != *change* ]] || { warn 'Token administrativo inválido ou placeholder.'; failed=1; }
+  [[ "$(admin_token)" == tnr_admin_* ]] || { warn 'Token administrativo inválido.'; failed=1; }
   [[ -n "$(get_env TUNNARA_MASTER_KEY_BASE64)" && "$(get_env TUNNARA_MASTER_KEY_BASE64)" != change-me ]] || { warn 'Chave mestra ausente.'; failed=1; }
 
   info "Modo de deploy: $mode"
@@ -364,62 +359,6 @@ wait_distributed() {
   done
 }
 
-backup_distributed() {
-  local destination="${1:-$SCRIPT_DIR/backups/tunnara-postgres-$(date +%Y%m%d-%H%M%S).dump}"
-  mkdir -p "$(dirname "$destination")"
-  compose_distributed exec -T postgres sh -ec 'pg_dump -Fc -U "$POSTGRES_USER" -d "$POSTGRES_DB"' > "$destination"
-  [[ -s "$destination" ]] || die 'O backup PostgreSQL foi gerado vazio.'
-  chmod 600 "$destination" 2>/dev/null || true
-  if command -v sha256sum >/dev/null 2>&1; then sha256sum "$destination" > "${destination}.sha256"; else shasum -a 256 "$destination" > "${destination}.sha256"; fi
-  info "Backup PostgreSQL distribuído criado: $destination"
-}
-
-restore_distributed() {
-  local source_file="${1:-}" confirmation="${2:-}"
-  [[ -f "$source_file" ]] || die 'Uso: ./tunnara.sh restore-distributed ARQUIVO.dump --force'
-  [[ "$confirmation" == --force ]] || die 'Restore distribuído é destrutivo. Repita com --force.'
-  compose_distributed stop caddy console edge-a edge-b relay-a relay-b control-a control-b || true
-  compose_distributed exec -T postgres sh -ec 'dropdb --if-exists -U "$POSTGRES_USER" "$POSTGRES_DB"; createdb -U "$POSTGRES_USER" "$POSTGRES_DB"'
-  compose_distributed exec -T postgres sh -ec 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner --no-privileges' < "$source_file"
-  compose_distributed exec -T redis sh -ec 'redis-cli -a "$REDIS_PASSWORD" FLUSHALL >/dev/null'
-  compose_distributed up -d
-  wait_distributed
-  info "Banco distribuído restaurado a partir de: $source_file"
-}
-
-set_release_images() {
-  local version="$1" key current base
-  [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?$ ]] || die "Versão inválida: $version"
-  for key in TUNNARA_SERVER_IMAGE TUNNARA_AGENT_IMAGE TUNNARA_CONSOLE_IMAGE TUNNARA_CONTROL_IMAGE TUNNARA_CADDY_IMAGE TUNNARA_QUIC_IMAGE; do
-    current="$(get_env "$key")"
-    [[ -n "$current" ]] || continue
-    base="${current%:*}"
-    set_env "$key" "${base}:${version}"
-  done
-  set_env TUNNARA_VERSION "$version"
-}
-
-update_distributed() {
-  local stack="${1:-distributed}" backup
-  backup="$SCRIPT_DIR/backups/pre-update-distributed-$(date +%Y%m%d-%H%M%S).dump"
-  backup_distributed "$backup"
-  compose_run "$stack" pull
-  compose_run "$stack" up -d --remove-orphans
-  wait_distributed
-  info "Atualização distribuída concluída. Backup preventivo: $backup"
-}
-
-rollback_distributed() {
-  local version="${1:-}" stack="${2:-distributed}"
-  [[ -n "$version" ]] || die 'Uso: ./tunnara.sh rollback-distributed VERSAO'
-  backup_distributed "$SCRIPT_DIR/backups/pre-rollback-distributed-$(date +%Y%m%d-%H%M%S).dump"
-  set_release_images "$version"
-  compose_run "$stack" pull
-  compose_run "$stack" up -d --remove-orphans
-  wait_distributed
-  info "Rollback distribuído concluído para $version."
-}
-
 case "${1:-help}" in
   init) init ;;
   quickstart) quickstart ;;
@@ -491,30 +430,13 @@ case "${1:-help}" in
     start_stack distributed
     wait_distributed
     bootstrap_distributed
-    info 'Plano distribuído iniciado com fallback TCP explícito. Para QUIC público, use up-distributed-quic.'
-    ;;
-  up-distributed-quic)
-    require_cloudflare_env
-    start_stack distributed-quic
-    wait_distributed
-    bootstrap_distributed
-    info 'Plano distribuído iniciado com PostgreSQL, Redis, dois Controls, dois Edges, dois Relays e QUIC/TLS 1.3.'
+    info 'Plano de controle distribuído iniciado com PostgreSQL, Redis, dois Controls, dois Edges e dois Relays.'
     ;;
   bootstrap-distributed) bootstrap_distributed ;;
-  backup-distributed) backup_distributed "${2:-}" ;;
-  restore-distributed) restore_distributed "${2:-}" "${3:-}" ;;
-  update-distributed) update_distributed distributed ;;
-  update-distributed-quic) update_distributed distributed-quic ;;
-  rollback-distributed) rollback_distributed "${2:-}" distributed ;;
-  rollback-distributed-quic) rollback_distributed "${2:-}" distributed-quic ;;
   down-distributed) compose_distributed down ;;
-  down-distributed-quic) compose_distributed_quic down ;;
   status-distributed) compose_distributed ps ;;
-  status-distributed-quic) compose_distributed_quic ps ;;
   logs-distributed) shift; compose_distributed logs -f --tail=200 "$@" ;;
-  logs-distributed-quic) shift; compose_distributed_quic logs -f --tail=200 "$@" ;;
   destroy-distributed) compose_distributed down --volumes --remove-orphans ;;
-  destroy-distributed-quic) compose_distributed_quic down --volumes --remove-orphans ;;
 
   up-ha)
     require_cloudflare_env
@@ -581,14 +503,8 @@ Observabilidade:
   up-observability | down-observability | status-observability | logs-observability
 
 Plano distribuído PostgreSQL/Redis:
-  up-distributed | up-distributed-quic | bootstrap-distributed
-  backup-distributed [arquivo] | restore-distributed arquivo --force
-  update-distributed | update-distributed-quic
-  rollback-distributed VERSAO | rollback-distributed-quic VERSAO
-  down-distributed | down-distributed-quic
-  status-distributed | status-distributed-quic
-  logs-distributed | logs-distributed-quic
-  destroy-distributed | destroy-distributed-quic
+  up-distributed | bootstrap-distributed | down-distributed
+  status-distributed | logs-distributed | destroy-distributed
 
 Alta disponibilidade embedded:
   up-ha | down-ha | restart-ha | status-ha | logs-ha | destroy-ha
