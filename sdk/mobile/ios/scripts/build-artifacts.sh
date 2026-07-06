@@ -37,6 +37,8 @@ xcodebuild \
   CODE_SIGNING_ALLOWED=NO \
   CODE_SIGNING_REQUIRED=NO \
   CODE_SIGN_IDENTITY='' \
+  ARCHS=arm64 \
+  ONLY_ACTIVE_ARCH=YES \
   build
 
 SIMULATOR_APP="$(find "$SIMULATOR_BUILD" -maxdepth 2 -type d -name 'TunnaraMobile.app' -print -quit)"

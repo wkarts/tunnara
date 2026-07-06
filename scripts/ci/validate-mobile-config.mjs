@@ -16,6 +16,7 @@ const required = [
   'sdk/mobile/ios/scripts/sign-and-export.sh',
   '.github/workflows/mobile.yml',
   '.github/workflows/mobile-release.yml',
+  '.github/dependabot.yml',
 ];
 
 for (const relative of required) {
@@ -32,6 +33,7 @@ const iosBuild = read('sdk/mobile/ios/scripts/build-artifacts.sh');
 const iosPrepare = read('sdk/mobile/ios/scripts/prepare-wireguard-kit.sh');
 const mobileChecks = read('.github/workflows/mobile.yml');
 const mobileRelease = read('.github/workflows/mobile-release.yml');
+const dependabot = read('.github/dependabot.yml');
 
 if (!androidApp.includes(`versionName = "${version}"`)) {
   throw new Error(`Android versionName não está sincronizado com ${version}.`);
@@ -57,6 +59,18 @@ if (/org\.jetbrains\.kotlin\.android/.test(androidRoot) || /org\.jetbrains\.kotl
 if (!androidApp.includes('kotlin {') || !androidApp.includes('JvmTarget.JVM_17')) {
   throw new Error('Android deve configurar o compilador Kotlin integrado para JVM 17.');
 }
+if (!androidApp.includes('implementation("androidx.core:core-ktx:1.16.0")')) {
+  throw new Error('AndroidX Core deve permanecer em 1.16.0 enquanto compileSdk estiver em API 35.');
+}
+for (const dependency of ['androidx.core:core', 'androidx.core:core-ktx']) {
+  const escaped = dependency.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const rule = new RegExp(
+    String.raw`dependency-name:\s*"${escaped}"[\s\S]*?versions:\s*\[">=1\.17\.0"\]`
+  );
+  if (!rule.test(dependabot)) {
+    throw new Error(`Dependabot deve bloquear ${dependency} >=1.17.0 enquanto compileSdk for 35.`);
+  }
+}
 
 if (!iosProject.includes('path: .wireguard-apple')) {
   throw new Error('WireGuardKit deve usar o checkout local determinístico .wireguard-apple.');
@@ -66,6 +80,17 @@ if (!iosBuild.includes('prepare-wireguard-kit.sh')) {
 }
 if (!iosPrepare.includes('swift-tools-version:5.5')) {
   throw new Error('Preparação do WireGuardKit deve corrigir o PackageDescription para Swift Tools 5.5.');
+}
+for (const expected of [
+  '#include <stdint.h>',
+  "('u_int32_t', 'uint32_t')",
+  "('u_int16_t', 'uint16_t')",
+  "('u_char', 'uint8_t')",
+  'GOOS_iphonesimulator := ios',
+]) {
+  if (!iosPrepare.includes(expected)) {
+    throw new Error(`Preparação do WireGuardKit não contém a correção Xcode/iOS Simulator: ${expected}`);
+  }
 }
 for (const expected of [
   'WireGuardGoBridgeiOS:',
@@ -83,6 +108,16 @@ for (const expected of [
 
 if (!mobileRelease.includes("go-version: '1.19.x'")) {
   throw new Error('mobile-release.yml deve fixar Go 1.19.x para o WireGuardGo bridge legado.');
+}
+for (const [name, content] of [
+  ['mobile.yml', mobileChecks],
+  ['build-artifacts.sh', iosBuild],
+]) {
+  for (const expected of ['ARCHS=arm64', 'ONLY_ACTIVE_ARCH=YES']) {
+    if (!content.includes(expected)) {
+      throw new Error(`${name} deve limitar o build de iOS Simulator a arm64: ${expected}`);
+    }
+  }
 }
 
 for (const expected of [

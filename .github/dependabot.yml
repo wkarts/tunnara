@@ -128,6 +128,10 @@ updates:
     ignore:
       - dependency-name: "*"
         update-types: [version-update:semver-major]
+      - dependency-name: "androidx.core:core"
+        versions: [">=1.17.0"]
+      - dependency-name: "androidx.core:core-ktx"
+        versions: [">=1.17.0"]
 
   - package-ecosystem: github-actions
     directory: /

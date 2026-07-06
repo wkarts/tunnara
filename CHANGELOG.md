@@ -9,6 +9,9 @@
 - Define explicitamente a plataforma do target legado WireGuardGoBridge no XcodeGen.
 - Prepara o frontend e os recursos Tauri antes do `cargo check` do Console.
 - Reforça a validação estática mobile para impedir regressões equivalentes.
+- Mantém AndroidX Core 1.16.0 compatível com `compileSdk 35` e impede upgrades automáticos para linhas que exigem APIs 36/37.
+- Corrige o módulo C do WireGuardKit para o import modular do Xcode 16.4 e adiciona suporte `GOOS=ios` ao build `iphonesimulator`.
+- Limita o smoke build e o artefato de simulador a `arm64` nos runners Apple Silicon.
 
 
 ### Correções pós-merge e release
