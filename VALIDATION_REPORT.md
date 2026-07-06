@@ -1,33 +1,39 @@
-# Tunnara Platform 2.0.0-rc.6 — relatório de validação
+# Tunnara Platform 2.0.0-rc.7 — relatório de validação
 
-## Falhas confirmadas no run pós-merge
+## Falha confirmada no run da RC.6
 
-- Windows/Tauri: `2.0.0-rc.5` foi recusada pelo bundle MSI porque o identificador de prerelease do instalador precisa ser exclusivamente numérico.
-- Runtime Linux: o envio falhou com HTTP 422 porque o asset de mesmo nome já existia na draft.
-- iOS: `PacketTunnelProvider.swift` ainda chamava `TunnelConfiguration(fromWgQuickConfig:called:)`, initializer não exportado pelo WireGuardKit empacotado.
+- A draft foi criada com sucesso e recebeu URL `untagged-*`.
+- `scripts/release/upload-release-assets.sh` chamou o endpoint
+  `repos/wkarts/tunnara/releases/tags/v2.0.0-rc.6`.
+- O GitHub retornou HTTP 404 antes do primeiro upload do Core.
+- Runtime, SDK, Desktop, Mobile e Containers ficaram `skipped` porque dependiam do Core.
 
-Os demais jobs do run anexado concluíram: Android, containers, SDK C, Runtime Windows/macOS, Desktop Linux/macOS e core.
+## Correção
 
-## Correções
+- A API de criação retorna o `release_id`, que é preservado em todos os jobs.
+- A retomada de drafts usa `GET /releases` e filtra `tag_name`, incluindo drafts.
+- O upload usa `POST https://uploads.github.com/.../releases/{release_id}/assets`.
+- Assets anteriores são listados e excluídos pelo mesmo ID antes de cada tentativa.
+- A publicação final usa `PATCH /releases/{release_id}` com `draft=false`.
 
-- `tauri.windows.conf.json` usa a versão derivada `2.0.0-7006`, mantendo a versão pública `2.0.0-rc.6` nos demais pontos.
-- O sincronizador atualiza automaticamente a versão MSI nas próximas releases.
-- O uploader resolve o ID da release, remove assets existentes por nome/ID e repete a remoção antes de cada retry.
-- O Packet Tunnel usa `WgQuickConfigParser.parse(raw, name:)`.
-- Os validadores rejeitam o initializer antigo, versão MSI inválida e uploader sem exclusão explícita.
+## Validações executadas
 
-## Validações executadas neste ambiente
-
-- versão sincronizada em 26 pontos;
-- testes SemVer, build mobile e versão Windows/MSI: 6/6 aprovados;
-- repository, Node, Shell, PHP, storage, Docker, release, mobile e dependências nativas;
-- mock funcional do GitHub CLI comprovando exclusão e substituição do asset existente;
-- teste negativo comprovando rejeição do initializer iOS antigo;
-- Console Vue: typecheck e build Vite aprovados;
-- SEA Agent e Server Linux x64 gerados e executados com versão `2.0.0-rc.6`;
-- runtime E2E: HTTP/WebSocket, TCP/UDP, Cloudflare, HA, WireGuard, redes privadas, produção e Policy Engine;
-- SDK C compartilhado/estático e exemplo de versão.
+- versão sincronizada em 26 pontos: `2.0.0-rc.7`;
+- build Android/iOS: `200007007`;
+- versão MSI: `2.0.0-7007`;
+- testes SemVer/MSI: 6/6;
+- YAML de todos os workflows;
+- sintaxe Bash, Node.js e PHP;
+- repository, storage, Docker, mobile, dependências nativas e SEA;
+- teste funcional do uploader com `gh` e `curl` simulados;
+- teste negativo impedindo uso de `/releases/tags/` para drafts;
+- Console Vue: typecheck e build Vite;
+- Runtime E2E: HTTP/WebSocket, TCP/UDP, Cloudflare, HA, WireGuard, rede privada, produção e Policy Engine;
+- SDK C compartilhado, estático e exemplo de versão.
 
 ## Limites do ambiente
 
-A compilação final MSI/WiX e Xcode/iOS deve ser confirmada nos runners nativos do GitHub Actions. A correção está aplicada exatamente nos pontos que os respectivos compiladores rejeitaram.
+Cargo/Rust, Docker Engine, Android SDK completo e Xcode não estavam disponíveis para
+reexecutar a matriz nativa completa. A RC.6, porém, não chegou a esses jobs no run
+anexado: eles foram ignorados após a falha de upload do Core. A correção atua exatamente
+na causa do HTTP 404 e possui teste funcional local do protocolo de upload.

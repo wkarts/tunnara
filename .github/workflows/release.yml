@@ -80,10 +80,27 @@ jobs:
             }
           fi
 
-          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            release_json="$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json isDraft,targetCommitish)"
-            is_draft="$(jq -r .isDraft <<<"$release_json")"
-            existing_target="$(jq -r .targetCommitish <<<"$release_json")"
+          release_ids="$({
+            gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100"
+          } | jq -r --arg tag "$tag" '.[] | select(.tag_name == $tag) | .id' | awk 'NF && !seen[$0]++')"
+          release_count="$(printf '%s\n' "$release_ids" | awk 'NF { count += 1 } END { print count + 0 }')"
+
+          if [[ "$release_count" -gt 1 ]]; then
+            echo "Existem múltiplas releases/drafts para $tag: $(printf '%s' "$release_ids" | tr '\n' ' ')" >&2
+            echo 'Remova as drafts duplicadas antes de prosseguir.' >&2
+            exit 1
+          fi
+
+          prerelease=false
+          [[ "$version" == *-* ]] && prerelease=true
+          title="Tunnara Platform $version"
+
+          if [[ "$release_count" -eq 1 ]]; then
+            release_id="$release_ids"
+            release_json="$(gh api "repos/$GITHUB_REPOSITORY/releases/$release_id")"
+            is_draft="$(jq -r .draft <<<"$release_json")"
+            existing_target="$(jq -r .target_commitish <<<"$release_json")"
+
             if [[ "$is_draft" != 'true' ]]; then
               echo "A release publicada $tag é imutável. Gere uma nova versão em vez de reabri-la." >&2
               exit 1
@@ -93,27 +110,44 @@ jobs:
               echo "Gere uma nova versão ou reexecute a draft com o SHA original." >&2
               exit 1
             fi
-            echo "::notice::Retomando a release draft $tag do mesmo commit; assets serão substituídos de forma idempotente."
-            edit_args=(--repo "$GITHUB_REPOSITORY" --title "Tunnara Platform $version" --draft=true)
-            if [[ -f "$notes_file" ]]; then edit_args+=(--notes-file "$notes_file"); fi
-            gh release edit "$tag" "${edit_args[@]}"
+
+            patch_args=(
+              --method PATCH
+              "repos/$GITHUB_REPOSITORY/releases/$release_id"
+              -f "name=$title"
+              -F draft=true
+              -F "prerelease=$prerelease"
+            )
+            if [[ -f "$notes_file" ]]; then patch_args+=(-f "body=$(cat "$notes_file")"); fi
+            gh api "${patch_args[@]}" >/dev/null
+            echo "::notice::Retomando a release draft $tag pelo ID $release_id; assets serão substituídos de forma idempotente."
           else
             create_args=(
-              --repo "$GITHUB_REPOSITORY"
-              --target "$actual_sha"
-              --title "Tunnara Platform $version"
-              --draft
+              --method POST
+              "repos/$GITHUB_REPOSITORY/releases"
+              -f "tag_name=$tag"
+              -f "target_commitish=$actual_sha"
+              -f "name=$title"
+              -F draft=true
+              -F "prerelease=$prerelease"
             )
-            if [[ "$version" == *-* ]]; then create_args+=(--prerelease); fi
             if [[ -f "$notes_file" ]]; then
-              create_args+=(--notes-file "$notes_file")
+              create_args+=(-f "body=$(cat "$notes_file")")
             else
-              create_args+=(--generate-notes)
+              create_args+=(-F generate_release_notes=true)
             fi
-            gh release create "$tag" "${create_args[@]}"
+
+            release_json="$(gh api "${create_args[@]}")"
+            release_id="$(jq -r .id <<<"$release_json")"
+            created_tag="$(jq -r .tag_name <<<"$release_json")"
+            [[ "$release_id" =~ ^[0-9]+$ && "$created_tag" == "$tag" ]] || {
+              echo "A API não retornou uma draft válida para $tag." >&2
+              exit 1
+            }
+            echo "::notice::Draft criada para $tag com release_id=$release_id."
           fi
 
-          release_id="$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json databaseId --jq .databaseId)"
+          bash scripts/release/resolve-release-id.sh "$tag" "$release_id" >/dev/null
 
           {
             echo "version=$version"
@@ -192,9 +226,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.prepare.outputs.tag }}
+          RELEASE_ID: ${{ needs.prepare.outputs.release_id }}
         run: |
           set -Eeuo pipefail
-          bash scripts/release/upload-release-assets.sh "$TAG" artifacts
+          bash scripts/release/upload-release-assets.sh "$TAG" artifacts "$RELEASE_ID"
 
   runtime:
     name: Runtime executables
@@ -203,6 +238,7 @@ jobs:
     with:
       release_tag: ${{ needs.prepare.outputs.tag }}
       source_sha: ${{ needs.prepare.outputs.release_sha }}
+      release_id: ${{ needs.prepare.outputs.release_id }}
     secrets: inherit
 
   sdk:
@@ -212,6 +248,7 @@ jobs:
     with:
       release_tag: ${{ needs.prepare.outputs.tag }}
       source_sha: ${{ needs.prepare.outputs.release_sha }}
+      release_id: ${{ needs.prepare.outputs.release_id }}
     secrets: inherit
 
   desktop:
@@ -231,6 +268,7 @@ jobs:
     with:
       release_tag: ${{ needs.prepare.outputs.tag }}
       source_sha: ${{ needs.prepare.outputs.release_sha }}
+      release_id: ${{ needs.prepare.outputs.release_id }}
       publish_google_play: false
       publish_testflight: false
       ios_export_method: development
@@ -284,8 +322,8 @@ jobs:
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ needs.prepare.outputs.tag }}
-        run: gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false
+          RELEASE_ID: ${{ needs.prepare.outputs.release_id }}
+        run: gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" -F draft=false >/dev/null
 
       - name: Final summary
         shell: bash

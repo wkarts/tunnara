@@ -1,28 +1,30 @@
-# Manifesto de artefatos — Tunnara Platform 2.0.0-rc.6
+# Manifesto de artefatos — Tunnara Platform 2.0.0-rc.7
 
-## Pacotes desta correção
+## Pacotes
 
-- `Tunnara-Platform-v2.0.0-rc.6-GitHub-Ready.zip`
-- `Tunnara-Platform-v2.0.0-rc.6-Codigo-Fonte.tar.gz`
-- `Tunnara-Platform-v2.0.0-rc.6.patch`
-- `Tunnara-Platform-v2.0.0-rc.6.diff`
-- `Tunnara-Platform-v2.0.0-rc.6-Arquivos-Alterados.zip`
-- `Tunnara-Platform-v2.0.0-rc.6-PR-Git-Repository.bundle`
-- `Tunnara-Platform-v2.0.0-rc.6-Pull-Request.md`
-- `Tunnara-Platform-v2.0.0-rc.6-Relatorio-Validacao.md`
-- `Tunnara-Platform-v2.0.0-rc.6-SHA256SUMS.txt`
+- `Tunnara-Platform-v2.0.0-rc.7-GitHub-Ready.zip`
+- `Tunnara-Platform-v2.0.0-rc.7-Pacote-Completo.zip`
+- `Tunnara-Platform-v2.0.0-rc.7-Codigo-Fonte.zip`
+- `Tunnara-Platform-v2.0.0-rc.7-Codigo-Fonte.tar.gz`
+- `Tunnara-Platform-v2.0.0-rc.7.patch`
+- `Tunnara-Platform-v2.0.0-rc.7.diff`
+- `Tunnara-Platform-v2.0.0-rc.7-Arquivos-Alterados.zip`
+- `Tunnara-Platform-v2.0.0-rc.7-PR-Git-Repository.bundle`
+- `Tunnara-Platform-v2.0.0-rc.7-Pull-Request.md`
+- `Tunnara-Platform-v2.0.0-rc.7-Relatorio-Validacao.md`
+- `Tunnara-Platform-v2.0.0-rc.7-SHA256SUMS.txt`
 
 ## Correções centrais
 
-1. versão Tauri específica do Windows convertida para prerelease MSI numérica;
-2. substituição explícita de assets existentes antes do upload;
-3. Packet Tunnel iOS usando o parser wg-quick local;
-4. validadores preventivos para impedir regressão.
+1. identidade canônica da draft pelo `release_id`;
+2. upload direto pelo endpoint `uploads.github.com`;
+3. propagação do ID para Core, Runtime, SDK, Desktop e Mobile;
+4. publicação final por ID;
+5. teste funcional impedindo regressão para `/releases/tags/{tag}`.
 
 ## Política
 
-- Pull Requests não publicam artefatos de distribuição;
-- releases e tags publicadas são imutáveis;
-- cada nova correção pós-merge recebe uma nova versão;
-- todos os jobs de uma release compilam o mesmo SHA;
-- a publicação final somente ocorre após sucesso integral dos grupos obrigatórios.
+- releases e tags publicadas permanecem imutáveis;
+- cada correção pós-merge recebe nova versão;
+- todos os jobs compilam o mesmo SHA e publicam na mesma draft;
+- a release somente é publicada após sucesso integral dos grupos obrigatórios.

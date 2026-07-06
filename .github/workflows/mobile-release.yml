@@ -11,6 +11,10 @@ on:
         description: 'Commit imutável a ser compilado'
         required: true
         type: string
+      release_id:
+        description: 'ID numérico da GitHub Release draft coordenada'
+        required: true
+        type: string
       publish_google_play:
         required: false
         default: false
@@ -31,6 +35,11 @@ on:
         type: string
       source_sha:
         description: 'Commit a ser compilado; vazio usa o commit do workflow'
+        required: false
+        default: ''
+        type: string
+      release_id:
+        description: 'ID numérico da GitHub Release existente; vazio resolve por tag incluindo drafts'
         required: false
         default: ''
         type: string
@@ -64,7 +73,11 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       tag: ${{ steps.tag.outputs.value }}
+      release_id: ${{ steps.release.outputs.value }}
     steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.source_sha || github.sha }}
       - name: Resolve release tag
         id: tag
         shell: bash
@@ -72,12 +85,16 @@ jobs:
           tag="${{ inputs.release_tag }}"
           [[ -n "$tag" ]] || { echo "release_tag é obrigatório." >&2; exit 1; }
           echo "value=$tag" >> "$GITHUB_OUTPUT"
-      - name: Ensure coordinated draft release exists
+      - name: Resolve coordinated draft release
+        id: release
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.tag.outputs.value }}
+          RELEASE_ID: ${{ inputs.release_id }}
         shell: bash
-        run: gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null
+        run: |
+          release_id="$(bash scripts/release/resolve-release-id.sh "$TAG" "$RELEASE_ID")"
+          echo "value=$release_id" >> "$GITHUB_OUTPUT"
 
   build-android:
     name: Build Android APK/AAB
@@ -117,7 +134,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.prepare-release.outputs.tag }}
-        run: bash scripts/release/upload-release-assets.sh "$TAG" sdk/mobile/android/dist
+          RELEASE_ID: ${{ needs.prepare-release.outputs.release_id }}
+        run: bash scripts/release/upload-release-assets.sh "$TAG" sdk/mobile/android/dist "$RELEASE_ID"
       - name: Locate signed AAB
         id: signed-aab
         shell: bash
@@ -183,7 +201,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.prepare-release.outputs.tag }}
-        run: bash scripts/release/upload-release-assets.sh "$TAG" sdk/mobile/ios/dist
+          RELEASE_ID: ${{ needs.prepare-release.outputs.release_id }}
+        run: bash scripts/release/upload-release-assets.sh "$TAG" sdk/mobile/ios/dist "$RELEASE_ID"
       - name: Locate signed IPA
         id: signed-ipa
         shell: bash

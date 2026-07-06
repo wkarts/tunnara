@@ -1,5 +1,22 @@
 # Changelog
 
+## 2.0.0-rc.7 - 2026-07-06
+
+### Corrigido
+
+- Corrige o HTTP 404 no primeiro upload da release draft: o pipeline não consulta mais `GET /releases/tags/{tag}`, endpoint que não resolve drafts ainda expostas como `untagged-*`.
+- A criação, retomada, validação, upload e publicação da release passam a compartilhar o mesmo `release_id` numérico retornado pela API.
+- O uploader envia binários diretamente para `uploads.github.com/repos/{owner}/{repo}/releases/{release_id}/assets`, sem nova resolução por tag.
+- Runtime, SDK, Desktop, Android e iOS recebem explicitamente o mesmo `release_id` coordenado pelo job `prepare`.
+- A publicação final altera a draft pelo ID, eliminando dependência de resolução por tag antes de a release ser publicada.
+- Adicionado teste funcional com GitHub CLI e endpoint de upload simulados, bloqueando regressão para `/releases/tags/` e comprovando substituição idempotente de assets.
+
+### Diagnóstico
+
+- O job `prepare` criou corretamente a draft `v2.0.0-rc.6`, cuja URL era `releases/tag/untagged-*`.
+- O job `core` falhou antes de compilar os grupos seguintes porque `upload-release-assets.sh` tentou resolver a mesma draft pelo endpoint de tag e recebeu HTTP 404.
+- Runtime, SDK, Desktop, Mobile e Containers foram marcados como `skipped` por dependerem de `core`; não eram cinco falhas independentes.
+
 ## 2.0.0-rc.6 - 2026-07-06
 
 ### Corrigido

@@ -11,6 +11,10 @@ on:
         description: 'Commit imutável a ser compilado'
         required: true
         type: string
+      release_id:
+        description: 'ID numérico da GitHub Release draft coordenada'
+        required: true
+        type: string
   workflow_dispatch:
     inputs:
       release_tag:
@@ -19,6 +23,11 @@ on:
         type: string
       source_sha:
         description: 'Commit a ser compilado; vazio usa o commit do workflow'
+        required: false
+        default: ''
+        type: string
+      release_id:
+        description: 'ID numérico da GitHub Release existente; vazio resolve por tag incluindo drafts'
         required: false
         default: ''
         type: string
@@ -60,7 +69,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ inputs.release_tag }}
-        run: gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null
+          RELEASE_ID: ${{ inputs.release_id }}
+        run: bash scripts/release/resolve-release-id.sh "$TAG" "$RELEASE_ID" >/dev/null
 
       - uses: actions/setup-node@v6
         with:
@@ -128,4 +138,5 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ inputs.release_tag }}
-        run: bash scripts/release/upload-release-assets.sh "$TAG" release-assets
+          RELEASE_ID: ${{ inputs.release_id }}
+        run: bash scripts/release/upload-release-assets.sh "$TAG" release-assets "$RELEASE_ID"
