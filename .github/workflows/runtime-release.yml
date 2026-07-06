@@ -113,8 +113,8 @@ jobs:
           } | Set-Content "release-assets/SHA256SUMS-${{ matrix.suffix }}.txt"
 
       - name: Attach directly to GitHub Release
-        uses: softprops/action-gh-release@v3
-        with:
-          tag_name: ${{ inputs.release_tag }}
-          files: release-assets/*
-          fail_on_unmatched_files: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.release_tag }}
+        run: bash scripts/release/upload-release-assets.sh "$TAG" release-assets

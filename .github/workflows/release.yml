@@ -5,6 +5,13 @@ on:
     branches: [main]
     paths:
       - VERSION
+      - .github/workflows/release.yml
+      - .github/workflows/runtime-release.yml
+      - .github/workflows/sdk-build.yml
+      - .github/workflows/desktop-release.yml
+      - .github/workflows/mobile-release.yml
+      - scripts/release/**
+      - sdk/mobile/ios/scripts/**
   workflow_dispatch:
     inputs:
       force_rebuild:
@@ -66,9 +73,19 @@ jobs:
             is_draft="$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)"
             if [[ "$is_draft" == 'true' ]]; then
               echo "::notice::A release $tag está em draft; os builds serão retomados e os assets substituídos."
+
+              current_ref_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" --jq '.object.sha' 2>/dev/null || true)"
+              if [[ -n "$current_ref_sha" && "$current_ref_sha" != "$GITHUB_SHA" ]]; then
+                echo "::notice::Atualizando a tag draft $tag de $current_ref_sha para $GITHUB_SHA."
+                gh api --method PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/$tag" \
+                  -f sha="$GITHUB_SHA" \
+                  -F force=true >/dev/null
+              fi
+
               edit_args=(--repo "$GITHUB_REPOSITORY" --title "Tunnara Platform $version" --draft=true --latest=false)
               if [[ -f "$notes_file" ]]; then edit_args+=(--notes-file "$notes_file"); fi
               gh release edit "$tag" "${edit_args[@]}"
+
             elif [[ "$FORCE_REBUILD" == 'true' ]]; then
               edit_args=(--repo "$GITHUB_REPOSITORY" --title "Tunnara Platform $version" --draft=true --latest=false)
               if [[ -f "$notes_file" ]]; then edit_args+=(--notes-file "$notes_file"); fi
@@ -85,6 +102,20 @@ jobs:
               create_args+=(--generate-notes)
             fi
             gh release create "$tag" "${create_args[@]}"
+          fi
+
+          if [[ "$should_build" == 'true' ]]; then
+            release_id="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" --jq '.id')"
+            for legacy_name in SHA256SUMS.txt build-metadata.json; do
+              while IFS= read -r asset_id; do
+                [[ -n "$asset_id" ]] || continue
+                echo "::notice::Removendo asset legado conflitante $legacy_name (id=$asset_id)."
+                gh api --method DELETE "repos/$GITHUB_REPOSITORY/releases/assets/$asset_id" >/dev/null
+              done < <(
+                gh api --paginate "repos/$GITHUB_REPOSITORY/releases/$release_id/assets" \
+                  --jq ".[] | select(.name == \"$legacy_name\") | .id"
+              )
+            done
           fi
 
           {
@@ -159,11 +190,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.prepare.outputs.tag }}
-        run: |
-          set -Eeuo pipefail
-          mapfile -d '' files < <(find artifacts -maxdepth 1 -type f -print0 | sort -z)
-          ((${#files[@]} > 0)) || { echo 'Nenhum artefato foi gerado.' >&2; exit 1; }
-          gh release upload "$TAG" "${files[@]}" --repo "$GITHUB_REPOSITORY" --clobber
+        run: bash scripts/release/upload-release-assets.sh "$TAG" artifacts
 
   runtime:
     name: Runtime executables

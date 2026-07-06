@@ -13,7 +13,7 @@
 - `tunnara-sdk-c-linux-x64-v1.1.2.zip`
 - `Tunnara-Docker-v1.1.2.zip`
 - `release-manifest.json`
-- `SHA256SUMS.txt`
+- `SHA256SUMS-core.txt`
 
 ## Assets multiplataforma gerados pelo GitHub Actions
 
@@ -21,6 +21,8 @@
 - SDK C para Linux x64, Windows x64, macOS ARM64 e macOS x64.
 - Instaladores Tauri para Linux, Windows e macOS.
 - APK/AAB Android e IPA/simulador iOS conforme disponibilidade de assinatura.
+- Metadados mobile separados em `build-metadata-android.json` e `build-metadata-ios.json`.
+- Checksums mobile separados em `SHA256SUMS-android.txt` e `SHA256SUMS-ios.txt`.
 - Imagens OCI `amd64` e `arm64` para Server, Agent, Console, Control API, QUIC Bridge e Caddy Cloudflare.
 
 ## Bundle Docker
