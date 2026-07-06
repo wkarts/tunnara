@@ -106,7 +106,7 @@ jobs:
       - name: Build APK and AAB
         run: bash sdk/mobile/android/scripts/build-artifacts.sh
       - name: Attach Android files directly to GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.prepare-release.outputs.tag }}
           files: sdk/mobile/android/dist/*
@@ -166,7 +166,7 @@ jobs:
       - name: Build simulator app and IPA files
         run: bash sdk/mobile/ios/scripts/build-artifacts.sh
       - name: Attach iOS files directly to GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.prepare-release.outputs.tag }}
           files: |
