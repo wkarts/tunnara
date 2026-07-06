@@ -33,6 +33,13 @@ updates:
       rust-workspace-compatible-updates:
         patterns: ['*']
         update-types: ['minor', 'patch']
+    ignore:
+      - dependency-name: reqwest
+        versions: ['>= 0.14.0']
+      - dependency-name: axum
+        versions: ['>= 0.9.0']
+      - dependency-name: tower-http
+        versions: ['>= 0.8.0']
 
   - package-ecosystem: cargo
     directory: /apps/console/src-tauri
@@ -42,6 +49,23 @@ updates:
       tauri-rust-compatible-updates:
         patterns: ['*']
         update-types: ['minor', 'patch']
+    ignore:
+      - dependency-name: rand
+        versions: ['>= 0.9.0']
+      - dependency-name: sha1
+        versions: ['>= 0.11.0']
+      - dependency-name: sha2
+        versions: ['>= 0.11.0']
+      - dependency-name: hmac
+        versions: ['>= 0.13.0']
+      - dependency-name: reqwest
+        versions: ['>= 0.13.0']
+      - dependency-name: axum
+        versions: ['>= 0.8.0']
+      - dependency-name: tower-http
+        versions: ['>= 0.7.0']
+      - dependency-name: dirs
+        versions: ['>= 6.0.0']
 
   - package-ecosystem: composer
     directory: /apps/control-api

@@ -1,6 +1,6 @@
 [package]
 name = "tunnara_console"
-version = "2.0.0-rc.4"
+version = "2.0.0-rc.5"
 description = "Console administrativo híbrido da plataforma Tunnara"
 authors = ["WWSoftware's Sistemas"]
 edition = "2021"
@@ -27,17 +27,17 @@ chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1", features = ["v4", "serde"] }
 dirs = "5"
 argon2 = "0.5"
-rand = "0.10"
+rand = "0.8.5"
 
-sha2 = "0.11"
+sha2 = "0.10.9"
 
 base64 = "0.22"
 
 generic-license-tauri = { path = "./generic-license-tauri" }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "blocking"] }
 hostname = "0.4"
-hmac = "0.12"
-sha1 = "0.11"
+hmac = "0.12.1"
+sha1 = "0.10.6"
 data-encoding = "2"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "signal"] }
 axum = { version = "0.7", features = ["ws"] }

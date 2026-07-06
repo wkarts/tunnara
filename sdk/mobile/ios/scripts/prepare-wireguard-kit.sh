@@ -19,6 +19,21 @@ import re
 import sys
 
 source = Path(sys.argv[1])
+package_manifest = source / 'Package.swift'
+if not package_manifest.is_file():
+    raise SystemExit(f'Package.swift não encontrado em {source}')
+manifest = package_manifest.read_text(errors='ignore')
+updated_manifest = re.sub(
+    r'^//\s*swift-tools-version:[^\n]+',
+    '// swift-tools-version:5.9',
+    manifest,
+    count=1,
+    flags=re.M,
+)
+if updated_manifest == manifest and 'swift-tools-version:' not in manifest:
+    updated_manifest = '// swift-tools-version:5.9\n' + manifest
+if updated_manifest != manifest:
+    package_manifest.write_text(updated_manifest)
 replacements = {
     'u_int32_t': 'uint32_t',
     'u_int16_t': 'uint16_t',

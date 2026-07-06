@@ -1,5 +1,33 @@
 # Changelog
 
+## [2.0.0-rc.5] - 2026-07-06
+
+### Correção da matriz nativa pós-merge
+
+- Corrigida a feature TLS do `reqwest 0.13`: `rustls-tls` foi substituída por `rustls` no workspace Rust.
+- Restaurada a compatibilidade do Console Tauri com as APIs utilizadas pelo código, fixando `rand 0.8.5`, `sha2 0.10.9`, `hmac 0.12.1` e `sha1 0.10.6`.
+- O Pull Request passa a executar `cargo check --workspace --all-targets` e um `cargo check` independente do Console Tauri.
+- Adicionado `validate:native-deps` para bloquear combinações de dependências que já quebraram Runtime, Desktop, Android, iOS ou containers.
+
+### Mobile
+
+- Android alinhado ao AGP 9.2.1 com Gradle 9.4.1.
+- iOS passou a preparar e corrigir o checkout local do WireGuardKit antes do `xcodegen` e da resolução SwiftPM.
+- O manifesto local do WireGuardKit é elevado de modo idempotente para `swift-tools-version:5.9`.
+- O target externo `WireGuardGoBridgeiOS` foi integrado ao XcodeGen e o workflow prepara uma toolchain Go explícita.
+
+### Containers e Actions
+
+- O container `quic-bridge` herda a correção do workspace Rust e deixa de falhar na resolução do `reqwest`.
+- Atualizados `docker/setup-buildx-action` para v4, `docker/metadata-action` para v6 e `docker/build-push-action` para v7.
+- Preservadas imagens multi-arquitetura, SBOM, provenance, attestations e proteção das tags `latest`/estáveis contra prereleases.
+
+### Versionamento e validação
+
+- Versão elevada para `2.0.0-rc.5` sem reabrir ou mover a release/tag `v2.0.0-rc.4`.
+- Build mobile sincronizado: `200007005`.
+- As validações rápidas de Pull Request continuam sem criar artefatos de distribuição.
+
 ## [2.0.0-rc.4] - 2026-07-06
 
 ### Correção da validação pós-merge

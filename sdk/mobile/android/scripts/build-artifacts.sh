@@ -11,7 +11,7 @@ if [[ -x "$ROOT/gradlew" ]]; then
 elif command -v gradle >/dev/null 2>&1; then
   GRADLE=(gradle -p "$ROOT")
 else
-  echo "Gradle não encontrado. Use o Gradle Wrapper ou instale Gradle 8.10.2+." >&2
+  echo "Gradle não encontrado. Use o Gradle Wrapper ou instale Gradle 9.4.1+." >&2
   exit 1
 fi
 

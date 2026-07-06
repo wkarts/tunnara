@@ -5,9 +5,18 @@ options:
     iOS: "16.0"
 packages:
   WireGuardKit:
-    url: https://git.zx2c4.com/wireguard-apple
-    exactVersion: 1.0.16-27
+    path: .wireguard-apple
 targets:
+  WireGuardGoBridgeiOS:
+    type: tool
+    platform: iOS
+    legacy:
+      toolPath: /usr/bin/make
+      workingDirectory: $(PROJECT_DIR)/.wireguard-apple/Sources/WireGuardKitGo
+      passSettings: true
+    settings:
+      base:
+        SDKROOT: iphoneos
   TunnaraMobile:
     type: application
     platform: iOS
@@ -19,17 +28,20 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: Tunnara
         INFOPLIST_KEY_CFBundleShortVersionString: 2.0.0
-        INFOPLIST_KEY_CFBundleVersion: 200007004
+        INFOPLIST_KEY_CFBundleVersion: 200007005
         MARKETING_VERSION: 2.0.0
-        CURRENT_PROJECT_VERSION: 200007004
+        CURRENT_PROJECT_VERSION: 200007005
         CODE_SIGN_ENTITLEMENTS: Config/TunnaraMobile.entitlements
         CODE_SIGN_STYLE: Manual
         DEVELOPMENT_TEAM: $(TUNNARA_APPLE_TEAM_ID)
         PROVISIONING_PROFILE_SPECIFIER: $(TUNNARA_APP_PROFILE_SPECIFIER)
         SWIFT_VERSION: 5.10
+        ENABLE_BITCODE: NO
     dependencies:
       - target: TunnaraPacketTunnel
         embed: true
+      - package: WireGuardKit
+        product: WireGuardKit
   TunnaraPacketTunnel:
     type: app-extension
     platform: iOS
@@ -41,12 +53,14 @@ targets:
         PRODUCT_NAME: TunnaraPacketTunnel
         INFOPLIST_FILE: Config/PacketTunnel-Info.plist
         MARKETING_VERSION: 2.0.0
-        CURRENT_PROJECT_VERSION: 200007004
+        CURRENT_PROJECT_VERSION: 200007005
         CODE_SIGN_ENTITLEMENTS: Config/TunnaraPacketTunnel.entitlements
         CODE_SIGN_STYLE: Manual
         DEVELOPMENT_TEAM: $(TUNNARA_APPLE_TEAM_ID)
         PROVISIONING_PROFILE_SPECIFIER: $(TUNNARA_PACKET_PROFILE_SPECIFIER)
         SWIFT_VERSION: 5.10
+        ENABLE_BITCODE: NO
     dependencies:
+      - target: WireGuardGoBridgeiOS
       - package: WireGuardKit
         product: WireGuardKit
