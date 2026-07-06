@@ -1,5 +1,34 @@
 # Changelog
 
+## [2.0.0-rc.4] - 2026-07-06
+
+### Correção da validação pós-merge
+
+- Identificado arquivo legado `deploy/docker/docker-compose.distributed.quic.yml` mantido fora do pacote oficial da RC.3 e ainda fixado em `2.0.0-rc.2`.
+- Corrigida a divergência que interrompia `npm run version:check` no job `Core and runtime`.
+- O overlay distribuído QUIC passou a ser oficialmente integrado ao launcher `deploy/docker/tunnara.sh` e à validação Docker.
+- O perfil distribuído sem overlay anuncia Relay TCP; o perfil `distributed-quic` sobrescreve a descoberta para QUIC de forma explícita.
+
+### Limpeza de legado
+
+- Removidos arquivos `.bak` antigos que continham documentação e manifests de versões anteriores.
+- Removido helper `scripts/ci/base64-decode.sh` sem qualquer referência nos workflows atuais.
+- Normalizados scripts Windows conforme `.gitattributes`, mantendo CRLF para `.bat`, `.cmd` e `.ps1`.
+- O validador do repositório agora rejeita `.bak`, `.orig`, `.rej` e Compose não integrado ao launcher.
+
+### Operação distribuída
+
+- Adicionados comandos `preflight-distributed-quic`, `up-distributed-quic`, `update-distributed-quic`, `status-distributed-quic` e equivalentes de logs/remoção.
+- Adicionados backup e restore PostgreSQL distribuído com confirmação destrutiva.
+- Adicionados rollback de imagens para o perfil distribuído com e sem QUIC.
+- A CI valida também a composição combinada `docker-compose.distributed.yml + docker-compose.distributed.quic.yml`.
+
+### Versionamento
+
+- Versão elevada para `2.0.0-rc.4`.
+- Build mobile sincronizado: `200007004`.
+- O fluxo pós-merge preserva `2.0.0-rc.4` quando a última versão reservada é `2.0.0-rc.3`, evitando salto indevido para `rc.5`.
+
 ## [2.0.0-rc.3] - 2026-07-06
 
 ### Correção do build pós-merge

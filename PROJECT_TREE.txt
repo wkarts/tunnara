@@ -1,669 +1,878 @@
-# Tunnara Platform — estrutura 2.0.0-rc.3
-
-./.dockerignore
-./.editorconfig
-./.env.example
-./.gitattributes
-./.github/CODEOWNERS
-./.github/ISSUE_TEMPLATE/bug_report.yml
-./.github/ISSUE_TEMPLATE/config.yml
-./.github/ISSUE_TEMPLATE/feature_request.yml
-./.github/dependabot.yml
-./.github/pull_request_template.md
-./.github/workflows/artifact-cleanup.yml
-./.github/workflows/ci.yml
-./.github/workflows/codeql.yml
-./.github/workflows/desktop-release.yml
-./.github/workflows/docker-publish.yml
-./.github/workflows/mobile-release.yml
-./.github/workflows/mobile.yml
-./.github/workflows/native-preview.yml
-./.github/workflows/nightly-hardening.yml
-./.github/workflows/release.yml
-./.github/workflows/runtime-release.yml
-./.github/workflows/sdk-build.yml
-./.github/workflows/storage-matrix.yml
-./.github/workflows/version-after-merge.yml
-./.gitignore
-./.npmrc
-./.nvmrc
-./ARTIFACT_MANIFEST.md
-./ARTIFACT_MANIFEST.md.bak
-./CHANGELOG.md
-./CODE_OF_CONDUCT.md
-./CONTRIBUTING.md
-./Cargo.toml
-./GITHUB_UPLOAD.md
-./GITHUB_UPLOAD.md.bak
-./LICENSE
-./LICENSE-NOTICE.md
-./LICENSES-Apache-2.0.txt
-./Makefile
-./PROJECT_TREE.txt
-./PROJECT_TREE.txt.bak
-./README.md
-./SECURITY.md
-./VALIDATION_REPORT.md
-./VALIDATION_REPORT.md.bak
-./VERSION
-./apps/console/.editorconfig
-./apps/console/.env.example
-./apps/console/.env.model
-./apps/console/.github/workflows/cloudpanel-linux-release.yml
-./apps/console/.npmrc
-./apps/console/CHANGELOG.md
-./apps/console/Dockerfile
-./apps/console/README.md
-./apps/console/README_TUNNARA.md
-./apps/console/VERSION
-./apps/console/app.manifest.example.json
-./apps/console/build-windows.bat
-./apps/console/deploy/cloudpanel/.env.example
-./apps/console/deploy/cloudpanel/README.md
-./apps/console/deploy/cloudpanel/bin/.gitkeep
-./apps/console/deploy/cloudpanel/check.sh
-./apps/console/deploy/cloudpanel/cli.sh
-./apps/console/deploy/cloudpanel/logs.sh
-./apps/console/deploy/cloudpanel/logs/.gitkeep
-./apps/console/deploy/cloudpanel/package.json
-./apps/console/deploy/cloudpanel/restart.sh
-./apps/console/deploy/cloudpanel/scripts/health.mjs
-./apps/console/deploy/cloudpanel/server.mjs
-./apps/console/deploy/cloudpanel/start.sh
-./apps/console/deploy/cloudpanel/status.sh
-./apps/console/deploy/cloudpanel/stop.sh
-./apps/console/deploy/cloudpanel/worker.sh
-./apps/console/deploy/nginx.conf
-./apps/console/docs/AI_IMPLEMENTATION_GUIDE.md
-./apps/console/docs/BRANDING.md
-./apps/console/docs/CI_PERFORMANCE.md
-./apps/console/docs/CLOUDPANEL_RELEASE.md
-./apps/console/docs/DATABASES.md
-./apps/console/docs/DATABASE_PROVIDER.md
-./apps/console/docs/FIRST_USE.md
-./apps/console/docs/HEADLESS_MODE.md
-./apps/console/docs/HYBRID_WEB_TAURI_TEMPLATE.md
-./apps/console/docs/LINUX_SERVICE.md
-./apps/console/docs/MIGRATIONS.md
-./apps/console/docs/RELEASE_REPOSITORY.md
-./apps/console/docs/RUNTIME_CONFIGURATION.md
-./apps/console/docs/RUST_FORMATTING_AND_CI.md
-./apps/console/docs/SERVER_DEPLOYMENT.md
-./apps/console/docs/SERVICES.md
-./apps/console/docs/STORAGE_COMPATIBILITY.md
-./apps/console/docs/VPS_DEPLOYMENT.md
-./apps/console/docs/WINDOWS_BUILD.md
-./apps/console/docs/WINDOWS_PATH_SPACES_FIX.md
-./apps/console/docs/WINDOWS_SERVICE.md
-./apps/console/index.html
-./apps/console/package-lock.json
-./apps/console/package.json
-./apps/console/public/apple-touch-icon.png
-./apps/console/public/icons/icon-192.png
-./apps/console/public/icons/icon-512.png
-./apps/console/public/manifest.webmanifest
-./apps/console/public/offline.html
-./apps/console/public/sw.js
-./apps/console/rust-toolchain.toml
-./apps/console/rustfmt.toml
-./apps/console/scripts/ci/check-version-sync.mjs
-./apps/console/scripts/ci/run-tauri.mjs
-./apps/console/scripts/ci/validate-pr-title.mjs
-./apps/console/scripts/create-derived-app.mjs
-./apps/console/scripts/dev-web.mjs
-./apps/console/scripts/fix-rust-format.ps1
-./apps/console/scripts/fix-rust-format.sh
-./apps/console/scripts/linux/build-cloudpanel-release-docker.sh
-./apps/console/scripts/linux/build-cloudpanel-release.sh
-./apps/console/scripts/linux/install-cloudpanel-build-deps.sh
-./apps/console/scripts/npm/normalize-package-lock-registry.mjs
-./apps/console/scripts/prepare-tauri-resources.mjs
-./apps/console/scripts/print-env-model.mjs
-./apps/console/scripts/windows/build-windows.bat
-./apps/console/scripts/windows/build-windows.ps1
-./apps/console/src-tauri/Cargo.toml
-./apps/console/src-tauri/build.rs
-./apps/console/src-tauri/capabilities/default.json
-./apps/console/src-tauri/generic-license-tauri/.env.example
-./apps/console/src-tauri/generic-license-tauri/Cargo.toml
-./apps/console/src-tauri/generic-license-tauri/README.md
-./apps/console/src-tauri/generic-license-tauri/examples/with-login/.env.example
-./apps/console/src-tauri/generic-license-tauri/examples/with-login/frontend-login.ts
-./apps/console/src-tauri/generic-license-tauri/examples/with-login/src-tauri-main.rs
-./apps/console/src-tauri/generic-license-tauri/examples/without-login/frontend-startup.ts
-./apps/console/src-tauri/generic-license-tauri/src/cache.rs
-./apps/console/src-tauri/generic-license-tauri/src/client.rs
-./apps/console/src-tauri/generic-license-tauri/src/commands.rs
-./apps/console/src-tauri/generic-license-tauri/src/device.rs
-./apps/console/src-tauri/generic-license-tauri/src/error.rs
-./apps/console/src-tauri/generic-license-tauri/src/lib.rs
-./apps/console/src-tauri/generic-license-tauri/src/models.rs
-./apps/console/src-tauri/generic-license-tauri/src/registration.rs
-./apps/console/src-tauri/generic-license-tauri/src/service.rs
-./apps/console/src-tauri/icons/128x128.png
-./apps/console/src-tauri/icons/128x128@2x.png
-./apps/console/src-tauri/icons/32x32.png
-./apps/console/src-tauri/icons/icon.icns
-./apps/console/src-tauri/icons/icon.ico
-./apps/console/src-tauri/icons/icon.png
-./apps/console/src-tauri/src/app_state.rs
-./apps/console/src-tauri/src/cli/args.rs
-./apps/console/src-tauri/src/cli/mod.rs
-./apps/console/src-tauri/src/cli/runner.rs
-./apps/console/src-tauri/src/commands/access.rs
-./apps/console/src-tauri/src/commands/app.rs
-./apps/console/src-tauri/src/commands/auth.rs
-./apps/console/src-tauri/src/commands/companies.rs
-./apps/console/src-tauri/src/commands/entities.rs
-./apps/console/src-tauri/src/commands/integrations.rs
-./apps/console/src-tauri/src/commands/licensing.rs
-./apps/console/src-tauri/src/commands/runtime.rs
-./apps/console/src-tauri/src/commands/support.rs
-./apps/console/src-tauri/src/commands/webhook.rs
-./apps/console/src-tauri/src/commands/websocket.rs
-./apps/console/src-tauri/src/core/database/config.rs
-./apps/console/src-tauri/src/core/database/connection.rs
-./apps/console/src-tauri/src/core/database/firebird.rs
-./apps/console/src-tauri/src/core/database/health.rs
-./apps/console/src-tauri/src/core/database/migrations.rs
-./apps/console/src-tauri/src/core/database/mod.rs
-./apps/console/src-tauri/src/core/database/mysql.rs
-./apps/console/src-tauri/src/core/database/postgres.rs
-./apps/console/src-tauri/src/core/database/provider/mod.rs
-./apps/console/src-tauri/src/core/database/provider/types.rs
-./apps/console/src-tauri/src/core/database/sqlite.rs
-./apps/console/src-tauri/src/core/mod.rs
-./apps/console/src-tauri/src/db.rs
-./apps/console/src-tauri/src/integrations/clients.rs
-./apps/console/src-tauri/src/integrations/config.rs
-./apps/console/src-tauri/src/integrations/external_api.rs
-./apps/console/src-tauri/src/integrations/health.rs
-./apps/console/src-tauri/src/integrations/mod.rs
-./apps/console/src-tauri/src/integrations/registry.rs
-./apps/console/src-tauri/src/integrations/request_log.rs
-./apps/console/src-tauri/src/integrations/retry_queue.rs
-./apps/console/src-tauri/src/integrations/token_store.rs
-./apps/console/src-tauri/src/integrations/webhook.rs
-./apps/console/src-tauri/src/internal_api/app_commands.rs
-./apps/console/src-tauri/src/internal_api/config.rs
-./apps/console/src-tauri/src/internal_api/docs.rs
-./apps/console/src-tauri/src/internal_api/mod.rs
-./apps/console/src-tauri/src/internal_api/routes.rs
-./apps/console/src-tauri/src/internal_api/server.rs
-./apps/console/src-tauri/src/internal_api/state.rs
-./apps/console/src-tauri/src/internal_api/web_app.rs
-./apps/console/src-tauri/src/internal_api/web_server.rs
-./apps/console/src-tauri/src/lib.rs
-./apps/console/src-tauri/src/main.rs
-./apps/console/src-tauri/src/migrations.rs
-./apps/console/src-tauri/src/models.rs
-./apps/console/src-tauri/src/native_webhook/config.rs
-./apps/console/src-tauri/src/native_webhook/mod.rs
-./apps/console/src-tauri/src/native_webhook/routes.rs
-./apps/console/src-tauri/src/native_webhook/server.rs
-./apps/console/src-tauri/src/native_websocket/config.rs
-./apps/console/src-tauri/src/native_websocket/hub.rs
-./apps/console/src-tauri/src/native_websocket/mod.rs
-./apps/console/src-tauri/src/native_websocket/server.rs
-./apps/console/src-tauri/src/net_bind.rs
-./apps/console/src-tauri/src/runtime_config.rs
-./apps/console/src-tauri/src/security.rs
-./apps/console/src-tauri/src/service/linux_service.rs
-./apps/console/src-tauri/src/service/mod.rs
-./apps/console/src-tauri/src/service/service_runner.rs
-./apps/console/src-tauri/src/service/windows_service.rs
-./apps/console/src-tauri/tauri.conf.json
-./apps/console/src/App.vue
-./apps/console/src/assets/branding/app-icon-1024.png
-./apps/console/src/assets/branding/app-icon-128.png
-./apps/console/src/assets/branding/app-icon-16.png
-./apps/console/src/assets/branding/app-icon-192.png
-./apps/console/src/assets/branding/app-icon-24.png
-./apps/console/src/assets/branding/app-icon-256.png
-./apps/console/src/assets/branding/app-icon-32.png
-./apps/console/src/assets/branding/app-icon-384.png
-./apps/console/src/assets/branding/app-icon-48.png
-./apps/console/src/assets/branding/app-icon-512.png
-./apps/console/src/assets/branding/app-icon-64.png
-./apps/console/src/assets/branding/app-icon-96.png
-./apps/console/src/assets/branding/brand-preview.jpg
-./apps/console/src/assets/branding/brand.json
-./apps/console/src/assets/branding/favicon.ico
-./apps/console/src/assets/branding/favicon.png
-./apps/console/src/assets/branding/logo-dark.png
-./apps/console/src/assets/branding/logo-light.png
-./apps/console/src/assets/branding/logo-mark.png
-./apps/console/src/assets/branding/logo-mark.svg
-./apps/console/src/assets/branding/logo.svg
-./apps/console/src/assets/branding/splash-logo.png
-./apps/console/src/assets/branding/tray-icon.ico
-./apps/console/src/assets/branding/tray-icon.png
-./apps/console/src/components/AppModal.vue
-./apps/console/src/components/AppSplash.vue
-./apps/console/src/components/AppStartupSplash.vue
-./apps/console/src/components/AppSwitch.vue
-./apps/console/src/components/ControlAccessPanel.vue
-./apps/console/src/components/base/AppDialogHost.vue
-./apps/console/src/components/base/AppPageTitleBar.vue
-./apps/console/src/components/base/BaseConfirmDialog.vue
-./apps/console/src/components/base/BaseDataGrid.vue
-./apps/console/src/components/base/BaseEmptyState.vue
-./apps/console/src/components/base/BaseFilterBar.vue
-./apps/console/src/components/base/BaseFormModal.vue
-./apps/console/src/components/base/BasePage.vue
-./apps/console/src/components/base/BaseSectionCard.vue
-./apps/console/src/components/base/BaseToolbar.vue
-./apps/console/src/components/base/IconSymbol.vue
-./apps/console/src/components/dashboard/DashboardChartCard.vue
-./apps/console/src/components/dashboard/DashboardHealthPanel.vue
-./apps/console/src/components/dashboard/DashboardMetricCard.vue
-./apps/console/src/components/dashboard/DashboardModuleStatus.vue
-./apps/console/src/components/dashboard/DashboardQuickActions.vue
-./apps/console/src/components/dashboard/DashboardRecentEvents.vue
-./apps/console/src/components/dashboard/DashboardStatusCard.vue
-./apps/console/src/config/appBranding.ts
-./apps/console/src/config/entities.ts
-./apps/console/src/config/navigation.ts
-./apps/console/src/config/projectConfig.ts
-./apps/console/src/core/database/DatabaseProviderFactory.ts
-./apps/console/src/core/database/DatabaseTypes.ts
-./apps/console/src/core/database/IndexedDbDatabaseProvider.ts
-./apps/console/src/core/database/LocalStorageDatabaseProvider.ts
-./apps/console/src/core/diagnostics/RuntimeDiagnostics.ts
-./apps/console/src/core/filesystem/FileProvider.ts
-./apps/console/src/core/filesystem/FileProviderFactory.ts
-./apps/console/src/core/filesystem/TauriFileProvider.ts
-./apps/console/src/core/filesystem/WebFileProvider.ts
-./apps/console/src/core/invoker/CommandProvider.ts
-./apps/console/src/core/invoker/CommandProviderFactory.ts
-./apps/console/src/core/invoker/InternalApiCommandProvider.ts
-./apps/console/src/core/invoker/TauriCommandProvider.ts
-./apps/console/src/core/invoker/WebCommandProvider.ts
-./apps/console/src/core/notifications/NotificationProvider.ts
-./apps/console/src/core/notifications/NotificationProviderFactory.ts
-./apps/console/src/core/notifications/TauriNotificationProvider.ts
-./apps/console/src/core/notifications/WebNotificationProvider.ts
-./apps/console/src/core/printer/PrintProvider.ts
-./apps/console/src/core/printer/PrintProviderFactory.ts
-./apps/console/src/core/printer/TauriPrintProvider.ts
-./apps/console/src/core/printer/WebPrintProvider.ts
-./apps/console/src/core/pwa/registerServiceWorker.ts
-./apps/console/src/core/repositories/GenericRepository.ts
-./apps/console/src/core/runtime/RuntimeProvider.ts
-./apps/console/src/core/runtime/RuntimeTypes.ts
-./apps/console/src/core/storage/StorageProvider.ts
-./apps/console/src/core/storage/StorageProviderFactory.ts
-./apps/console/src/core/storage/WebLocalDatabase.ts
-./apps/console/src/core/storage/WebLocalStorageProvider.ts
-./apps/console/src/core/storage/WebSessionStorageProvider.ts
-./apps/console/src/layouts/AppLayout.vue
-./apps/console/src/main.ts
-./apps/console/src/pages/AboutPage.vue
-./apps/console/src/pages/AppLogsPage.vue
-./apps/console/src/pages/DashboardPage.vue
-./apps/console/src/pages/EmpresaPage.vue
-./apps/console/src/pages/EntityPage.vue
-./apps/console/src/pages/LicensingPage.vue
-./apps/console/src/pages/LoginPage.vue
-./apps/console/src/pages/PerfilPage.vue
-./apps/console/src/pages/PrintPreviewPage.vue
-./apps/console/src/pages/RuntimeDiagnosticsPage.vue
-./apps/console/src/pages/SystemPage.vue
-./apps/console/src/pages/UserGuidePage.vue
-./apps/console/src/pages/UsuarioPage.vue
-./apps/console/src/pages/optional/DatabasePage.vue
-./apps/console/src/pages/optional/IntegrationPage.vue
-./apps/console/src/pages/optional/InternalApiPage.vue
-./apps/console/src/pages/optional/ScalarDocsPage.vue
-./apps/console/src/pages/optional/SyncPage.vue
-./apps/console/src/pages/optional/TechnicalSheetPage.vue
-./apps/console/src/pages/optional/WebSocketServicePage.vue
-./apps/console/src/pages/optional/WebhookServicePage.vue
-./apps/console/src/pages/tunnara/AgentsPage.vue
-./apps/console/src/pages/tunnara/AuditPage.vue
-./apps/console/src/pages/tunnara/DeploymentsPage.vue
-./apps/console/src/pages/tunnara/DomainsPage.vue
-./apps/console/src/pages/tunnara/NetworksPage.vue
-./apps/console/src/pages/tunnara/NodesPage.vue
-./apps/console/src/pages/tunnara/PoliciesPage.vue
-./apps/console/src/pages/tunnara/RequestInspectorPage.vue
-./apps/console/src/pages/tunnara/TunnaraResourcePage.vue
-./apps/console/src/pages/tunnara/TunnelsPage.vue
-./apps/console/src/print/PrintLayout.vue
-./apps/console/src/print/print.css
-./apps/console/src/print/reportWindow.ts
-./apps/console/src/router/index.ts
-./apps/console/src/services/crud.ts
-./apps/console/src/services/dialog.ts
-./apps/console/src/services/format.ts
-./apps/console/src/services/logger.ts
-./apps/console/src/services/splash.ts
-./apps/console/src/services/startup.ts
-./apps/console/src/services/tauri.ts
-./apps/console/src/services/tunnaraApi.ts
-./apps/console/src/stores/session.ts
-./apps/console/src/styles.css
-./apps/console/src/visual-core/theme.ts
-./apps/console/src/vite-env.d.ts
-./apps/console/tsconfig.json
-./apps/console/vite.config.ts
-./apps/control-api/.dockerignore
-./apps/control-api/.env.example
-./apps/control-api/Dockerfile
-./apps/control-api/app/Http/Controllers/Api/V1/AgentController.php
-./apps/control-api/app/Http/Controllers/Api/V1/AgentRegistrationController.php
-./apps/control-api/app/Http/Controllers/Api/V1/Concerns/ResolvesOrganization.php
-./apps/control-api/app/Http/Controllers/Api/V1/HealthController.php
-./apps/control-api/app/Http/Controllers/Api/V1/InspectionController.php
-./apps/control-api/app/Http/Controllers/Api/V1/Internal/ClusterController.php
-./apps/control-api/app/Http/Controllers/Api/V1/NodeController.php
-./apps/control-api/app/Http/Controllers/Api/V1/OverviewController.php
-./apps/control-api/app/Http/Controllers/Api/V1/PolicyController.php
-./apps/control-api/app/Http/Controllers/Api/V1/ProvisioningTokenController.php
-./apps/control-api/app/Http/Controllers/Api/V1/TunnelController.php
-./apps/control-api/app/Http/Controllers/Api/V1/TunnelTargetController.php
-./apps/control-api/app/Http/Middleware/AuthenticateClusterToken.php
-./apps/control-api/app/Http/Middleware/AuthenticateServiceToken.php
-./apps/control-api/app/Http/Middleware/RequireServiceAbility.php
-./apps/control-api/app/Models/Agent.php
-./apps/control-api/app/Models/AgentPresence.php
-./apps/control-api/app/Models/InfrastructureNode.php
-./apps/control-api/app/Models/Organization.php
-./apps/control-api/app/Models/Policy.php
-./apps/control-api/app/Models/ProvisioningToken.php
-./apps/control-api/app/Models/RequestInspection.php
-./apps/control-api/app/Models/ServiceToken.php
-./apps/control-api/app/Models/Tunnel.php
-./apps/control-api/app/Models/TunnelTarget.php
-./apps/control-api/app/Providers/AppServiceProvider.php
-./apps/control-api/app/Support/AgentProofVerifier.php
-./apps/control-api/app/Support/RouteResolver.php
-./apps/control-api/artisan
-./apps/control-api/bootstrap/app.php
-./apps/control-api/bootstrap/cache/.gitkeep
-./apps/control-api/bootstrap/providers.php
-./apps/control-api/composer.json
-./apps/control-api/config/app.php
-./apps/control-api/config/auth.php
-./apps/control-api/config/cache.php
-./apps/control-api/config/cors.php
-./apps/control-api/config/database.php
-./apps/control-api/config/filesystems.php
-./apps/control-api/config/logging.php
-./apps/control-api/config/queue.php
-./apps/control-api/config/session.php
-./apps/control-api/database/migrations/2026_07_04_000001_create_tunnara_core_tables.php
-./apps/control-api/database/migrations/2026_07_05_000002_create_runtime_support_tables.php
-./apps/control-api/database/migrations/2026_07_06_000003_create_distributed_control_plane_tables.php
-./apps/control-api/deploy/entrypoint.sh
-./apps/control-api/deploy/nginx.conf
-./apps/control-api/deploy/supervisord.conf
-./apps/control-api/phpunit.xml
-./apps/control-api/public/index.php
-./apps/control-api/routes/api.php
-./apps/control-api/routes/console.php
-./apps/control-api/routes/web.php
-./apps/control-api/storage/framework/cache/.gitkeep
-./apps/control-api/storage/framework/sessions/.gitkeep
-./apps/control-api/storage/framework/views/.gitkeep
-./apps/control-api/storage/logs/.gitkeep
-./apps/control-api/tests/Feature/DistributedControlPlaneTest.php
-./apps/control-api/tests/Feature/HealthTest.php
-./apps/control-api/tests/TestCase.php
-./crates/tunnara-agent-core/Cargo.toml
-./crates/tunnara-agent-core/src/lib.rs
-./crates/tunnara-config/Cargo.toml
-./crates/tunnara-config/src/lib.rs
-./crates/tunnara-protocol/Cargo.toml
-./crates/tunnara-protocol/src/lib.rs
-./crates/tunnara-quic/Cargo.toml
-./crates/tunnara-quic/README.md
-./crates/tunnara-quic/src/lib.rs
-./crates/tunnara-quic/tests/roundtrip.rs
-./crates/tunnara-sdk-c/Cargo.toml
-./crates/tunnara-sdk-c/include/tunnara.h
-./crates/tunnara-sdk-c/src/lib.rs
-./crates/tunnara-transport/Cargo.toml
-./crates/tunnara-transport/src/lib.rs
-./crates/tunnara-types/Cargo.toml
-./crates/tunnara-types/src/lib.rs
-./deploy/cloudpanel/README.md
-./deploy/cloudpanel/install-v0.2.sh
-./deploy/cloudpanel/install.sh
-./deploy/cloudpanel/nginx-console.conf
-./deploy/cloudpanel/nginx-edge.conf
-./deploy/docker/.env.example
-./deploy/docker/Dockerfile.rust-service
-./deploy/docker/README.md
-./deploy/docker/bootstrap.sh
-./deploy/docker/cloudflare/Caddyfile
-./deploy/docker/cloudflare/Dockerfile
-./deploy/docker/cloudflare/README.md
-./deploy/docker/distributed/Caddyfile
-./deploy/docker/distributed/README.md
-./deploy/docker/docker-compose.build.yml
-./deploy/docker/docker-compose.cloudflare.build.yml
-./deploy/docker/docker-compose.cloudflare.yml
-./deploy/docker/docker-compose.distributed.yml
-./deploy/docker/docker-compose.ha.build.yml
-./deploy/docker/docker-compose.ha.yml
-./deploy/docker/docker-compose.infrastructure.yml
-./deploy/docker/docker-compose.observability.yml
-./deploy/docker/docker-compose.quic.build.yml
-./deploy/docker/docker-compose.quic.yml
-./deploy/docker/docker-compose.yml
-./deploy/docker/examples/docker-compose.local.yml
-./deploy/docker/examples/docker-compose.vps.yml
-./deploy/docker/examples/local.env.example
-./deploy/docker/examples/vps.env.example
-./deploy/docker/ha/Caddyfile
-./deploy/docker/ha/README.md
-./deploy/docker/ha/haproxy.cfg
-./deploy/docker/install-from-github.sh
-./deploy/docker/quic/Dockerfile
-./deploy/docker/quic/entrypoint.sh
-./deploy/docker/quic/export-caddy-cert.sh
-./deploy/docker/storage/.env.example
-./deploy/docker/storage/docker-compose.base.yml
-./deploy/docker/storage/docker-compose.build.yml
-./deploy/docker/storage/docker-compose.mysql.yml
-./deploy/docker/storage/docker-compose.postgres.yml
-./deploy/docker/storage/docker-compose.redis.yml
-./deploy/docker/storage/docker-compose.sqlite.yml
-./deploy/docker/storage/storage.sh
-./deploy/docker/tunnara.sh
-./deploy/helm/tunnara/Chart.yaml
-./deploy/helm/tunnara/README.md
-./deploy/helm/tunnara/templates/_helpers.tpl
-./deploy/helm/tunnara/templates/console-deployment.yaml
-./deploy/helm/tunnara/templates/ingress.yaml
-./deploy/helm/tunnara/templates/networkpolicy.yaml
-./deploy/helm/tunnara/templates/pdb-hpa.yaml
-./deploy/helm/tunnara/templates/pvc.yaml
-./deploy/helm/tunnara/templates/secret.yaml
-./deploy/helm/tunnara/templates/server-deployment.yaml
-./deploy/helm/tunnara/templates/servicemonitor.yaml
-./deploy/helm/tunnara/templates/services.yaml
-./deploy/helm/tunnara/values.yaml
-./deploy/native/config/tunnara-control.mysql-redis.env.example
-./deploy/native/config/tunnara-control.postgres-redis.env.example
-./deploy/native/config/tunnara-control.sqlite.env.example
-./deploy/native/linux/install-agent.sh
-./deploy/native/linux/install-server.sh
-./deploy/native/linux/tunnara-agent.service
-./deploy/native/linux/tunnara-server.service
-./deploy/native/linux/uninstall.sh
-./deploy/native/macos/com.wwsoftwares.tunnara.agent.plist
-./deploy/native/macos/install-agent.sh
-./deploy/native/windows/install-agent.ps1
-./deploy/native/windows/install-server.ps1
-./deploy/native/windows/uninstall.ps1
-./deploy/observability/README.md
-./deploy/observability/grafana/dashboards/tunnara-overview.json
-./deploy/observability/grafana/provisioning/dashboards/tunnara.yml
-./deploy/observability/grafana/provisioning/datasources/prometheus.yml
-./deploy/observability/prometheus.yml
-./deploy/standalone/linux/install-agent.sh
-./deploy/standalone/linux/install-server.sh
-./deploy/standalone/linux/tunnara-agent.service
-./deploy/standalone/linux/tunnara-server.service
-./deploy/standalone/linux/uninstall.sh
-./deploy/standalone/macos/README.md
-./deploy/standalone/windows/README.md
-./deploy/systemd/quic-client.env.example
-./deploy/systemd/quic-server.env.example
-./deploy/systemd/tunnara-agent.service
-./deploy/systemd/tunnara-quic-client.service
-./deploy/systemd/tunnara-quic-server.service
-./docker-compose.example.yml
-./docker.env.example
-./docker.sh
-./docs/ROADMAP.md
-./docs/STATUS.md
-./docs/TEMPLATE_PORTING.md
-./docs/adr/0001-monorepo.md
-./docs/adr/0002-control-data-plane.md
-./docs/adr/0003-ui-template-preservation.md
-./docs/api/openapi-v1.0.0.yaml
-./docs/api/openapi-v2.0.0-rc1.yaml
-./docs/api/openapi-v2.0.0-rc2.yaml
-./docs/api/openapi-v2.0.0-rc3.yaml
-./docs/architecture/ARCHITECTURE.md
-./docs/architecture/COMPETITIVE_GAP.md
-./docs/branding/README.md
-./docs/branding/source/favicon.ico
-./docs/branding/source/favicon.png
-./docs/branding/source/icon-192.png
-./docs/branding/source/icon-512.png
-./docs/branding/source/logo-light.png
-./docs/branding/source/logo-mark.png
-./docs/branding/source/splash-logo.png
-./docs/github/REPOSITORY_SETUP.md
-./docs/mobile/BUILD_AND_DISTRIBUTION.md
-./docs/operations/CI_STORAGE_FIX.md
-./docs/operations/DOCKER_DEPLOYMENT.md
-./docs/operations/GITHUB_ACTIONS.md
-./docs/operations/KUBERNETES.md
-./docs/operations/OBSERVABILITY.md
-./docs/operations/POST_MERGE_RELEASE.md
-./docs/operations/PRODUCTION.md
-./docs/operations/QUIC.md
-./docs/operations/QUICKSTART.md
-./docs/operations/RELEASE_PROCESS.md
-./docs/operations/STORAGE_PROVIDERS.md
-./docs/operations/VPS_DOCKER_QUICKSTART.md
-./docs/protocol/CONTROL_PROTOCOL_V0_1.md
-./docs/protocol/DATA_PROTOCOL_V1.md
-./docs/releases/PULL_REQUEST_v2.0.0-rc.1.md
-./docs/releases/PULL_REQUEST_v2.0.0-rc.2.md
-./docs/releases/PULL_REQUEST_v2.0.0-rc.3.md
-./docs/releases/v1.1.0.md
-./docs/releases/v1.1.2.md
-./docs/releases/v1.1.3.md
-./docs/releases/v2.0.0-rc.1.md
-./docs/releases/v2.0.0-rc.2.md
-./docs/releases/v2.0.0-rc.3.md
-./docs/security/MATURITY_GATES.md
-./docs/security/POLICY_ENGINE.md
-./docs/security/THREAT_MODEL.md
-./docs/security/THREAT_MODEL_V1.md
-./package-lock.json
-./package.json
-./runtime/node/Dockerfile.agent
-./runtime/node/Dockerfile.server
-./runtime/node/bin/tunnara-server.mjs
-./runtime/node/bin/tunnara.mjs
-./runtime/node/lib/agent-api.mjs
-./runtime/node/lib/agent-runtime.mjs
-./runtime/node/lib/cloudflare.mjs
-./runtime/node/lib/cluster.mjs
-./runtime/node/lib/database.mjs
-./runtime/node/lib/framing.mjs
-./runtime/node/lib/inspector.mjs
-./runtime/node/lib/jwt.mjs
-./runtime/node/lib/metrics.mjs
-./runtime/node/lib/policy-engine.mjs
-./runtime/node/lib/secrets.mjs
-./runtime/node/lib/server.mjs
-./runtime/node/lib/utils.mjs
-./runtime/node/lib/wireguard.mjs
-./runtime/node/package.json
-./runtime/node/tests/e2e-cloudflare.mjs
-./runtime/node/tests/e2e-distributed-ha.mjs
-./runtime/node/tests/e2e-http-tunnel.mjs
-./runtime/node/tests/e2e-policy-inspector-ha.mjs
-./runtime/node/tests/e2e-private-network.mjs
-./runtime/node/tests/e2e-production-config.mjs
-./runtime/node/tests/e2e-tcp-udp.mjs
-./runtime/node/tests/e2e-wireguard.mjs
-./rust-toolchain.toml
-./scripts/ci/npm-ci.sh
-./scripts/ci/validate-docker-deployment.mjs
-./scripts/ci/validate-mobile-config.mjs
-./scripts/ci/validate-release-pipeline.mjs
-./scripts/ci/validate-sea-builder.mjs
-./scripts/ci/validate-storage-profiles.mjs
-./scripts/github/init-repository.sh
-./scripts/github/publish.sh
-./scripts/github/validate-repository.mjs
-./scripts/maintenance/clean-generated-files.sh
-./scripts/release/build-sea.mjs
-./scripts/release/package-artifacts.sh
-./scripts/release/upload-release-assets.sh
-./scripts/version/check-version.mjs
-./scripts/version/max-version.mjs
-./scripts/version/next-version.mjs
-./scripts/version/set-version.mjs
-./scripts/version/version-utils.mjs
-./scripts/version/version-utils.test.mjs
-./sdk/c/CMakeLists.txt
-./sdk/c/README.md
-./sdk/c/examples/full.c
-./sdk/c/examples/version.c
-./sdk/c/include/tunnara.h
-./sdk/c/src/tunnara.c
-./sdk/delphi/README.md
-./sdk/delphi/TunnaraAgent.pas
-./sdk/delphi/examples/TunnaraConsoleExample.dpr
-./sdk/mobile/README.md
-./sdk/mobile/android/README.md
-./sdk/mobile/android/app/build.gradle.kts
-./sdk/mobile/android/app/proguard-rules.pro
-./sdk/mobile/android/app/src/main/AndroidManifest.xml
-./sdk/mobile/android/app/src/main/java/br/com/wwsoftwares/tunnara/mobile/MainActivity.kt
-./sdk/mobile/android/app/src/main/java/br/com/wwsoftwares/tunnara/mobile/TunnaraTunnel.kt
-./sdk/mobile/android/app/src/main/res/layout/activity_main.xml
-./sdk/mobile/android/app/src/main/res/values/strings.xml
-./sdk/mobile/android/app/src/main/res/values/themes.xml
-./sdk/mobile/android/build.gradle.kts
-./sdk/mobile/android/gradle.properties
-./sdk/mobile/android/scripts/build-artifacts.sh
-./sdk/mobile/android/settings.gradle.kts
-./sdk/mobile/ios/Config/PacketTunnel-Info.plist
-./sdk/mobile/ios/Config/TunnaraMobile.entitlements
-./sdk/mobile/ios/Config/TunnaraPacketTunnel.entitlements
-./sdk/mobile/ios/README.md
-./sdk/mobile/ios/TunnaraApp/ContentView.swift
-./sdk/mobile/ios/TunnaraApp/TunnaraMobileApp.swift
-./sdk/mobile/ios/TunnaraApp/TunnaraVPNManager.swift
-./sdk/mobile/ios/TunnaraPacketTunnel/PacketTunnelProvider.swift
-./sdk/mobile/ios/TunnaraPacketTunnel/WgQuickConfigParser.swift
-./sdk/mobile/ios/project.yml
-./sdk/mobile/ios/scripts/build-artifacts.sh
-./sdk/mobile/ios/scripts/prepare-wireguard-kit.sh
-./sdk/mobile/ios/scripts/sign-and-export.sh
-./sdk/node/README.md
-./sdk/rust/README.md
-./services/agent/Cargo.toml
-./services/agent/src/main.rs
-./services/coordinator/Cargo.toml
-./services/coordinator/src/main.rs
-./services/edge/Cargo.toml
-./services/edge/src/main.rs
-./services/quic-bridge/Cargo.toml
-./services/quic-bridge/README.md
-./services/quic-bridge/src/main.rs
-./services/relay/Cargo.toml
-./services/relay/src/main.rs
-./tests/load/http-tunnel-load.mjs
-./tests/security/policy-fuzz.mjs
+tunnara-platform/
+├── .github/
+│   ├── ISSUE_TEMPLATE/
+│   │   ├── bug_report.yml
+│   │   ├── config.yml
+│   │   └── feature_request.yml
+│   ├── workflows/
+│   │   ├── artifact-cleanup.yml
+│   │   ├── ci.yml
+│   │   ├── codeql.yml
+│   │   ├── desktop-release.yml
+│   │   ├── docker-publish.yml
+│   │   ├── mobile-release.yml
+│   │   ├── mobile.yml
+│   │   ├── native-preview.yml
+│   │   ├── nightly-hardening.yml
+│   │   ├── release.yml
+│   │   ├── runtime-release.yml
+│   │   ├── sdk-build.yml
+│   │   ├── storage-matrix.yml
+│   │   └── version-after-merge.yml
+│   ├── CODEOWNERS
+│   ├── dependabot.yml
+│   └── pull_request_template.md
+├── apps/
+│   ├── console/
+│   │   ├── .github/
+│   │   │   └── workflows/
+│   │   │       └── cloudpanel-linux-release.yml
+│   │   ├── deploy/
+│   │   │   ├── cloudpanel/
+│   │   │   │   ├── bin/
+│   │   │   │   │   └── .gitkeep
+│   │   │   │   ├── logs/
+│   │   │   │   │   └── .gitkeep
+│   │   │   │   ├── scripts/
+│   │   │   │   │   └── health.mjs
+│   │   │   │   ├── .env.example
+│   │   │   │   ├── check.sh
+│   │   │   │   ├── cli.sh
+│   │   │   │   ├── logs.sh
+│   │   │   │   ├── package.json
+│   │   │   │   ├── README.md
+│   │   │   │   ├── restart.sh
+│   │   │   │   ├── server.mjs
+│   │   │   │   ├── start.sh
+│   │   │   │   ├── status.sh
+│   │   │   │   ├── stop.sh
+│   │   │   │   └── worker.sh
+│   │   │   └── nginx.conf
+│   │   ├── docs/
+│   │   │   ├── AI_IMPLEMENTATION_GUIDE.md
+│   │   │   ├── BRANDING.md
+│   │   │   ├── CI_PERFORMANCE.md
+│   │   │   ├── CLOUDPANEL_RELEASE.md
+│   │   │   ├── DATABASE_PROVIDER.md
+│   │   │   ├── DATABASES.md
+│   │   │   ├── FIRST_USE.md
+│   │   │   ├── HEADLESS_MODE.md
+│   │   │   ├── HYBRID_WEB_TAURI_TEMPLATE.md
+│   │   │   ├── LINUX_SERVICE.md
+│   │   │   ├── MIGRATIONS.md
+│   │   │   ├── RELEASE_REPOSITORY.md
+│   │   │   ├── RUNTIME_CONFIGURATION.md
+│   │   │   ├── RUST_FORMATTING_AND_CI.md
+│   │   │   ├── SERVER_DEPLOYMENT.md
+│   │   │   ├── SERVICES.md
+│   │   │   ├── STORAGE_COMPATIBILITY.md
+│   │   │   ├── VPS_DEPLOYMENT.md
+│   │   │   ├── WINDOWS_BUILD.md
+│   │   │   ├── WINDOWS_PATH_SPACES_FIX.md
+│   │   │   └── WINDOWS_SERVICE.md
+│   │   ├── public/
+│   │   │   ├── icons/
+│   │   │   │   ├── icon-192.png
+│   │   │   │   └── icon-512.png
+│   │   │   ├── apple-touch-icon.png
+│   │   │   ├── manifest.webmanifest
+│   │   │   ├── offline.html
+│   │   │   └── sw.js
+│   │   ├── scripts/
+│   │   │   ├── ci/
+│   │   │   │   ├── check-version-sync.mjs
+│   │   │   │   ├── run-tauri.mjs
+│   │   │   │   └── validate-pr-title.mjs
+│   │   │   ├── linux/
+│   │   │   │   ├── build-cloudpanel-release-docker.sh
+│   │   │   │   ├── build-cloudpanel-release.sh
+│   │   │   │   └── install-cloudpanel-build-deps.sh
+│   │   │   ├── npm/
+│   │   │   │   └── normalize-package-lock-registry.mjs
+│   │   │   ├── windows/
+│   │   │   │   ├── build-windows.bat
+│   │   │   │   └── build-windows.ps1
+│   │   │   ├── create-derived-app.mjs
+│   │   │   ├── dev-web.mjs
+│   │   │   ├── fix-rust-format.ps1
+│   │   │   ├── fix-rust-format.sh
+│   │   │   ├── prepare-tauri-resources.mjs
+│   │   │   └── print-env-model.mjs
+│   │   ├── src/
+│   │   │   ├── assets/
+│   │   │   │   └── branding/
+│   │   │   │       ├── app-icon-1024.png
+│   │   │   │       ├── app-icon-128.png
+│   │   │   │       ├── app-icon-16.png
+│   │   │   │       ├── app-icon-192.png
+│   │   │   │       ├── app-icon-24.png
+│   │   │   │       ├── app-icon-256.png
+│   │   │   │       ├── app-icon-32.png
+│   │   │   │       ├── app-icon-384.png
+│   │   │   │       ├── app-icon-48.png
+│   │   │   │       ├── app-icon-512.png
+│   │   │   │       ├── app-icon-64.png
+│   │   │   │       ├── app-icon-96.png
+│   │   │   │       ├── brand-preview.jpg
+│   │   │   │       ├── brand.json
+│   │   │   │       ├── favicon.ico
+│   │   │   │       ├── favicon.png
+│   │   │   │       ├── logo-dark.png
+│   │   │   │       ├── logo-light.png
+│   │   │   │       ├── logo-mark.png
+│   │   │   │       ├── logo-mark.svg
+│   │   │   │       ├── logo.svg
+│   │   │   │       ├── splash-logo.png
+│   │   │   │       ├── tray-icon.ico
+│   │   │   │       └── tray-icon.png
+│   │   │   ├── components/
+│   │   │   │   ├── base/
+│   │   │   │   │   ├── AppDialogHost.vue
+│   │   │   │   │   ├── AppPageTitleBar.vue
+│   │   │   │   │   ├── BaseConfirmDialog.vue
+│   │   │   │   │   ├── BaseDataGrid.vue
+│   │   │   │   │   ├── BaseEmptyState.vue
+│   │   │   │   │   ├── BaseFilterBar.vue
+│   │   │   │   │   ├── BaseFormModal.vue
+│   │   │   │   │   ├── BasePage.vue
+│   │   │   │   │   ├── BaseSectionCard.vue
+│   │   │   │   │   ├── BaseToolbar.vue
+│   │   │   │   │   └── IconSymbol.vue
+│   │   │   │   ├── dashboard/
+│   │   │   │   │   ├── DashboardChartCard.vue
+│   │   │   │   │   ├── DashboardHealthPanel.vue
+│   │   │   │   │   ├── DashboardMetricCard.vue
+│   │   │   │   │   ├── DashboardModuleStatus.vue
+│   │   │   │   │   ├── DashboardQuickActions.vue
+│   │   │   │   │   ├── DashboardRecentEvents.vue
+│   │   │   │   │   └── DashboardStatusCard.vue
+│   │   │   │   ├── AppModal.vue
+│   │   │   │   ├── AppSplash.vue
+│   │   │   │   ├── AppStartupSplash.vue
+│   │   │   │   ├── AppSwitch.vue
+│   │   │   │   └── ControlAccessPanel.vue
+│   │   │   ├── config/
+│   │   │   │   ├── appBranding.ts
+│   │   │   │   ├── entities.ts
+│   │   │   │   ├── navigation.ts
+│   │   │   │   └── projectConfig.ts
+│   │   │   ├── core/
+│   │   │   │   ├── database/
+│   │   │   │   │   ├── DatabaseProviderFactory.ts
+│   │   │   │   │   ├── DatabaseTypes.ts
+│   │   │   │   │   ├── IndexedDbDatabaseProvider.ts
+│   │   │   │   │   └── LocalStorageDatabaseProvider.ts
+│   │   │   │   ├── diagnostics/
+│   │   │   │   │   └── RuntimeDiagnostics.ts
+│   │   │   │   ├── filesystem/
+│   │   │   │   │   ├── FileProvider.ts
+│   │   │   │   │   ├── FileProviderFactory.ts
+│   │   │   │   │   ├── TauriFileProvider.ts
+│   │   │   │   │   └── WebFileProvider.ts
+│   │   │   │   ├── invoker/
+│   │   │   │   │   ├── CommandProvider.ts
+│   │   │   │   │   ├── CommandProviderFactory.ts
+│   │   │   │   │   ├── InternalApiCommandProvider.ts
+│   │   │   │   │   ├── TauriCommandProvider.ts
+│   │   │   │   │   └── WebCommandProvider.ts
+│   │   │   │   ├── notifications/
+│   │   │   │   │   ├── NotificationProvider.ts
+│   │   │   │   │   ├── NotificationProviderFactory.ts
+│   │   │   │   │   ├── TauriNotificationProvider.ts
+│   │   │   │   │   └── WebNotificationProvider.ts
+│   │   │   │   ├── printer/
+│   │   │   │   │   ├── PrintProvider.ts
+│   │   │   │   │   ├── PrintProviderFactory.ts
+│   │   │   │   │   ├── TauriPrintProvider.ts
+│   │   │   │   │   └── WebPrintProvider.ts
+│   │   │   │   ├── pwa/
+│   │   │   │   │   └── registerServiceWorker.ts
+│   │   │   │   ├── repositories/
+│   │   │   │   │   └── GenericRepository.ts
+│   │   │   │   ├── runtime/
+│   │   │   │   │   ├── RuntimeProvider.ts
+│   │   │   │   │   └── RuntimeTypes.ts
+│   │   │   │   └── storage/
+│   │   │   │       ├── StorageProvider.ts
+│   │   │   │       ├── StorageProviderFactory.ts
+│   │   │   │       ├── WebLocalDatabase.ts
+│   │   │   │       ├── WebLocalStorageProvider.ts
+│   │   │   │       └── WebSessionStorageProvider.ts
+│   │   │   ├── layouts/
+│   │   │   │   └── AppLayout.vue
+│   │   │   ├── pages/
+│   │   │   │   ├── optional/
+│   │   │   │   │   ├── DatabasePage.vue
+│   │   │   │   │   ├── IntegrationPage.vue
+│   │   │   │   │   ├── InternalApiPage.vue
+│   │   │   │   │   ├── ScalarDocsPage.vue
+│   │   │   │   │   ├── SyncPage.vue
+│   │   │   │   │   ├── TechnicalSheetPage.vue
+│   │   │   │   │   ├── WebhookServicePage.vue
+│   │   │   │   │   └── WebSocketServicePage.vue
+│   │   │   │   ├── tunnara/
+│   │   │   │   │   ├── AgentsPage.vue
+│   │   │   │   │   ├── AuditPage.vue
+│   │   │   │   │   ├── DeploymentsPage.vue
+│   │   │   │   │   ├── DomainsPage.vue
+│   │   │   │   │   ├── NetworksPage.vue
+│   │   │   │   │   ├── NodesPage.vue
+│   │   │   │   │   ├── PoliciesPage.vue
+│   │   │   │   │   ├── RequestInspectorPage.vue
+│   │   │   │   │   ├── TunnaraResourcePage.vue
+│   │   │   │   │   └── TunnelsPage.vue
+│   │   │   │   ├── AboutPage.vue
+│   │   │   │   ├── AppLogsPage.vue
+│   │   │   │   ├── DashboardPage.vue
+│   │   │   │   ├── EmpresaPage.vue
+│   │   │   │   ├── EntityPage.vue
+│   │   │   │   ├── LicensingPage.vue
+│   │   │   │   ├── LoginPage.vue
+│   │   │   │   ├── PerfilPage.vue
+│   │   │   │   ├── PrintPreviewPage.vue
+│   │   │   │   ├── RuntimeDiagnosticsPage.vue
+│   │   │   │   ├── SystemPage.vue
+│   │   │   │   ├── UserGuidePage.vue
+│   │   │   │   └── UsuarioPage.vue
+│   │   │   ├── print/
+│   │   │   │   ├── print.css
+│   │   │   │   ├── PrintLayout.vue
+│   │   │   │   └── reportWindow.ts
+│   │   │   ├── router/
+│   │   │   │   └── index.ts
+│   │   │   ├── services/
+│   │   │   │   ├── crud.ts
+│   │   │   │   ├── dialog.ts
+│   │   │   │   ├── format.ts
+│   │   │   │   ├── logger.ts
+│   │   │   │   ├── splash.ts
+│   │   │   │   ├── startup.ts
+│   │   │   │   ├── tauri.ts
+│   │   │   │   └── tunnaraApi.ts
+│   │   │   ├── stores/
+│   │   │   │   └── session.ts
+│   │   │   ├── visual-core/
+│   │   │   │   └── theme.ts
+│   │   │   ├── App.vue
+│   │   │   ├── main.ts
+│   │   │   ├── styles.css
+│   │   │   └── vite-env.d.ts
+│   │   ├── src-tauri/
+│   │   │   ├── capabilities/
+│   │   │   │   └── default.json
+│   │   │   ├── generic-license-tauri/
+│   │   │   │   ├── examples/
+│   │   │   │   │   ├── with-login/
+│   │   │   │   │   │   ├── .env.example
+│   │   │   │   │   │   ├── frontend-login.ts
+│   │   │   │   │   │   └── src-tauri-main.rs
+│   │   │   │   │   └── without-login/
+│   │   │   │   │       └── frontend-startup.ts
+│   │   │   │   ├── src/
+│   │   │   │   │   ├── cache.rs
+│   │   │   │   │   ├── client.rs
+│   │   │   │   │   ├── commands.rs
+│   │   │   │   │   ├── device.rs
+│   │   │   │   │   ├── error.rs
+│   │   │   │   │   ├── lib.rs
+│   │   │   │   │   ├── models.rs
+│   │   │   │   │   ├── registration.rs
+│   │   │   │   │   └── service.rs
+│   │   │   │   ├── .env.example
+│   │   │   │   ├── Cargo.toml
+│   │   │   │   └── README.md
+│   │   │   ├── icons/
+│   │   │   │   ├── 128x128.png
+│   │   │   │   ├── 128x128@2x.png
+│   │   │   │   ├── 32x32.png
+│   │   │   │   ├── icon.icns
+│   │   │   │   ├── icon.ico
+│   │   │   │   └── icon.png
+│   │   │   ├── src/
+│   │   │   │   ├── cli/
+│   │   │   │   │   ├── args.rs
+│   │   │   │   │   ├── mod.rs
+│   │   │   │   │   └── runner.rs
+│   │   │   │   ├── commands/
+│   │   │   │   │   ├── access.rs
+│   │   │   │   │   ├── app.rs
+│   │   │   │   │   ├── auth.rs
+│   │   │   │   │   ├── companies.rs
+│   │   │   │   │   ├── entities.rs
+│   │   │   │   │   ├── integrations.rs
+│   │   │   │   │   ├── licensing.rs
+│   │   │   │   │   ├── runtime.rs
+│   │   │   │   │   ├── support.rs
+│   │   │   │   │   ├── webhook.rs
+│   │   │   │   │   └── websocket.rs
+│   │   │   │   ├── core/
+│   │   │   │   │   ├── database/
+│   │   │   │   │   │   ├── provider/
+│   │   │   │   │   │   │   ├── mod.rs
+│   │   │   │   │   │   │   └── types.rs
+│   │   │   │   │   │   ├── config.rs
+│   │   │   │   │   │   ├── connection.rs
+│   │   │   │   │   │   ├── firebird.rs
+│   │   │   │   │   │   ├── health.rs
+│   │   │   │   │   │   ├── migrations.rs
+│   │   │   │   │   │   ├── mod.rs
+│   │   │   │   │   │   ├── mysql.rs
+│   │   │   │   │   │   ├── postgres.rs
+│   │   │   │   │   │   └── sqlite.rs
+│   │   │   │   │   └── mod.rs
+│   │   │   │   ├── integrations/
+│   │   │   │   │   ├── clients.rs
+│   │   │   │   │   ├── config.rs
+│   │   │   │   │   ├── external_api.rs
+│   │   │   │   │   ├── health.rs
+│   │   │   │   │   ├── mod.rs
+│   │   │   │   │   ├── registry.rs
+│   │   │   │   │   ├── request_log.rs
+│   │   │   │   │   ├── retry_queue.rs
+│   │   │   │   │   ├── token_store.rs
+│   │   │   │   │   └── webhook.rs
+│   │   │   │   ├── internal_api/
+│   │   │   │   │   ├── app_commands.rs
+│   │   │   │   │   ├── config.rs
+│   │   │   │   │   ├── docs.rs
+│   │   │   │   │   ├── mod.rs
+│   │   │   │   │   ├── routes.rs
+│   │   │   │   │   ├── server.rs
+│   │   │   │   │   ├── state.rs
+│   │   │   │   │   ├── web_app.rs
+│   │   │   │   │   └── web_server.rs
+│   │   │   │   ├── native_webhook/
+│   │   │   │   │   ├── config.rs
+│   │   │   │   │   ├── mod.rs
+│   │   │   │   │   ├── routes.rs
+│   │   │   │   │   └── server.rs
+│   │   │   │   ├── native_websocket/
+│   │   │   │   │   ├── config.rs
+│   │   │   │   │   ├── hub.rs
+│   │   │   │   │   ├── mod.rs
+│   │   │   │   │   └── server.rs
+│   │   │   │   ├── service/
+│   │   │   │   │   ├── linux_service.rs
+│   │   │   │   │   ├── mod.rs
+│   │   │   │   │   ├── service_runner.rs
+│   │   │   │   │   └── windows_service.rs
+│   │   │   │   ├── app_state.rs
+│   │   │   │   ├── db.rs
+│   │   │   │   ├── lib.rs
+│   │   │   │   ├── main.rs
+│   │   │   │   ├── migrations.rs
+│   │   │   │   ├── models.rs
+│   │   │   │   ├── net_bind.rs
+│   │   │   │   ├── runtime_config.rs
+│   │   │   │   └── security.rs
+│   │   │   ├── build.rs
+│   │   │   ├── Cargo.toml
+│   │   │   └── tauri.conf.json
+│   │   ├── .editorconfig
+│   │   ├── .env.example
+│   │   ├── .env.model
+│   │   ├── .npmrc
+│   │   ├── app.manifest.example.json
+│   │   ├── build-windows.bat
+│   │   ├── CHANGELOG.md
+│   │   ├── Dockerfile
+│   │   ├── index.html
+│   │   ├── package-lock.json
+│   │   ├── package.json
+│   │   ├── README.md
+│   │   ├── README_TUNNARA.md
+│   │   ├── rust-toolchain.toml
+│   │   ├── rustfmt.toml
+│   │   ├── tsconfig.json
+│   │   ├── VERSION
+│   │   └── vite.config.ts
+│   └── control-api/
+│       ├── app/
+│       │   ├── Http/
+│       │   │   ├── Controllers/
+│       │   │   │   └── Api/
+│       │   │   │       └── V1/
+│       │   │   │           ├── Concerns/
+│       │   │   │           │   └── ResolvesOrganization.php
+│       │   │   │           ├── Internal/
+│       │   │   │           │   └── ClusterController.php
+│       │   │   │           ├── AgentController.php
+│       │   │   │           ├── AgentRegistrationController.php
+│       │   │   │           ├── HealthController.php
+│       │   │   │           ├── InspectionController.php
+│       │   │   │           ├── NodeController.php
+│       │   │   │           ├── OverviewController.php
+│       │   │   │           ├── PolicyController.php
+│       │   │   │           ├── ProvisioningTokenController.php
+│       │   │   │           ├── TunnelController.php
+│       │   │   │           └── TunnelTargetController.php
+│       │   │   └── Middleware/
+│       │   │       ├── AuthenticateClusterToken.php
+│       │   │       ├── AuthenticateServiceToken.php
+│       │   │       └── RequireServiceAbility.php
+│       │   ├── Models/
+│       │   │   ├── Agent.php
+│       │   │   ├── AgentPresence.php
+│       │   │   ├── InfrastructureNode.php
+│       │   │   ├── Organization.php
+│       │   │   ├── Policy.php
+│       │   │   ├── ProvisioningToken.php
+│       │   │   ├── RequestInspection.php
+│       │   │   ├── ServiceToken.php
+│       │   │   ├── Tunnel.php
+│       │   │   └── TunnelTarget.php
+│       │   ├── Providers/
+│       │   │   └── AppServiceProvider.php
+│       │   └── Support/
+│       │       ├── AgentProofVerifier.php
+│       │       └── RouteResolver.php
+│       ├── bootstrap/
+│       │   ├── cache/
+│       │   │   └── .gitkeep
+│       │   ├── app.php
+│       │   └── providers.php
+│       ├── config/
+│       │   ├── app.php
+│       │   ├── auth.php
+│       │   ├── cache.php
+│       │   ├── cors.php
+│       │   ├── database.php
+│       │   ├── filesystems.php
+│       │   ├── logging.php
+│       │   ├── queue.php
+│       │   └── session.php
+│       ├── database/
+│       │   └── migrations/
+│       │       ├── 2026_07_04_000001_create_tunnara_core_tables.php
+│       │       ├── 2026_07_05_000002_create_runtime_support_tables.php
+│       │       └── 2026_07_06_000003_create_distributed_control_plane_tables.php
+│       ├── deploy/
+│       │   ├── entrypoint.sh
+│       │   ├── nginx.conf
+│       │   └── supervisord.conf
+│       ├── public/
+│       │   └── index.php
+│       ├── routes/
+│       │   ├── api.php
+│       │   ├── console.php
+│       │   └── web.php
+│       ├── storage/
+│       │   ├── framework/
+│       │   │   ├── cache/
+│       │   │   │   └── .gitkeep
+│       │   │   ├── sessions/
+│       │   │   │   └── .gitkeep
+│       │   │   └── views/
+│       │   │       └── .gitkeep
+│       │   └── logs/
+│       │       └── .gitkeep
+│       ├── tests/
+│       │   ├── Feature/
+│       │   │   ├── DistributedControlPlaneTest.php
+│       │   │   └── HealthTest.php
+│       │   └── TestCase.php
+│       ├── .dockerignore
+│       ├── .env.example
+│       ├── artisan
+│       ├── composer.json
+│       ├── Dockerfile
+│       └── phpunit.xml
+├── crates/
+│   ├── tunnara-agent-core/
+│   │   ├── src/
+│   │   │   └── lib.rs
+│   │   └── Cargo.toml
+│   ├── tunnara-config/
+│   │   ├── src/
+│   │   │   └── lib.rs
+│   │   └── Cargo.toml
+│   ├── tunnara-protocol/
+│   │   ├── src/
+│   │   │   └── lib.rs
+│   │   └── Cargo.toml
+│   ├── tunnara-quic/
+│   │   ├── src/
+│   │   │   └── lib.rs
+│   │   ├── tests/
+│   │   │   └── roundtrip.rs
+│   │   ├── Cargo.toml
+│   │   └── README.md
+│   ├── tunnara-sdk-c/
+│   │   ├── include/
+│   │   │   └── tunnara.h
+│   │   ├── src/
+│   │   │   └── lib.rs
+│   │   └── Cargo.toml
+│   ├── tunnara-transport/
+│   │   ├── src/
+│   │   │   └── lib.rs
+│   │   └── Cargo.toml
+│   └── tunnara-types/
+│       ├── src/
+│       │   └── lib.rs
+│       └── Cargo.toml
+├── deploy/
+│   ├── cloudpanel/
+│   │   ├── install-v0.2.sh
+│   │   ├── install.sh
+│   │   ├── nginx-console.conf
+│   │   ├── nginx-edge.conf
+│   │   └── README.md
+│   ├── docker/
+│   │   ├── cloudflare/
+│   │   │   ├── Caddyfile
+│   │   │   ├── Dockerfile
+│   │   │   └── README.md
+│   │   ├── distributed/
+│   │   │   ├── Caddyfile
+│   │   │   └── README.md
+│   │   ├── examples/
+│   │   │   ├── docker-compose.local.yml
+│   │   │   ├── docker-compose.vps.yml
+│   │   │   ├── local.env.example
+│   │   │   └── vps.env.example
+│   │   ├── ha/
+│   │   │   ├── Caddyfile
+│   │   │   ├── haproxy.cfg
+│   │   │   └── README.md
+│   │   ├── quic/
+│   │   │   ├── Dockerfile
+│   │   │   ├── entrypoint.sh
+│   │   │   └── export-caddy-cert.sh
+│   │   ├── storage/
+│   │   │   ├── .env.example
+│   │   │   ├── docker-compose.base.yml
+│   │   │   ├── docker-compose.build.yml
+│   │   │   ├── docker-compose.mysql.yml
+│   │   │   ├── docker-compose.postgres.yml
+│   │   │   ├── docker-compose.redis.yml
+│   │   │   ├── docker-compose.sqlite.yml
+│   │   │   └── storage.sh
+│   │   ├── .env.example
+│   │   ├── bootstrap.sh
+│   │   ├── docker-compose.build.yml
+│   │   ├── docker-compose.cloudflare.build.yml
+│   │   ├── docker-compose.cloudflare.yml
+│   │   ├── docker-compose.distributed.quic.yml
+│   │   ├── docker-compose.distributed.yml
+│   │   ├── docker-compose.ha.build.yml
+│   │   ├── docker-compose.ha.yml
+│   │   ├── docker-compose.observability.yml
+│   │   ├── docker-compose.quic.build.yml
+│   │   ├── docker-compose.quic.yml
+│   │   ├── docker-compose.yml
+│   │   ├── Dockerfile.rust-service
+│   │   ├── install-from-github.sh
+│   │   ├── README.md
+│   │   └── tunnara.sh
+│   ├── helm/
+│   │   └── tunnara/
+│   │       ├── templates/
+│   │       │   ├── _helpers.tpl
+│   │       │   ├── console-deployment.yaml
+│   │       │   ├── ingress.yaml
+│   │       │   ├── networkpolicy.yaml
+│   │       │   ├── pdb-hpa.yaml
+│   │       │   ├── pvc.yaml
+│   │       │   ├── secret.yaml
+│   │       │   ├── server-deployment.yaml
+│   │       │   ├── servicemonitor.yaml
+│   │       │   └── services.yaml
+│   │       ├── Chart.yaml
+│   │       ├── README.md
+│   │       └── values.yaml
+│   ├── native/
+│   │   ├── config/
+│   │   │   ├── tunnara-control.mysql-redis.env.example
+│   │   │   ├── tunnara-control.postgres-redis.env.example
+│   │   │   └── tunnara-control.sqlite.env.example
+│   │   ├── linux/
+│   │   │   ├── install-agent.sh
+│   │   │   ├── install-server.sh
+│   │   │   ├── tunnara-agent.service
+│   │   │   ├── tunnara-server.service
+│   │   │   └── uninstall.sh
+│   │   ├── macos/
+│   │   │   ├── com.wwsoftwares.tunnara.agent.plist
+│   │   │   └── install-agent.sh
+│   │   └── windows/
+│   │       ├── install-agent.ps1
+│   │       ├── install-server.ps1
+│   │       └── uninstall.ps1
+│   ├── observability/
+│   │   ├── grafana/
+│   │   │   ├── dashboards/
+│   │   │   │   └── tunnara-overview.json
+│   │   │   └── provisioning/
+│   │   │       ├── dashboards/
+│   │   │       │   └── tunnara.yml
+│   │   │       └── datasources/
+│   │   │           └── prometheus.yml
+│   │   ├── prometheus.yml
+│   │   └── README.md
+│   ├── standalone/
+│   │   ├── linux/
+│   │   │   ├── install-agent.sh
+│   │   │   ├── install-server.sh
+│   │   │   ├── tunnara-agent.service
+│   │   │   ├── tunnara-server.service
+│   │   │   └── uninstall.sh
+│   │   ├── macos/
+│   │   │   └── README.md
+│   │   └── windows/
+│   │       └── README.md
+│   └── systemd/
+│       ├── quic-client.env.example
+│       ├── quic-server.env.example
+│       ├── tunnara-agent.service
+│       ├── tunnara-quic-client.service
+│       └── tunnara-quic-server.service
+├── docs/
+│   ├── adr/
+│   │   ├── 0001-monorepo.md
+│   │   ├── 0002-control-data-plane.md
+│   │   └── 0003-ui-template-preservation.md
+│   ├── api/
+│   │   ├── openapi-v1.0.0.yaml
+│   │   ├── openapi-v2.0.0-rc1.yaml
+│   │   ├── openapi-v2.0.0-rc2.yaml
+│   │   ├── openapi-v2.0.0-rc3.yaml
+│   │   └── openapi-v2.0.0-rc4.yaml
+│   ├── architecture/
+│   │   ├── ARCHITECTURE.md
+│   │   └── COMPETITIVE_GAP.md
+│   ├── branding/
+│   │   ├── source/
+│   │   │   ├── favicon.ico
+│   │   │   ├── favicon.png
+│   │   │   ├── icon-192.png
+│   │   │   ├── icon-512.png
+│   │   │   ├── logo-light.png
+│   │   │   ├── logo-mark.png
+│   │   │   └── splash-logo.png
+│   │   └── README.md
+│   ├── github/
+│   │   └── REPOSITORY_SETUP.md
+│   ├── mobile/
+│   │   └── BUILD_AND_DISTRIBUTION.md
+│   ├── operations/
+│   │   ├── CI_STORAGE_FIX.md
+│   │   ├── DISASTER_RECOVERY.md
+│   │   ├── DOCKER_DEPLOYMENT.md
+│   │   ├── GITHUB_ACTIONS.md
+│   │   ├── INCIDENT_RESPONSE.md
+│   │   ├── KUBERNETES.md
+│   │   ├── LEGACY_ASSET_AUDIT.md
+│   │   ├── OBSERVABILITY.md
+│   │   ├── POST_MERGE_RELEASE.md
+│   │   ├── PRODUCTION.md
+│   │   ├── PRODUCTION_READINESS.md
+│   │   ├── QUIC.md
+│   │   ├── QUICKSTART.md
+│   │   ├── RELEASE_PROCESS.md
+│   │   ├── STORAGE_PROVIDERS.md
+│   │   ├── UPGRADE_ROLLBACK.md
+│   │   └── VPS_DOCKER_QUICKSTART.md
+│   ├── protocol/
+│   │   ├── CONTROL_PROTOCOL_V0_1.md
+│   │   └── DATA_PROTOCOL_V1.md
+│   ├── releases/
+│   │   ├── PULL_REQUEST_v2.0.0-rc.1.md
+│   │   ├── PULL_REQUEST_v2.0.0-rc.2.md
+│   │   ├── PULL_REQUEST_v2.0.0-rc.3.md
+│   │   ├── PULL_REQUEST_v2.0.0-rc.4.md
+│   │   ├── v1.1.0.md
+│   │   ├── v1.1.2.md
+│   │   ├── v1.1.3.md
+│   │   ├── v2.0.0-rc.1.md
+│   │   ├── v2.0.0-rc.2.md
+│   │   ├── v2.0.0-rc.3.md
+│   │   └── v2.0.0-rc.4.md
+│   ├── security/
+│   │   ├── MATURITY_GATES.md
+│   │   ├── POLICY_ENGINE.md
+│   │   ├── THREAT_MODEL.md
+│   │   └── THREAT_MODEL_V1.md
+│   ├── ROADMAP.md
+│   ├── STATUS.md
+│   └── TEMPLATE_PORTING.md
+├── runtime/
+│   └── node/
+│       ├── bin/
+│       │   ├── tunnara-server.mjs
+│       │   └── tunnara.mjs
+│       ├── lib/
+│       │   ├── agent-api.mjs
+│       │   ├── agent-runtime.mjs
+│       │   ├── cloudflare.mjs
+│       │   ├── cluster.mjs
+│       │   ├── database.mjs
+│       │   ├── framing.mjs
+│       │   ├── inspector.mjs
+│       │   ├── jwt.mjs
+│       │   ├── metrics.mjs
+│       │   ├── policy-engine.mjs
+│       │   ├── secrets.mjs
+│       │   ├── server.mjs
+│       │   ├── utils.mjs
+│       │   └── wireguard.mjs
+│       ├── tests/
+│       │   ├── e2e-cloudflare.mjs
+│       │   ├── e2e-distributed-ha.mjs
+│       │   ├── e2e-http-tunnel.mjs
+│       │   ├── e2e-policy-inspector-ha.mjs
+│       │   ├── e2e-private-network.mjs
+│       │   ├── e2e-production-config.mjs
+│       │   ├── e2e-tcp-udp.mjs
+│       │   └── e2e-wireguard.mjs
+│       ├── Dockerfile.agent
+│       ├── Dockerfile.server
+│       └── package.json
+├── scripts/
+│   ├── ci/
+│   │   ├── npm-ci.sh
+│   │   ├── validate-docker-deployment.mjs
+│   │   ├── validate-mobile-config.mjs
+│   │   ├── validate-release-pipeline.mjs
+│   │   ├── validate-sea-builder.mjs
+│   │   └── validate-storage-profiles.mjs
+│   ├── github/
+│   │   ├── init-repository.sh
+│   │   ├── publish.sh
+│   │   └── validate-repository.mjs
+│   ├── maintenance/
+│   │   └── clean-generated-files.sh
+│   ├── release/
+│   │   ├── build-sea.mjs
+│   │   ├── package-artifacts.sh
+│   │   └── upload-release-assets.sh
+│   └── version/
+│       ├── check-version.mjs
+│       ├── max-version.mjs
+│       ├── next-version.mjs
+│       ├── set-version.mjs
+│       ├── version-utils.mjs
+│       └── version-utils.test.mjs
+├── sdk/
+│   ├── c/
+│   │   ├── examples/
+│   │   │   ├── full.c
+│   │   │   └── version.c
+│   │   ├── include/
+│   │   │   └── tunnara.h
+│   │   ├── src/
+│   │   │   └── tunnara.c
+│   │   ├── CMakeLists.txt
+│   │   └── README.md
+│   ├── delphi/
+│   │   ├── examples/
+│   │   │   └── TunnaraConsoleExample.dpr
+│   │   ├── README.md
+│   │   └── TunnaraAgent.pas
+│   ├── mobile/
+│   │   ├── android/
+│   │   │   ├── app/
+│   │   │   │   ├── src/
+│   │   │   │   │   └── main/
+│   │   │   │   │       ├── java/
+│   │   │   │   │       │   └── br/
+│   │   │   │   │       │       └── com/
+│   │   │   │   │       │           └── wwsoftwares/
+│   │   │   │   │       │               └── tunnara/
+│   │   │   │   │       │                   └── mobile/
+│   │   │   │   │       │                       ├── MainActivity.kt
+│   │   │   │   │       │                       └── TunnaraTunnel.kt
+│   │   │   │   │       ├── res/
+│   │   │   │   │       │   ├── layout/
+│   │   │   │   │       │   │   └── activity_main.xml
+│   │   │   │   │       │   └── values/
+│   │   │   │   │       │       ├── strings.xml
+│   │   │   │   │       │       └── themes.xml
+│   │   │   │   │       └── AndroidManifest.xml
+│   │   │   │   ├── build.gradle.kts
+│   │   │   │   └── proguard-rules.pro
+│   │   │   ├── scripts/
+│   │   │   │   └── build-artifacts.sh
+│   │   │   ├── build.gradle.kts
+│   │   │   ├── gradle.properties
+│   │   │   ├── README.md
+│   │   │   └── settings.gradle.kts
+│   │   ├── ios/
+│   │   │   ├── Config/
+│   │   │   │   ├── PacketTunnel-Info.plist
+│   │   │   │   ├── TunnaraMobile.entitlements
+│   │   │   │   └── TunnaraPacketTunnel.entitlements
+│   │   │   ├── scripts/
+│   │   │   │   ├── build-artifacts.sh
+│   │   │   │   ├── prepare-wireguard-kit.sh
+│   │   │   │   └── sign-and-export.sh
+│   │   │   ├── TunnaraApp/
+│   │   │   │   ├── ContentView.swift
+│   │   │   │   ├── TunnaraMobileApp.swift
+│   │   │   │   └── TunnaraVPNManager.swift
+│   │   │   ├── TunnaraPacketTunnel/
+│   │   │   │   ├── PacketTunnelProvider.swift
+│   │   │   │   └── WgQuickConfigParser.swift
+│   │   │   ├── project.yml
+│   │   │   └── README.md
+│   │   └── README.md
+│   ├── node/
+│   │   └── README.md
+│   └── rust/
+│       └── README.md
+├── services/
+│   ├── agent/
+│   │   ├── src/
+│   │   │   └── main.rs
+│   │   └── Cargo.toml
+│   ├── coordinator/
+│   │   ├── src/
+│   │   │   └── main.rs
+│   │   └── Cargo.toml
+│   ├── edge/
+│   │   ├── src/
+│   │   │   └── main.rs
+│   │   └── Cargo.toml
+│   ├── quic-bridge/
+│   │   ├── src/
+│   │   │   └── main.rs
+│   │   ├── Cargo.toml
+│   │   └── README.md
+│   └── relay/
+│       ├── src/
+│       │   └── main.rs
+│       └── Cargo.toml
+├── tests/
+│   ├── load/
+│   │   └── http-tunnel-load.mjs
+│   └── security/
+│       └── policy-fuzz.mjs
+├── .dockerignore
+├── .editorconfig
+├── .env.example
+├── .gitattributes
+├── .gitignore
+├── .npmrc
+├── .nvmrc
+├── ARTIFACT_MANIFEST.md
+├── Cargo.toml
+├── CHANGELOG.md
+├── CODE_OF_CONDUCT.md
+├── CONTRIBUTING.md
+├── docker-compose.example.yml
+├── docker.env.example
+├── docker.sh
+├── GITHUB_UPLOAD.md
+├── LICENSE
+├── LICENSE-NOTICE.md
+├── LICENSES-Apache-2.0.txt
+├── Makefile
+├── package-lock.json
+├── package.json
+├── PROJECT_TREE.txt
+├── PULL_REQUEST.md
+├── README.md
+├── rust-toolchain.toml
+├── SECURITY.md
+├── VALIDATION_REPORT.md
+└── VERSION

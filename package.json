@@ -1,7 +1,7 @@
 {
   "name": "tunnara-platform",
   "private": true,
-  "version": "2.0.0-rc.3",
+  "version": "2.0.0-rc.4",
   "description": "Plataforma self-hosted de túneis seguros, edge networking e conectividade privada.",
   "license": "AGPL-3.0-or-later",
   "scripts": {

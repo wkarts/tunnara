@@ -60,6 +60,27 @@ Atalho:
 ./tunnara.sh up-production
 ```
 
+
+## Plano distribuído com QUIC
+
+```bash
+./tunnara.sh init
+# configure domínio, IP público, Cloudflare e e-mail ACME no .env
+./tunnara.sh preflight-distributed-quic
+./tunnara.sh up-distributed-quic
+./tunnara.sh status-distributed-quic
+```
+
+O overlay `docker-compose.distributed.quic.yml` é aplicado junto de
+`docker-compose.distributed.yml`; ele não deve ser executado isoladamente.
+
+Backup e atualização:
+
+```bash
+./tunnara.sh backup-distributed
+./tunnara.sh update-distributed-quic
+```
+
 ## Instalação por release
 
 O asset `Tunnara-Docker-vX.Y.Z.zip` contém somente os arquivos necessários ao Docker.
@@ -71,7 +92,7 @@ curl -fsSL https://raw.githubusercontent.com/wkarts/tunnara/main/deploy/docker/i
 Variáveis opcionais:
 
 ```bash
-TUNNARA_VERSION=2.0.0-rc.3
+TUNNARA_VERSION=2.0.0-rc.4
 TUNNARA_INSTALL_DIR=/opt/tunnara
 TUNNARA_START_MODE=image|build|production|none
 GITHUB_TOKEN=token_para_repositorio_privado

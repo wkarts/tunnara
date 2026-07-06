@@ -14,6 +14,7 @@ const required = [
   'docs/security/POLICY_ENGINE.md', 'docs/security/MATURITY_GATES.md', 'docs/operations/GITHUB_ACTIONS.md', 'docs/operations/POST_MERGE_RELEASE.md', 'VERSION',
 ];
 const forbiddenNames = new Set(['.env', 'tunnara.sqlite', 'tunnara.sqlite-wal', 'tunnara.sqlite-shm']);
+const forbiddenSuffixes = ['.bak', '.orig', '.rej'];
 const forbiddenDirs = new Set(['node_modules', 'vendor', 'target', '.build', 'artifacts', 'dist', 'data', 'backups', 'runtime-data', 'agent-data']);
 const findings = [];
 
@@ -28,6 +29,7 @@ function walk(dir, relative = '') {
       walk(path.join(dir, entry.name), rel);
     } else {
       if (forbiddenNames.has(entry.name) || /^\.env(?:\..+)?$/.test(entry.name) && !['.env.example', '.env.model'].includes(entry.name)) findings.push(`Arquivo operacional/segredo não deve ser versionado: ${rel}`);
+      if (forbiddenSuffixes.some((suffix) => entry.name.endsWith(suffix))) findings.push(`Arquivo legado/backup não deve ser versionado: ${rel}`);
       if (/\.(sqlite(?:-wal|-shm)?|db)$/i.test(entry.name)) findings.push(`Banco ou estado local não deve ser versionado: ${rel}`);
       if (/\.(pem|key|p12|pfx|jks|keystore|mobileprovision)$/i.test(entry.name) && !entry.name.endsWith('.example')) findings.push(`Material criptográfico não deve ser versionado: ${rel}`);
       if (/\.(ipa|aab)$/i.test(entry.name)) findings.push(`Artefato mobile gerado não deve ser versionado: ${rel}`);
@@ -69,6 +71,17 @@ if (fs.existsSync(workflowsDir)) {
     if (runsOnPullRequest && /actions\/(?:upload|download)-artifact@/i.test(content)) {
       findings.push(`Workflow de pull request não pode criar/baixar artifacts: ${rel}`);
     }
+  }
+}
+
+const dockerLauncherFile = path.join(root, 'deploy', 'docker', 'tunnara.sh');
+const dockerRoot = path.join(root, 'deploy', 'docker');
+if (fs.existsSync(dockerLauncherFile) && fs.existsSync(dockerRoot)) {
+  const launcher = fs.readFileSync(dockerLauncherFile, 'utf8');
+  for (const name of fs.readdirSync(dockerRoot)) {
+    if (!/^docker-compose\..+\.ya?ml$/.test(name)) continue;
+    if (name.endsWith('.build.yml') || name.endsWith('.build.yaml')) continue;
+    if (!launcher.includes(name)) findings.push(`Docker Compose sem integração no launcher: deploy/docker/${name}`);
   }
 }
 

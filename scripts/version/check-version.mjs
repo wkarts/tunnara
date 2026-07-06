@@ -65,6 +65,9 @@ for (const absolute of walk(path.resolve('deploy/docker'))) {
   for (const match of source.matchAll(/tunnara-(?:server|agent|console|control-api|caddy-cloudflare|quic-bridge):(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)/g)) {
     if (match[1] !== expected) { console.error(`${relative}: imagem ${match[1]} != ${expected}`); failed = true; }
   }
+  for (const match of source.matchAll(/tunnara-(?:server|agent|console|control-api|caddy-cloudflare|quic-bridge):\$\{TUNNARA_VERSION:-(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)\}/g)) {
+    if (match[1] !== expected) { console.error(`${relative}: fallback TUNNARA_VERSION ${match[1]} != ${expected}`); failed = true; }
+  }
 }
 if (failed) process.exit(1);
 console.log(`Versão sincronizada em ${values.length} pontos, Docker e build mobile ${expectedBuild}: ${expected}`);

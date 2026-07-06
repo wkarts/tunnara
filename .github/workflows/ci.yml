@@ -81,6 +81,7 @@ jobs:
         run: |
           docker compose --env-file deploy/docker/.env -f deploy/docker/docker-compose.yml config --quiet
           docker compose --env-file deploy/docker/.env -f deploy/docker/docker-compose.distributed.yml config --quiet
+          docker compose --env-file deploy/docker/.env -f deploy/docker/docker-compose.distributed.yml -f deploy/docker/docker-compose.distributed.quic.yml config --quiet
           docker compose --env-file deploy/docker/.env -f deploy/docker/docker-compose.yml -f deploy/docker/docker-compose.observability.yml config --quiet
 
 

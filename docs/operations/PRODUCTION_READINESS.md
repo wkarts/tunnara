@@ -25,7 +25,7 @@
 cd deploy/docker
 ./tunnara.sh init
 ./tunnara.sh doctor
-./tunnara.sh preflight
+./tunnara.sh preflight-distributed-quic
 ./tunnara.sh up-distributed-quic
 ./tunnara.sh status-distributed-quic
 ./tunnara.sh backup-distributed

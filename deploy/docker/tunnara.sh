@@ -13,6 +13,7 @@ HA_FILE="$SCRIPT_DIR/docker-compose.ha.yml"
 HA_BUILD_FILE="$SCRIPT_DIR/docker-compose.ha.build.yml"
 OBSERVABILITY_FILE="$SCRIPT_DIR/docker-compose.observability.yml"
 DISTRIBUTED_FILE="$SCRIPT_DIR/docker-compose.distributed.yml"
+DISTRIBUTED_QUIC_FILE="$SCRIPT_DIR/docker-compose.distributed.quic.yml"
 
 info() { printf '[Tunnara] %s\n' "$*"; }
 warn() { printf '[Tunnara] AVISO: %s\n' "$*" >&2; }
@@ -172,6 +173,9 @@ compose_run() {
     distributed)
       files=(-f "$DISTRIBUTED_FILE")
       ;;
+    distributed-quic)
+      files=(-f "$DISTRIBUTED_FILE" -f "$DISTRIBUTED_QUIC_FILE")
+      ;;
     *) die "Stack Docker desconhecida: $stack" ;;
   esac
 
@@ -184,6 +188,7 @@ compose_full() { compose_run full "$@"; }
 compose_ha() { compose_run ha "$@"; }
 compose_observability() { compose_run observability "$@"; }
 compose_distributed() { compose_run distributed "$@"; }
+compose_distributed_quic() { compose_run distributed-quic "$@"; }
 
 start_stack() {
   local stack="$1"; shift || true
@@ -346,17 +351,76 @@ update_stack() {
 
 bootstrap_distributed() {
   [[ -f "$ENV_FILE" ]] || init
-  local token organization
+  local stack="${1:-distributed}" token organization
   token="$(admin_token)"
   organization="$(get_env TUNNARA_BOOTSTRAP_ORGANIZATION)"
-  compose_distributed exec -T control-a php artisan tunnara:bootstrap "${organization:-Tunnara Community}" --token-name=Console --token="$token"
+  compose_run "$stack" exec -T control-a php artisan tunnara:bootstrap "${organization:-Tunnara Community}" --token-name=Console --token="$token"
 }
 
 wait_distributed() {
-  local retries=90
-  until compose_distributed exec -T control-a wget -q -O - http://127.0.0.1:8080/api/v1/health >/dev/null 2>&1; do
+  local stack="${1:-distributed}" retries=90
+  until compose_run "$stack" exec -T control-a wget -q -O - http://127.0.0.1:8080/api/v1/health >/dev/null 2>&1; do
     retries=$((retries-1)); [[ $retries -gt 0 ]] || die 'Control API distribuída não ficou saudável.'; sleep 2
   done
+}
+
+distributed_quic_preflight() {
+  init
+  require_cloudflare_env
+  compose_distributed_quic config --quiet
+  info 'Preflight distribuído com QUIC concluído.'
+}
+
+update_distributed_stack() {
+  local stack="${1:-distributed}"
+  if [[ "$(deploy_mode)" != image ]]; then
+    die 'O plano distribuído usa imagens publicadas. Configure TUNNARA_DEPLOY_MODE=image.'
+  fi
+  compose_run "$stack" pull
+  compose_run "$stack" up -d --remove-orphans
+  wait_distributed "$stack"
+  bootstrap_distributed "$stack"
+}
+
+backup_distributed() {
+  [[ -f "$ENV_FILE" ]] || init
+  local destination="${1:-$SCRIPT_DIR/backups/tunnara-postgres-$(date +%Y%m%d-%H%M%S).dump}"
+  local db_user db_name
+  db_user="$(get_env DB_USERNAME)"; db_user="${db_user:-tunnara}"
+  db_name="$(get_env DB_DATABASE)"; db_name="${db_name:-tunnara}"
+  mkdir -p "$(dirname "$destination")"
+  compose_distributed exec -T postgres pg_dump -U "$db_user" -d "$db_name" -Fc > "$destination"
+  chmod 600 "$destination" 2>/dev/null || true
+  info "Backup PostgreSQL distribuído criado em $destination"
+}
+
+restore_distributed() {
+  [[ -f "$ENV_FILE" ]] || init
+  local source="${1:-}" confirmation="${2:-}"
+  [[ -n "$source" && -f "$source" ]] || die 'Informe um arquivo de backup PostgreSQL existente.'
+  [[ "$confirmation" == '--force' ]] || die 'Restore distribuído é destrutivo. Repita com --force.'
+  local db_user db_name
+  db_user="$(get_env DB_USERNAME)"; db_user="${db_user:-tunnara}"
+  db_name="$(get_env DB_DATABASE)"; db_name="${db_name:-tunnara}"
+  compose_distributed stop control-a control-b edge-a edge-b relay-a relay-b console caddy >/dev/null
+  if ! compose_distributed exec -T postgres pg_restore -U "$db_user" -d "$db_name" --clean --if-exists --no-owner < "$source"; then
+    warn 'Restore PostgreSQL falhou; os serviços distribuídos permanecerão parados para inspeção.'
+    return 1
+  fi
+  compose_distributed up -d --remove-orphans
+  wait_distributed distributed
+  info 'Restore PostgreSQL distribuído concluído.'
+}
+
+set_distributed_release_images() {
+  local version="${1:-}"
+  [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || die 'Informe uma versão SemVer válida para rollback.'
+  set_env TUNNARA_VERSION "$version"
+  set_env TUNNARA_SERVER_IMAGE "ghcr.io/wkarts/tunnara-server:$version"
+  set_env TUNNARA_CONTROL_IMAGE "ghcr.io/wkarts/tunnara-control-api:$version"
+  set_env TUNNARA_CONSOLE_IMAGE "ghcr.io/wkarts/tunnara-console:$version"
+  set_env TUNNARA_CADDY_IMAGE "ghcr.io/wkarts/tunnara-caddy-cloudflare:$version"
+  set_env TUNNARA_QUIC_IMAGE "ghcr.io/wkarts/tunnara-quic-bridge:$version"
 }
 
 case "${1:-help}" in
@@ -428,15 +492,44 @@ case "${1:-help}" in
   up-distributed)
     require_cloudflare_env
     start_stack distributed
-    wait_distributed
-    bootstrap_distributed
+    wait_distributed distributed
+    bootstrap_distributed distributed
     info 'Plano de controle distribuído iniciado com PostgreSQL, Redis, dois Controls, dois Edges e dois Relays.'
     ;;
-  bootstrap-distributed) bootstrap_distributed ;;
+  update-distributed) init; update_distributed_stack distributed ;;
+  bootstrap-distributed) bootstrap_distributed distributed ;;
   down-distributed) compose_distributed down ;;
   status-distributed) compose_distributed ps ;;
   logs-distributed) shift; compose_distributed logs -f --tail=200 "$@" ;;
   destroy-distributed) compose_distributed down --volumes --remove-orphans ;;
+
+  preflight-distributed-quic) distributed_quic_preflight ;;
+  up-distributed-quic)
+    distributed_quic_preflight
+    start_stack distributed-quic
+    wait_distributed distributed-quic
+    bootstrap_distributed distributed-quic
+    info "Plano distribuído iniciado com Relay QUIC em UDP/${TUNNARA_QUIC_PORT:-7443}."
+    ;;
+  update-distributed-quic) distributed_quic_preflight; update_distributed_stack distributed-quic ;;
+  bootstrap-distributed-quic) bootstrap_distributed distributed-quic ;;
+  down-distributed-quic) compose_distributed_quic down ;;
+  status-distributed-quic) compose_distributed_quic ps ;;
+  logs-distributed-quic) shift; compose_distributed_quic logs -f --tail=200 "$@" ;;
+  destroy-distributed-quic) compose_distributed_quic down --volumes --remove-orphans ;;
+  backup-distributed) shift || true; backup_distributed "${1:-}" ;;
+  restore-distributed) shift || true; restore_distributed "${1:-}" "${2:-}" ;;
+  rollback-distributed)
+    [[ -n "${2:-}" ]] || die 'Uso: rollback-distributed <versão>'
+    set_distributed_release_images "$2"
+    update_distributed_stack distributed
+    ;;
+  rollback-distributed-quic)
+    [[ -n "${2:-}" ]] || die 'Uso: rollback-distributed-quic <versão>'
+    set_distributed_release_images "$2"
+    distributed_quic_preflight
+    update_distributed_stack distributed-quic
+    ;;
 
   up-ha)
     require_cloudflare_env
@@ -503,8 +596,15 @@ Observabilidade:
   up-observability | down-observability | status-observability | logs-observability
 
 Plano distribuído PostgreSQL/Redis:
-  up-distributed | bootstrap-distributed | down-distributed
+  up-distributed | update-distributed | bootstrap-distributed | down-distributed
   status-distributed | logs-distributed | destroy-distributed
+
+Plano distribuído com QUIC:
+  preflight-distributed-quic | up-distributed-quic | update-distributed-quic
+  bootstrap-distributed-quic | down-distributed-quic
+  status-distributed-quic | logs-distributed-quic | destroy-distributed-quic
+  backup-distributed [arquivo] | restore-distributed arquivo --force
+  rollback-distributed versão | rollback-distributed-quic versão
 
 Alta disponibilidade embedded:
   up-ha | down-ha | restart-ha | status-ha | logs-ha | destroy-ha
