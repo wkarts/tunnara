@@ -1,7 +1,6 @@
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-
 plugins {
     id("com.android.application")
+    id("org.jetbrains.kotlin.android")
 }
 
 val releaseKeystore = System.getenv("TUNNARA_ANDROID_KEYSTORE")?.trim().orEmpty()
@@ -28,8 +27,8 @@ android {
         applicationId = "br.com.wwsoftwares.tunnara.mobile"
         minSdk = 26
         targetSdk = 35
-        versionCode = 10103
-        versionName = "1.1.3"
+        versionCode = 20000
+        versionName = "2.0.0-rc.1"
     }
 
     signingConfigs {
@@ -70,12 +69,8 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
         isCoreLibraryDesugaringEnabled = true
     }
-}
 
-kotlin {
-    compilerOptions {
-        jvmTarget.set(JvmTarget.JVM_17)
-    }
+    kotlinOptions { jvmTarget = "17" }
 }
 
 tasks.register("printTunnaraSigningMode") {
@@ -85,10 +80,10 @@ tasks.register("printTunnaraSigningMode") {
 }
 
 dependencies {
-    implementation("androidx.core:core-ktx:1.16.0")
+    implementation("androidx.core:core-ktx:1.19.0")
     implementation("androidx.appcompat:appcompat:1.7.1")
     implementation("com.google.android.material:material:1.12.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.11.0")
     implementation("com.wireguard.android:tunnel:1.0.20260102")
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }

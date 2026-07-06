@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(tunnara_sdk_c VERSION 1.1.3 LANGUAGES C)
+project(tunnara_sdk_c VERSION 2.0.0 LANGUAGES C)
 add_library(tunnara SHARED src/tunnara.c)
 target_include_directories(tunnara PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_compile_definitions(tunnara PRIVATE TUNNARA_BUILD_SHARED)

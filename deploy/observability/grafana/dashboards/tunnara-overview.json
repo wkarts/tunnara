@@ -1,0 +1,27 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {"type":"stat","title":"Agents conectados","id":1,"gridPos":{"h":5,"w":6,"x":0,"y":0},"targets":[{"expr":"tunnara_relay_agents","legendFormat":"Agents"}]},
+    {"type":"stat","title":"Streams ativos","id":2,"gridPos":{"h":5,"w":6,"x":6,"y":0},"targets":[{"expr":"tunnara_relay_streams","legendFormat":"Streams"}]},
+    {"type":"stat","title":"Targets saudáveis","id":3,"gridPos":{"h":5,"w":6,"x":12,"y":0},"targets":[{"expr":"sum(tunnara_tunnel_target_health == 1)","legendFormat":"Saudáveis"}]},
+    {"type":"stat","title":"Decisões negadas","id":4,"gridPos":{"h":5,"w":6,"x":18,"y":0},"targets":[{"expr":"sum(increase(tunnara_policy_decisions_total{decision=\"deny\"}[1h]))","legendFormat":"Negadas/h"}]},
+    {"type":"timeseries","title":"Requisições HTTP por segundo","id":5,"gridPos":{"h":8,"w":12,"x":0,"y":5},"targets":[{"expr":"sum(rate(tunnara_http_requests_total[5m])) by (status)","legendFormat":"HTTP {{status}}"}]},
+    {"type":"timeseries","title":"Latência HTTP p95","id":6,"gridPos":{"h":8,"w":12,"x":12,"y":5},"targets":[{"expr":"histogram_quantile(0.95, sum(rate(tunnara_http_request_duration_seconds_bucket[5m])) by (le))","legendFormat":"p95"}]},
+    {"type":"timeseries","title":"Capturas do Request Inspector","id":7,"gridPos":{"h":7,"w":12,"x":0,"y":13},"targets":[{"expr":"sum(rate(tunnara_inspector_captures_total[5m]))","legendFormat":"capturas/s"}]},
+    {"type":"timeseries","title":"Requisições ativas","id":8,"gridPos":{"h":7,"w":12,"x":12,"y":13},"targets":[{"expr":"tunnara_http_active_requests","legendFormat":"ativas"}]}
+  ],
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "tags": ["tunnara"],
+  "templating": {"list": []},
+  "time": {"from":"now-6h","to":"now"},
+  "timezone": "browser",
+  "title": "Tunnara Platform Overview",
+  "uid": "tunnara-overview",
+  "version": 1
+}

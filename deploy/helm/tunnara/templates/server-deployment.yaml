@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "tunnara.fullname" . }}-server
+  labels: {{- include "tunnara.labels" . | nindent 4 }}
+    app.kubernetes.io/component: server
+spec:
+  replicas: {{ .Values.server.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: server
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: server
+      annotations: {{- toYaml .Values.server.podAnnotations | nindent 8 }}
+    spec:
+      securityContext: { runAsNonRoot: true, seccompProfile: { type: RuntimeDefault } }
+      containers:
+        - name: server
+          image: "{{ .Values.server.image.repository }}:{{ .Values.server.image.tag }}"
+          imagePullPolicy: {{ .Values.server.image.pullPolicy }}
+          securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: ["ALL"] } }
+          ports:
+            - { name: control, containerPort: 7100 }
+            - { name: edge, containerPort: 7200 }
+            - { name: relay, containerPort: 7300 }
+          env:
+            - { name: TUNNARA_STORAGE_DRIVER, value: {{ .Values.server.storageDriver | quote }} }
+            - { name: TUNNARA_DATA_DIR, value: /var/lib/tunnara }
+            - { name: TUNNARA_CONTROL_HOST, value: 0.0.0.0 }
+            - { name: TUNNARA_CONTROL_PORT, value: "7100" }
+            - { name: TUNNARA_EDGE_HOST, value: 0.0.0.0 }
+            - { name: TUNNARA_EDGE_PORT, value: "7200" }
+            - { name: TUNNARA_RELAY_HOST, value: 0.0.0.0 }
+            - { name: TUNNARA_RELAY_PORT, value: "7300" }
+            - { name: TUNNARA_BASE_DOMAIN, value: {{ .Values.server.baseDomain | quote }} }
+            - { name: TUNNARA_PUBLIC_SCHEME, value: {{ .Values.server.publicScheme | quote }} }
+            - { name: TUNNARA_PUBLIC_CONTROL_URL, value: {{ .Values.server.publicControlUrl | quote }} }
+            - { name: TUNNARA_PUBLIC_RELAY_URL, value: {{ .Values.server.publicRelayUrl | quote }} }
+            - { name: TUNNARA_CORS_ORIGIN, value: {{ .Values.server.corsOrigin | quote }} }
+            - { name: TUNNARA_LOG_FORMAT, value: {{ .Values.server.logFormat | quote }} }
+            - { name: TUNNARA_BOOTSTRAP_ORGANIZATION, value: {{ .Values.server.bootstrapOrganization | quote }} }
+            - name: TUNNARA_BOOTSTRAP_ADMIN_TOKEN
+              valueFrom: { secretKeyRef: { name: {{ include "tunnara.secretName" . }}, key: bootstrap-admin-token } }
+            - name: TUNNARA_MASTER_KEY_BASE64
+              valueFrom: { secretKeyRef: { name: {{ include "tunnara.secretName" . }}, key: master-key-base64 } }
+            - name: TUNNARA_CLUSTER_TOKEN
+              valueFrom: { secretKeyRef: { name: {{ include "tunnara.secretName" . }}, key: cluster-token } }
+          volumeMounts:
+            - { name: data, mountPath: /var/lib/tunnara }
+            - { name: tmp, mountPath: /tmp }
+          livenessProbe: { httpGet: { path: /healthz, port: control }, initialDelaySeconds: 10, periodSeconds: 15 }
+          readinessProbe: { httpGet: { path: /healthz, port: control }, initialDelaySeconds: 3, periodSeconds: 5 }
+          resources: {{- toYaml .Values.server.resources | nindent 12 }}
+      volumes:
+        - name: data
+          {{- if and .Values.server.persistence.enabled (eq .Values.server.storageDriver "sqlite") }}
+          persistentVolumeClaim: { claimName: {{ include "tunnara.fullname" . }}-data }
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        - name: tmp
+          emptyDir: {}
+      nodeSelector: {{- toYaml .Values.server.nodeSelector | nindent 8 }}
+      tolerations: {{- toYaml .Values.server.tolerations | nindent 8 }}
+      affinity: {{- toYaml .Values.server.affinity | nindent 8 }}

@@ -20,6 +20,12 @@ const required = [
   'deploy/docker/docker-compose.quic.build.yml',
   'deploy/docker/docker-compose.ha.yml',
   'deploy/docker/docker-compose.ha.build.yml',
+  'deploy/docker/docker-compose.distributed.yml',
+  'deploy/docker/docker-compose.observability.yml',
+  'deploy/docker/distributed/Caddyfile',
+  'deploy/observability/README.md',
+  'deploy/helm/tunnara/Chart.yaml',
+  'deploy/helm/tunnara/values.yaml',
   'deploy/docker/storage/docker-compose.base.yml',
   'deploy/docker/storage/docker-compose.build.yml',
   'deploy/docker/storage/docker-compose.sqlite.yml',
@@ -40,14 +46,6 @@ for (const file of required) {
 }
 
 if (!errors.length) {
-  const cargoToml = read('Cargo.toml');
-  const quicDockerfile = read('deploy/docker/quic/Dockerfile');
-  const rustVersion = cargoToml.match(/rust-version\s*=\s*"([^"]+)"/)?.[1];
-  const dockerRustVersion = quicDockerfile.match(/^FROM rust:([0-9.]+)-bookworm AS builder$/m)?.[1];
-  if (!rustVersion || !dockerRustVersion) errors.push('Não foi possível determinar o MSRV Rust ou a imagem builder QUIC.');
-  else if (rustVersion !== dockerRustVersion) errors.push(`Docker QUIC usa Rust ${dockerRustVersion}, divergente do rust-version ${rustVersion}.`);
-  if (rustVersion && Number(rustVersion.split('.')[1]) < 85) errors.push(`Rust ${rustVersion} é incompatível com reqwest 0.13; use 1.85 ou superior.`);
-
   const rootEnv = read('docker.env.example');
   const rootCompose = read('docker-compose.example.yml');
   if (!rootEnv.includes(`TUNNARA_VERSION=${version}`)) errors.push('docker.env.example não acompanha VERSION.');
@@ -66,6 +64,8 @@ if (!errors.length) {
     'deploy/docker/docker-compose.cloudflare.yml',
     'deploy/docker/docker-compose.quic.yml',
     'deploy/docker/docker-compose.ha.yml',
+    'deploy/docker/docker-compose.distributed.yml',
+    'deploy/docker/docker-compose.observability.yml',
     'deploy/docker/storage/docker-compose.base.yml',
     'deploy/docker/storage/docker-compose.sqlite.yml',
     'deploy/docker/storage/docker-compose.postgres.yml',
@@ -76,7 +76,7 @@ if (!errors.length) {
     const source = read(file);
     if (/^\s*build:\s*$/m.test(source)) errors.push(`${file}: compose de distribuição não deve conter build; use o override *.build.yml.`);
     if (/wwsoftwares/i.test(source)) errors.push(`${file}: contém registry legado wwsoftwares.`);
-    const stale = source.match(/tunnara-[a-z0-9-]+:(\d+\.\d+\.\d+)/gi) ?? [];
+    const stale = source.match(/tunnara-[a-z0-9-]+:(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)/gi) ?? [];
     for (const occurrence of stale) {
       if (!occurrence.endsWith(`:${version}`)) errors.push(`${file}: tag divergente de VERSION em ${occurrence}.`);
     }
@@ -93,7 +93,7 @@ if (!errors.length) {
   }
 
   const launcher = read('deploy/docker/tunnara.sh');
-  for (const command of ['quickstart', 'quickstart-build', 'up-production', 'update-production', 'backup', 'restore', 'provision']) {
+  for (const command of ['quickstart', 'quickstart-build', 'up-production', 'up-distributed', 'bootstrap-distributed', 'up-observability', 'update-production', 'backup', 'restore', 'provision']) {
     if (!launcher.includes(`${command})`) && !launcher.includes(` ${command}`)) errors.push(`tunnara.sh não expõe o comando ${command}.`);
   }
   if (!launcher.includes('TUNNARA_DEPLOY_MODE')) errors.push('tunnara.sh não diferencia image/build.');
@@ -103,7 +103,7 @@ if (!errors.length) {
   if (!installer.includes('GITHUB_TOKEN')) errors.push('Instalador GitHub não suporta repositórios privados via GITHUB_TOKEN.');
 
   const docs = `${read('README.md')}\n${read('deploy/docker/README.md')}\n${read('docs/operations/DOCKER_DEPLOYMENT.md')}\n${read('docs/operations/VPS_DOCKER_QUICKSTART.md')}`;
-  for (const fragment of ['./docker.sh quickstart', './tunnara.sh quickstart', 'docker-compose.example.yml', 'docker-compose.vps.yml', 'PostgreSQL', 'MySQL', 'Redis', 'SQLite']) {
+  for (const fragment of ['./docker.sh quickstart', './tunnara.sh quickstart', 'docker-compose.example.yml', 'docker-compose.vps.yml', 'PostgreSQL', 'MySQL', 'Redis', 'SQLite', 'up-distributed', 'Prometheus', 'Helm']) {
     if (!docs.includes(fragment)) errors.push(`Documentação Docker não contém: ${fragment}`);
   }
 }

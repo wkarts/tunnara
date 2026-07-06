@@ -64,7 +64,7 @@ async function start() {
     return;
   }
 
-  const [{ TunnaraDatabase }, { ControlServer, EdgeServer, RelayServer, TcpIngressManager, UdpIngressManager }, { ClusterControlClient, NodeRegistrar }] = await Promise.all([
+  const [{ TunnaraDatabase }, { ControlServer, EdgeServer, HealthCheckManager, RelayServer, RuntimeMaintenanceManager, TcpIngressManager, UdpIngressManager }, { ClusterControlClient, NodeRegistrar }] = await Promise.all([
     import('../lib/database.mjs'),
     import('../lib/server.mjs'),
     import('../lib/cluster.mjs'),
@@ -163,10 +163,25 @@ async function start() {
     idleTimeoutMs: envInt('TUNNARA_UDP_IDLE_TIMEOUT_MS', 60000),
     controlClient: distributedControl,
   });
+  const healthChecks = new HealthCheckManager({
+    db,
+    relayHost: process.env.TUNNARA_RELAY_EDGE_HOST || '127.0.0.1',
+    relayPort: envInt('TUNNARA_RELAY_EDGE_PORT', 7301),
+    intervalMs: envInt('TUNNARA_HEALTH_SCHEDULER_INTERVAL_MS', 5000),
+    concurrency: envInt('TUNNARA_HEALTH_CHECK_CONCURRENCY', 10),
+  });
 
-  const services = command === 'serve-all' ? [relay, control, edge, tcpIngress, udpIngress]
+  const maintenance = new RuntimeMaintenanceManager({
+    db,
+    intervalMs: envInt('TUNNARA_MAINTENANCE_INTERVAL_MS', 3600000),
+    inspectorRetentionDays: envInt('TUNNARA_INSPECTOR_RETENTION_DAYS', 7),
+    inspectorMaxRecords: envInt('TUNNARA_INSPECTOR_MAX_RECORDS', 10000),
+    auditRetentionDays: envInt('TUNNARA_AUDIT_RETENTION_DAYS', 90),
+  });
+
+  const services = command === 'serve-all' ? [relay, control, edge, tcpIngress, udpIngress, healthChecks, maintenance]
     : command === 'relay' ? [relay]
-      : command === 'control' ? [control]
+      : command === 'control' ? [control, healthChecks, maintenance]
         : command === 'edge' ? [edge, tcpIngress, udpIngress]
           : null;
   if (!services) { help(); db.close(); process.exitCode = 2; return; }

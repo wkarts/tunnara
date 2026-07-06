@@ -36,6 +36,7 @@ export class TunnaraDatabase {
     this.file = databaseFile;
     this.driver = isMemory ? 'memory' : 'sqlite';
     this.db = new DatabaseSync(databaseFile);
+    this.targetSelectionCounters = new Map();
     this.db.exec(
       isMemory
         ? 'PRAGMA synchronous=OFF; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;'
@@ -213,6 +214,65 @@ export class TunnaraDatabase {
         updated_at TEXT NOT NULL,
         UNIQUE (organization_id, primary_name)
       );
+      CREATE TABLE IF NOT EXISTS policies (
+        id TEXT PRIMARY KEY,
+        organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        description TEXT,
+        document_json TEXT NOT NULL DEFAULT '{"version":"1","defaultEffect":"allow","rules":[]}',
+        enabled INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        UNIQUE (organization_id, name)
+      );
+      CREATE TABLE IF NOT EXISTS tunnel_targets (
+        id TEXT PRIMARY KEY,
+        organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        tunnel_id TEXT NOT NULL REFERENCES tunnels(id) ON DELETE CASCADE,
+        agent_id TEXT NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+        name TEXT NOT NULL DEFAULT 'default',
+        target_host TEXT NOT NULL,
+        target_port INTEGER NOT NULL,
+        weight INTEGER NOT NULL DEFAULT 1,
+        priority INTEGER NOT NULL DEFAULT 100,
+        enabled INTEGER NOT NULL DEFAULT 1,
+        health_status TEXT NOT NULL DEFAULT 'unknown',
+        health_check_json TEXT NOT NULL DEFAULT '{}',
+        consecutive_successes INTEGER NOT NULL DEFAULT 0,
+        consecutive_failures INTEGER NOT NULL DEFAULT 0,
+        last_checked_at TEXT,
+        last_error TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        UNIQUE (tunnel_id, name)
+      );
+      CREATE TABLE IF NOT EXISTS request_inspections (
+        id TEXT PRIMARY KEY,
+        organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        tunnel_id TEXT NOT NULL REFERENCES tunnels(id) ON DELETE CASCADE,
+        method TEXT NOT NULL,
+        host TEXT NOT NULL,
+        path TEXT NOT NULL,
+        source_ip TEXT,
+        request_headers_json TEXT NOT NULL DEFAULT '{}',
+        request_body_json TEXT NOT NULL DEFAULT '{}',
+        response_status INTEGER NOT NULL DEFAULT 0,
+        response_headers_json TEXT NOT NULL DEFAULT '{}',
+        response_body_json TEXT NOT NULL DEFAULT '{}',
+        duration_ms INTEGER NOT NULL DEFAULT 0,
+        error TEXT,
+        created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS idempotency_keys (
+        organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        key TEXT NOT NULL,
+        request_hash TEXT NOT NULL,
+        response_status INTEGER NOT NULL,
+        response_json TEXT NOT NULL,
+        expires_at TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        PRIMARY KEY (organization_id, key)
+      );
       CREATE TABLE IF NOT EXISTS audit_logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         organization_id TEXT,
@@ -234,6 +294,12 @@ export class TunnaraDatabase {
       CREATE INDEX IF NOT EXISTS idx_dns_records_org ON dns_records(organization_id);
       CREATE INDEX IF NOT EXISTS idx_nodes_type_status ON nodes(node_type,status);
       CREATE INDEX IF NOT EXISTS idx_network_peers_network ON network_peers(network_id);
+      CREATE INDEX IF NOT EXISTS idx_policies_org ON policies(organization_id);
+      CREATE INDEX IF NOT EXISTS idx_targets_tunnel ON tunnel_targets(tunnel_id, enabled, priority, health_status);
+      CREATE INDEX IF NOT EXISTS idx_targets_agent ON tunnel_targets(agent_id);
+      CREATE INDEX IF NOT EXISTS idx_inspections_tunnel_created ON request_inspections(tunnel_id, created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_inspections_org_created ON request_inspections(organization_id, created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_idempotency_expiry ON idempotency_keys(expires_at);
       CREATE INDEX IF NOT EXISTS idx_audit_org_created ON audit_logs(organization_id, created_at DESC);
     `);
     const addColumn = (table, name, definition) => {
@@ -248,6 +314,22 @@ export class TunnaraDatabase {
     addColumn('tunnels', 'dns_record_id', 'TEXT');
     addColumn('tunnels', 'edge_node_id', 'TEXT');
     addColumn('tunnels', 'relay_node_id', 'TEXT');
+    addColumn('tunnels', 'policy_id', 'TEXT');
+    addColumn('tunnels', 'inspector_enabled', 'INTEGER NOT NULL DEFAULT 0');
+    addColumn('tunnels', 'inspector_body_limit', 'INTEGER NOT NULL DEFAULT 65536');
+    addColumn('tunnels', 'health_status', "TEXT NOT NULL DEFAULT 'unknown'");
+    const timestamp = nowIso();
+    this.db.prepare(`
+      INSERT OR IGNORE INTO tunnel_targets (
+        id,organization_id,tunnel_id,agent_id,name,target_host,target_port,weight,priority,enabled,
+        health_status,health_check_json,created_at,updated_at
+      )
+      SELECT lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))),2) || '-' ||
+             substr('89ab', abs(random()) % 4 + 1, 1) || substr(lower(hex(randomblob(2))),2) || '-' || lower(hex(randomblob(6))),
+             organization_id,id,agent_id,'default',target_host,target_port,1,100,1,'unknown','{}',?,?
+      FROM tunnels
+      WHERE NOT EXISTS (SELECT 1 FROM tunnel_targets tt WHERE tt.tunnel_id=tunnels.id)
+    `).run(timestamp, timestamp);
   }
 
   transaction(callback) {
@@ -420,33 +502,69 @@ export class TunnaraDatabase {
   createTunnel({
     organizationId, agentId, name, protocol = 'http', hostname, targetHost = '127.0.0.1', targetPort,
     publicPort = null, transport = 'auto', tlsMode = 'automatic', edgeNodeId = null, relayNodeId = null,
+    policyId = null, inspectorEnabled = false, inspectorBodyLimit = 65536, targets = null,
   }) {
-    const agent = this.db.prepare('SELECT id,organization_id FROM agents WHERE id=?').get(agentId);
-    if (!agent || agent.organization_id !== organizationId) {
+    const primaryAgent = this.db.prepare('SELECT id,organization_id FROM agents WHERE id=?').get(agentId);
+    if (!primaryAgent || primaryAgent.organization_id !== organizationId) {
       const error = new Error('Agente não pertence à organização autenticada.');
       error.statusCode = 422;
       error.code = 'AGENT_ORGANIZATION_MISMATCH';
       throw error;
     }
+    if (policyId) {
+      const policy = this.getPolicy(organizationId, policyId);
+      if (!policy) {
+        const error = new Error('Política informada não pertence à organização autenticada.');
+        error.statusCode = 422; error.code = 'POLICY_ORGANIZATION_MISMATCH'; throw error;
+      }
+    }
     const id = uuid();
     const timestamp = nowIso();
     const effectiveHostname = hostname || `${protocol}-${id}.internal.tunnara`;
-    this.db.prepare(`
-      INSERT INTO tunnels (
-        id,organization_id,agent_id,name,protocol,hostname,target_host,target_port,public_port,transport,tls_mode,
-        edge_node_id,relay_node_id,status,created_at,updated_at
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-    `).run(
-      id, organizationId, agentId, name, protocol, effectiveHostname, targetHost, targetPort,
-      publicPort, transport, tlsMode, edgeNodeId, relayNodeId, 'active', timestamp, timestamp,
-    );
-    this.audit(organizationId, 'agent', agentId, 'tunnel.created', 'tunnel', id, 'success', {
-      protocol, hostname: effectiveHostname, targetHost, targetPort, publicPort, transport,
+    const targetList = Array.isArray(targets) && targets.length ? targets : [{
+      name: 'default', agentId, targetHost, targetPort, weight: 1, priority: 100,
+      healthCheck: ['http', 'https'].includes(protocol) ? { type: 'http', path: '/healthz', intervalSeconds: 30, timeoutSeconds: 5, healthyThreshold: 2, unhealthyThreshold: 3 } : { type: 'tcp', intervalSeconds: 30, timeoutSeconds: 5, healthyThreshold: 2, unhealthyThreshold: 3 },
+    }];
+    for (const target of targetList) {
+      const targetAgent = this.db.prepare('SELECT id,organization_id FROM agents WHERE id=?').get(target.agentId || agentId);
+      if (!targetAgent || targetAgent.organization_id !== organizationId) {
+        const error = new Error(`Target ${target.name || 'sem nome'} usa agente de outra organização.`);
+        error.statusCode = 422; error.code = 'TARGET_AGENT_ORGANIZATION_MISMATCH'; throw error;
+      }
+    }
+    this.transaction(() => {
+      this.db.prepare(`
+        INSERT INTO tunnels (
+          id,organization_id,agent_id,name,protocol,hostname,target_host,target_port,public_port,transport,tls_mode,
+          edge_node_id,relay_node_id,policy_id,inspector_enabled,inspector_body_limit,health_status,status,created_at,updated_at
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+      `).run(
+        id, organizationId, agentId, name, protocol, effectiveHostname, targetHost, targetPort,
+        publicPort, transport, tlsMode, edgeNodeId, relayNodeId, policyId, inspectorEnabled ? 1 : 0,
+        Math.max(0, Number(inspectorBodyLimit || 65536)), 'unknown', 'active', timestamp, timestamp,
+      );
+      for (const [index, target] of targetList.entries()) {
+        this.createTunnelTarget({
+          organizationId, tunnelId: id, agentId: target.agentId || agentId,
+          name: target.name || `target-${index + 1}`, targetHost: target.targetHost || target.host || targetHost,
+          targetPort: Number(target.targetPort || target.port || targetPort), weight: Number(target.weight || 1),
+          priority: Number(target.priority ?? 100), enabled: target.enabled !== false,
+          healthCheck: target.healthCheck || {}, audit: false,
+        });
+      }
+      this.audit(organizationId, 'agent', agentId, 'tunnel.created', 'tunnel', id, 'success', {
+        protocol, hostname: effectiveHostname, publicPort, transport, targets: targetList.length,
+      });
     });
-    return this.getTunnel(id);
+    return this.getTunnelWithTargets(organizationId, id);
   }
 
   getTunnel(id) { return this.db.prepare('SELECT * FROM tunnels WHERE id=?').get(id) ?? null; }
+  getTunnelWithTargets(organizationId, id) {
+    const tunnel = this.db.prepare('SELECT * FROM tunnels WHERE id=? AND organization_id=?').get(id, organizationId);
+    if (!tunnel) return null;
+    return { ...tunnel, targets: this.listTunnelTargets(organizationId, id), policy: tunnel.policy_id ? this.getPolicy(organizationId, tunnel.policy_id) : null };
+  }
   getTunnelByHostname(hostname) {
     return this.db.prepare(`
       SELECT t.*, a.status AS agent_status FROM tunnels t JOIN agents a ON a.id=t.agent_id
@@ -460,8 +578,10 @@ export class TunnaraDatabase {
     `).get(protocol, publicPort) ?? null;
   }
   listTunnels(organizationId, agentId = null) {
-    if (agentId) return this.db.prepare('SELECT * FROM tunnels WHERE organization_id=? AND agent_id=? ORDER BY created_at DESC').all(organizationId, agentId);
-    return this.db.prepare('SELECT * FROM tunnels WHERE organization_id=? ORDER BY created_at DESC').all(organizationId);
+    const rows = agentId
+      ? this.db.prepare('SELECT * FROM tunnels WHERE organization_id=? AND agent_id=? ORDER BY created_at DESC').all(organizationId, agentId)
+      : this.db.prepare('SELECT * FROM tunnels WHERE organization_id=? ORDER BY created_at DESC').all(organizationId);
+    return rows.map((row) => ({ ...row, targets: this.listTunnelTargets(organizationId, row.id) }));
   }
   listAllActiveTunnels() { return this.db.prepare("SELECT * FROM tunnels WHERE status='active' ORDER BY created_at DESC").all(); }
   listActiveTunnelsByProtocol(protocol) {
@@ -470,12 +590,223 @@ export class TunnaraDatabase {
   setTunnelDnsRecord(tunnelId, dnsRecordId) {
     this.db.prepare('UPDATE tunnels SET dns_record_id=?, updated_at=? WHERE id=?').run(dnsRecordId, nowIso(), tunnelId);
   }
+  updateTunnel(organizationId, id, changes = {}) {
+    const tunnel = this.db.prepare('SELECT * FROM tunnels WHERE id=? AND organization_id=?').get(id, organizationId);
+    if (!tunnel) return null;
+    const allowed = {
+      name: changes.name, status: changes.status, policy_id: changes.policyId,
+      inspector_enabled: changes.inspectorEnabled === undefined ? undefined : (changes.inspectorEnabled ? 1 : 0),
+      inspector_body_limit: changes.inspectorBodyLimit,
+      transport: changes.transport, tls_mode: changes.tlsMode,
+    };
+    if (allowed.policy_id) {
+      const policy = this.getPolicy(organizationId, allowed.policy_id);
+      if (!policy) throw Object.assign(new Error('Política não encontrada.'), { statusCode: 422, code: 'POLICY_NOT_FOUND' });
+    }
+    const entries = Object.entries(allowed).filter(([, value]) => value !== undefined);
+    if (entries.length) {
+      const sql = entries.map(([key]) => `${key}=?`).join(',');
+      this.db.prepare(`UPDATE tunnels SET ${sql},updated_at=? WHERE id=? AND organization_id=?`)
+        .run(...entries.map(([, value]) => value), nowIso(), id, organizationId);
+    }
+    return this.getTunnelWithTargets(organizationId, id);
+  }
   deleteTunnel(organizationId, id, agentId = null) {
     const tunnel = this.getTunnel(id);
     if (!tunnel || tunnel.organization_id !== organizationId || (agentId && tunnel.agent_id !== agentId)) return false;
     this.db.prepare('DELETE FROM tunnels WHERE id=?').run(id);
     this.audit(organizationId, agentId ? 'agent' : 'api_token', agentId, 'tunnel.deleted', 'tunnel', id, 'success', {});
     return tunnel;
+  }
+
+  createPolicy({ organizationId, name, description = '', document = {}, enabled = true }) {
+    const id = uuid(); const timestamp = nowIso();
+    this.db.prepare('INSERT INTO policies (id,organization_id,name,description,document_json,enabled,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)')
+      .run(id, organizationId, name, description, JSON.stringify(document), enabled ? 1 : 0, timestamp, timestamp);
+    this.audit(organizationId, 'api_token', null, 'policy.created', 'policy', id, 'success', { name });
+    return this.getPolicy(organizationId, id);
+  }
+  getPolicy(organizationId, id) {
+    const row = this.db.prepare('SELECT * FROM policies WHERE organization_id=? AND id=?').get(organizationId, id);
+    return row ? { ...row, enabled: Boolean(row.enabled), document: parseJson(row.document_json, {}) } : null;
+  }
+  listPolicies(organizationId) {
+    return this.db.prepare('SELECT * FROM policies WHERE organization_id=? ORDER BY name').all(organizationId)
+      .map((row) => ({ ...row, enabled: Boolean(row.enabled), document: parseJson(row.document_json, {}) }));
+  }
+  updatePolicy(organizationId, id, changes = {}) {
+    const current = this.getPolicy(organizationId, id); if (!current) return null;
+    this.db.prepare('UPDATE policies SET name=?,description=?,document_json=?,enabled=?,updated_at=? WHERE organization_id=? AND id=?')
+      .run(changes.name ?? current.name, changes.description ?? current.description, JSON.stringify(changes.document ?? current.document),
+        changes.enabled === undefined ? (current.enabled ? 1 : 0) : (changes.enabled ? 1 : 0), nowIso(), organizationId, id);
+    this.audit(organizationId, 'api_token', null, 'policy.updated', 'policy', id, 'success', {});
+    return this.getPolicy(organizationId, id);
+  }
+  deletePolicy(organizationId, id) {
+    const used = Number(this.db.prepare('SELECT COUNT(*) AS total FROM tunnels WHERE organization_id=? AND policy_id=?').get(organizationId, id).total);
+    if (used) throw Object.assign(new Error('Política está associada a túneis ativos.'), { statusCode: 409, code: 'POLICY_IN_USE' });
+    const result = this.db.prepare('DELETE FROM policies WHERE organization_id=? AND id=?').run(organizationId, id);
+    if (result.changes) this.audit(organizationId, 'api_token', null, 'policy.deleted', 'policy', id, 'success', {});
+    return Boolean(result.changes);
+  }
+
+  createTunnelTarget({ organizationId, tunnelId, agentId, name = 'default', targetHost = '127.0.0.1', targetPort, weight = 1, priority = 100, enabled = true, healthCheck = {}, audit = true }) {
+    const tunnel = this.db.prepare('SELECT id FROM tunnels WHERE id=? AND organization_id=?').get(tunnelId, organizationId);
+    const agent = this.db.prepare('SELECT id FROM agents WHERE id=? AND organization_id=?').get(agentId, organizationId);
+    if (!tunnel || !agent) throw Object.assign(new Error('Túnel ou agente do target não pertence à organização.'), { statusCode: 422, code: 'TARGET_REFERENCE_INVALID' });
+    const id = uuid(); const timestamp = nowIso();
+    this.db.prepare(`INSERT INTO tunnel_targets (id,organization_id,tunnel_id,agent_id,name,target_host,target_port,weight,priority,enabled,health_status,health_check_json,created_at,updated_at)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+      .run(id, organizationId, tunnelId, agentId, name, targetHost, Number(targetPort), Math.max(1, Number(weight || 1)), Number(priority || 100), enabled ? 1 : 0, 'unknown', JSON.stringify(healthCheck || {}), timestamp, timestamp);
+    if (audit) this.audit(organizationId, 'api_token', null, 'tunnel_target.created', 'tunnel_target', id, 'success', { tunnelId, agentId });
+    return this.getTunnelTarget(organizationId, id);
+  }
+  getTunnelTarget(organizationId, id) {
+    const row = this.db.prepare('SELECT * FROM tunnel_targets WHERE organization_id=? AND id=?').get(organizationId, id);
+    return row ? { ...row, enabled: Boolean(row.enabled), health_check: parseJson(row.health_check_json, {}) } : null;
+  }
+  listTunnelTargets(organizationId, tunnelId) {
+    return this.db.prepare('SELECT * FROM tunnel_targets WHERE organization_id=? AND tunnel_id=? ORDER BY priority,name').all(organizationId, tunnelId)
+      .map((row) => ({ ...row, enabled: Boolean(row.enabled), health_check: parseJson(row.health_check_json, {}) }));
+  }
+  updateTunnelTarget(organizationId, id, changes = {}) {
+    const current = this.getTunnelTarget(organizationId, id); if (!current) return null;
+    if (changes.agentId) {
+      const agent = this.db.prepare('SELECT id FROM agents WHERE id=? AND organization_id=?').get(changes.agentId, organizationId);
+      if (!agent) throw Object.assign(new Error('Agente do target não pertence à organização.'), { statusCode: 422, code: 'TARGET_AGENT_INVALID' });
+    }
+    this.db.prepare(`UPDATE tunnel_targets SET agent_id=?,name=?,target_host=?,target_port=?,weight=?,priority=?,enabled=?,health_check_json=?,updated_at=? WHERE organization_id=? AND id=?`)
+      .run(changes.agentId ?? current.agent_id, changes.name ?? current.name, changes.targetHost ?? current.target_host,
+        Number(changes.targetPort ?? current.target_port), Math.max(1, Number(changes.weight ?? current.weight)), Number(changes.priority ?? current.priority),
+        changes.enabled === undefined ? (current.enabled ? 1 : 0) : (changes.enabled ? 1 : 0), JSON.stringify(changes.healthCheck ?? current.health_check),
+        nowIso(), organizationId, id);
+    this.audit(organizationId, 'api_token', null, 'tunnel_target.updated', 'tunnel_target', id, 'success', {});
+    return this.getTunnelTarget(organizationId, id);
+  }
+  deleteTunnelTarget(organizationId, id) {
+    const target = this.getTunnelTarget(organizationId, id); if (!target) return false;
+    const total = Number(this.db.prepare('SELECT COUNT(*) AS total FROM tunnel_targets WHERE tunnel_id=?').get(target.tunnel_id).total);
+    if (total <= 1) throw Object.assign(new Error('Um túnel deve manter pelo menos um target.'), { statusCode: 409, code: 'LAST_TARGET' });
+    this.db.prepare('DELETE FROM tunnel_targets WHERE organization_id=? AND id=?').run(organizationId, id);
+    this.audit(organizationId, 'api_token', null, 'tunnel_target.deleted', 'tunnel_target', id, 'success', {});
+    return target;
+  }
+  updateTargetHealth(id, { healthy, error = null, latencyMs = null }) {
+    const current = this.db.prepare('SELECT * FROM tunnel_targets WHERE id=?').get(id); if (!current) return null;
+    const health = parseJson(current.health_check_json, {});
+    const healthyThreshold = Math.max(1, Number(health.healthyThreshold || 2));
+    const unhealthyThreshold = Math.max(1, Number(health.unhealthyThreshold || 3));
+    const successes = healthy ? Number(current.consecutive_successes || 0) + 1 : 0;
+    const failures = healthy ? 0 : Number(current.consecutive_failures || 0) + 1;
+    let status = current.health_status;
+    if (healthy && successes >= healthyThreshold) status = 'healthy';
+    if (!healthy && failures >= unhealthyThreshold) status = 'unhealthy';
+    this.db.prepare('UPDATE tunnel_targets SET health_status=?,consecutive_successes=?,consecutive_failures=?,last_checked_at=?,last_error=?,updated_at=? WHERE id=?')
+      .run(status, successes, failures, nowIso(), error, nowIso(), id);
+    this.db.prepare(`UPDATE tunnels SET health_status=(CASE
+      WHEN EXISTS(SELECT 1 FROM tunnel_targets WHERE tunnel_id=? AND enabled=1 AND health_status='healthy') THEN 'healthy'
+      WHEN EXISTS(SELECT 1 FROM tunnel_targets WHERE tunnel_id=? AND enabled=1 AND health_status='unknown') THEN 'unknown'
+      ELSE 'unhealthy' END),updated_at=? WHERE id=?`).run(current.tunnel_id, current.tunnel_id, nowIso(), current.tunnel_id);
+    return { ...this.getTunnelTarget(current.organization_id, id), latencyMs };
+  }
+  listTargetsForHealthCheck() {
+    return this.db.prepare(`SELECT tt.*,t.protocol,t.status AS tunnel_status FROM tunnel_targets tt JOIN tunnels t ON t.id=tt.tunnel_id
+      WHERE tt.enabled=1 AND t.status='active' ORDER BY COALESCE(tt.last_checked_at,'')`).all()
+      .map((row) => ({ ...row, enabled: Boolean(row.enabled), health_check: parseJson(row.health_check_json, {}) }));
+  }
+  selectTunnelTarget(tunnelId, requestedTargetId = null) {
+    let targets = this.db.prepare(`SELECT tt.*,a.status AS agent_status FROM tunnel_targets tt JOIN agents a ON a.id=tt.agent_id
+      WHERE tt.tunnel_id=? AND tt.enabled=1 AND a.revoked_at IS NULL ORDER BY tt.priority,tt.name`).all(tunnelId);
+    if (requestedTargetId) targets = targets.filter((target) => target.id === requestedTargetId);
+    if (!targets.length) return null;
+    const healthy = targets.filter((target) => target.health_status === 'healthy' && target.agent_status === 'online');
+    const unknown = targets.filter((target) => target.health_status === 'unknown' && target.agent_status === 'online');
+    const eligible = healthy.length ? healthy : unknown.length ? unknown : targets.filter((target) => target.agent_status === 'online');
+    if (!eligible.length) return null;
+    const priority = Math.min(...eligible.map((target) => Number(target.priority || 100)));
+    const tier = eligible.filter((target) => Number(target.priority || 100) === priority);
+    const weighted = tier.flatMap((target) => Array.from({ length: Math.min(100, Math.max(1, Number(target.weight || 1))) }, () => target));
+    const cursor = Number(this.targetSelectionCounters.get(tunnelId) || 0);
+    this.targetSelectionCounters.set(tunnelId, cursor + 1);
+    const selected = weighted[cursor % weighted.length];
+    return { ...selected, enabled: Boolean(selected.enabled), health_check: parseJson(selected.health_check_json, {}) };
+  }
+  resolveTunnelByHostname(hostname, requestedTargetId = null) {
+    const tunnel = this.getTunnelByHostname(hostname); if (!tunnel) return null;
+    const target = this.selectTunnelTarget(tunnel.id, requestedTargetId); if (!target) return { tunnel, target: null, presence: null };
+    return { tunnel, target, presence: this.getAgentPresence(target.agent_id), policy: tunnel.policy_id ? this.getPolicy(tunnel.organization_id, tunnel.policy_id) : null };
+  }
+  resolveTunnelById(id, requestedTargetId = null) {
+    const tunnel = this.getTunnel(id); if (!tunnel) return null;
+    const target = this.selectTunnelTarget(tunnel.id, requestedTargetId); if (!target) return { tunnel, target: null, presence: null };
+    return { tunnel, target, presence: this.getAgentPresence(target.agent_id), policy: tunnel.policy_id ? this.getPolicy(tunnel.organization_id, tunnel.policy_id) : null };
+  }
+  listActiveTunnelRoutesByProtocol(protocol) {
+    return this.listActiveTunnelsByProtocol(protocol).map((tunnel) => this.resolveTunnelById(tunnel.id)).filter(Boolean);
+  }
+
+  saveInspection(record) {
+    this.db.prepare(`INSERT INTO request_inspections (id,organization_id,tunnel_id,method,host,path,source_ip,request_headers_json,request_body_json,response_status,response_headers_json,response_body_json,duration_ms,error,created_at)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+      .run(record.id, record.organizationId, record.tunnelId, record.method, record.host, record.path, record.sourceIp,
+        JSON.stringify(record.requestHeaders || {}), JSON.stringify(record.requestBody || {}), Number(record.responseStatus || 0),
+        JSON.stringify(record.responseHeaders || {}), JSON.stringify(record.responseBody || {}), Number(record.durationMs || 0), record.error || null, nowIso());
+    return this.getInspection(record.organizationId, record.id);
+  }
+  getInspection(organizationId, id) {
+    const row = this.db.prepare('SELECT * FROM request_inspections WHERE organization_id=? AND id=?').get(organizationId, id);
+    return row ? { ...row, request_headers: parseJson(row.request_headers_json, {}), request_body: parseJson(row.request_body_json, {}), response_headers: parseJson(row.response_headers_json, {}), response_body: parseJson(row.response_body_json, {}) } : null;
+  }
+  listInspections(organizationId, { tunnelId = null, limit = 100, offset = 0 } = {}) {
+    const rows = tunnelId
+      ? this.db.prepare('SELECT * FROM request_inspections WHERE organization_id=? AND tunnel_id=? ORDER BY created_at DESC LIMIT ? OFFSET ?').all(organizationId, tunnelId, limit, offset)
+      : this.db.prepare('SELECT * FROM request_inspections WHERE organization_id=? ORDER BY created_at DESC LIMIT ? OFFSET ?').all(organizationId, limit, offset);
+    return rows.map((row) => ({ ...row, request_headers: parseJson(row.request_headers_json, {}), request_body: parseJson(row.request_body_json, {}), response_headers: parseJson(row.response_headers_json, {}), response_body: parseJson(row.response_body_json, {}) }));
+  }
+  deleteInspection(organizationId, id) { return Boolean(this.db.prepare('DELETE FROM request_inspections WHERE organization_id=? AND id=?').run(organizationId, id).changes); }
+  purgeInspections(organizationId, olderThanIso = null) {
+    const result = olderThanIso
+      ? this.db.prepare('DELETE FROM request_inspections WHERE organization_id=? AND created_at<?').run(organizationId, olderThanIso)
+      : this.db.prepare('DELETE FROM request_inspections WHERE organization_id=?').run(organizationId);
+    return Number(result.changes || 0);
+  }
+
+  pruneRuntimeData({ inspectorRetentionDays = 7, inspectorMaxRecords = 10000, auditRetentionDays = 90 } = {}) {
+    const result = { inspectionsByAge: 0, inspectionsByLimit: 0, auditByAge: 0, idempotencyExpired: 0 };
+    const now = nowIso();
+    result.idempotencyExpired = Number(this.db.prepare('DELETE FROM idempotency_keys WHERE expires_at<=?').run(now).changes || 0);
+    if (Number(inspectorRetentionDays) > 0) {
+      const cutoff = new Date(Date.now() - Number(inspectorRetentionDays) * 86400000).toISOString();
+      result.inspectionsByAge = Number(this.db.prepare('DELETE FROM request_inspections WHERE created_at<?').run(cutoff).changes || 0);
+    }
+    const maxRecords = Math.max(0, Number(inspectorMaxRecords || 0));
+    if (maxRecords > 0) {
+      const organizations = this.db.prepare('SELECT DISTINCT organization_id FROM request_inspections').all();
+      const stale = this.db.prepare('SELECT id FROM request_inspections WHERE organization_id=? ORDER BY created_at DESC LIMIT -1 OFFSET ?');
+      const remove = this.db.prepare('DELETE FROM request_inspections WHERE id=?');
+      for (const organization of organizations) {
+        for (const row of stale.all(organization.organization_id, maxRecords)) result.inspectionsByLimit += Number(remove.run(row.id).changes || 0);
+      }
+    }
+    if (Number(auditRetentionDays) > 0) {
+      const cutoff = new Date(Date.now() - Number(auditRetentionDays) * 86400000).toISOString();
+      result.auditByAge = Number(this.db.prepare('DELETE FROM audit_logs WHERE created_at<?').run(cutoff).changes || 0);
+    }
+    return result;
+  }
+
+  getIdempotentResponse(organizationId, key, requestHash) {
+    this.db.prepare('DELETE FROM idempotency_keys WHERE expires_at<=?').run(nowIso());
+    const row = this.db.prepare('SELECT * FROM idempotency_keys WHERE organization_id=? AND key=?').get(organizationId, key);
+    if (!row) return null;
+    if (row.request_hash !== requestHash) throw Object.assign(new Error('Idempotency-Key reutilizada com payload diferente.'), { statusCode: 409, code: 'IDEMPOTENCY_CONFLICT' });
+    return { status: row.response_status, body: parseJson(row.response_json, {}) };
+  }
+  saveIdempotentResponse(organizationId, key, requestHash, status, body, ttlSeconds = 86400) {
+    const timestamp = nowIso(); const expiresAt = new Date(Date.now() + ttlSeconds * 1000).toISOString();
+    this.db.prepare(`INSERT INTO idempotency_keys (organization_id,key,request_hash,response_status,response_json,expires_at,created_at) VALUES (?,?,?,?,?,?,?)
+      ON CONFLICT(organization_id,key) DO UPDATE SET request_hash=excluded.request_hash,response_status=excluded.response_status,response_json=excluded.response_json,expires_at=excluded.expires_at`)
+      .run(organizationId, key, requestHash, status, JSON.stringify(body), expiresAt, timestamp);
   }
 
   upsertIntegration({ organizationId, provider, name = 'default', config = {}, secretCiphertext = null, status = 'configured' }) {

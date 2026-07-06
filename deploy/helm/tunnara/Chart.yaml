@@ -1,0 +1,11 @@
+apiVersion: v2
+name: tunnara
+version: 2.0.0-rc.1
+appVersion: "2.0.0-rc.1"
+description: Tunnara self-hosted secure tunneling and private connectivity platform.
+type: application
+home: https://github.com/wkarts/tunnara
+sources:
+  - https://github.com/wkarts/tunnara
+maintainers:
+  - name: WWSoftware's Sistemas

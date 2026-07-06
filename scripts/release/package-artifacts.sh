@@ -11,6 +11,7 @@ WEB_PREFIX="tunnara-console-web-v${VERSION}"
 RUNTIME_PREFIX="tunnara-runtime-linux-x64-v${VERSION}"
 SDK_PREFIX="tunnara-sdk-c-linux-x64-v${VERSION}"
 DOCKER_PREFIX="Tunnara-Docker-v${VERSION}"
+HELM_PREFIX="Tunnara-Helm-v${VERSION}"
 ARTIFACTS="$ROOT_DIR/artifacts"
 STAGING="$(mktemp -d)"
 cleanup() { rm -rf "$STAGING"; }
@@ -65,6 +66,7 @@ WEB_DIR="$STAGING/web/$WEB_PREFIX"
 RUNTIME_DIR="$STAGING/runtime/$RUNTIME_PREFIX"
 SDK_DIR="$STAGING/sdk/$SDK_PREFIX"
 DOCKER_DIR="$STAGING/docker/$DOCKER_PREFIX"
+HELM_DIR="$STAGING/helm/$HELM_PREFIX"
 
 copy_source "$SOURCE_DIR"
 copy_source "$GITHUB_DIR"
@@ -73,7 +75,7 @@ mkdir -p \
   "$WEB_DIR" \
   "$RUNTIME_DIR/bin" "$RUNTIME_DIR/install" \
   "$SDK_DIR/include" "$SDK_DIR/lib" "$SDK_DIR/examples" \
-  "$DOCKER_DIR" \
+  "$DOCKER_DIR" "$HELM_DIR" \
   "$COMPLETE_DIR/prebuilt/console-web" \
   "$COMPLETE_DIR/prebuilt/runtime/linux-x64" \
   "$COMPLETE_DIR/prebuilt/sdk-c/linux-x64/include" \
@@ -96,13 +98,22 @@ cp sdk/c/build/libtunnara.so sdk/c/build/libtunnara.a "$COMPLETE_DIR/prebuilt/sd
 
 mkdir -p "$DOCKER_DIR/deploy" "$DOCKER_DIR/docs/operations"
 cp -a deploy/docker "$DOCKER_DIR/deploy/"
+cp -a deploy/observability "$DOCKER_DIR/deploy/"
+cp -a deploy/helm "$DOCKER_DIR/deploy/"
 cp docker.sh README.md LICENSE LICENSE-NOTICE.md SECURITY.md VERSION "$DOCKER_DIR/"
 cp \
   docs/operations/QUICKSTART.md \
   docs/operations/DOCKER_DEPLOYMENT.md \
   docs/operations/PRODUCTION.md \
   docs/operations/STORAGE_PROVIDERS.md \
+  docs/operations/OBSERVABILITY.md \
+  docs/operations/KUBERNETES.md \
   "$DOCKER_DIR/docs/operations/"
+
+
+mkdir -p "$HELM_DIR/deploy" "$HELM_DIR/docs"
+cp -a deploy/helm "$HELM_DIR/deploy/"
+cp docs/operations/KUBERNETES.md LICENSE LICENSE-NOTICE.md VERSION "$HELM_DIR/docs/"
 
 (
   cd "$STAGING/source"
@@ -144,6 +155,10 @@ cp \
   cd "$STAGING/docker"
   zip -q -1 -r "$ARTIFACTS/${DOCKER_PREFIX}.zip" "$DOCKER_PREFIX"
 )
+(
+  cd "$STAGING/helm"
+  zip -q -1 -r "$ARTIFACTS/${HELM_PREFIX}.zip" "$HELM_PREFIX"
+)
 node - "$ARTIFACTS" "$VERSION" <<'NODE'
 const fs = require('node:fs');
 const path = require('node:path');
@@ -158,6 +173,6 @@ fs.writeFileSync(path.join(dir, 'release-manifest.json'), JSON.stringify({
 NODE
 (
   cd "$ARTIFACTS"
-  sha256sum *.zip *.tar.gz *.bundle release-manifest.json > SHA256SUMS-core.txt
+  sha256sum *.zip *.tar.gz *.bundle release-manifest.json > SHA256SUMS.txt
 )
 printf 'Artefatos gerados em %s\n' "$ARTIFACTS"

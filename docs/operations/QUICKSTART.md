@@ -1,4 +1,4 @@
-# Quickstart — Tunnara
+# Quickstart — Tunnara 1.1.0
 
 ## Docker
 

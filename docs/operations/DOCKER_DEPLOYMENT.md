@@ -4,7 +4,7 @@
 
 ## Arquivos Compose de exemplo
 
-O repositório inclui exemplos diretamente executáveis:
+A versão 1.1.1 inclui exemplos diretamente executáveis:
 
 - `docker-compose.example.yml`: instalação local/VPS sem TLS;
 - `deploy/docker/examples/docker-compose.local.yml`: equivalente local;
@@ -110,7 +110,7 @@ Esse perfil usa um Control SQLite único e duplica Edge e Relay. HA do plano de 
 
 ## Instalação sem clonar o repositório
 
-Depois que uma release `vX.Y.Z` estiver publicada, o asset `Tunnara-Docker-vX.Y.Z.zip` pode ser instalado diretamente:
+Depois que `v1.1.0` estiver publicada, o asset `Tunnara-Docker-v1.1.0.zip` pode ser instalado diretamente:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/wkarts/tunnara/main/deploy/docker/install-from-github.sh | sudo bash
@@ -119,7 +119,7 @@ curl -fsSL https://raw.githubusercontent.com/wkarts/tunnara/main/deploy/docker/i
 Versão específica e diretório customizado:
 
 ```bash
-TUNNARA_VERSION=X.Y.Z \
+TUNNARA_VERSION=1.1.0 \
 TUNNARA_INSTALL_DIR=/opt/tunnara \
 TUNNARA_START_MODE=image \
   bash install-from-github.sh

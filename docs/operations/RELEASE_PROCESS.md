@@ -12,7 +12,7 @@
 npm ci
 npm --prefix apps/console ci
 npm run validate
-npm run version:set -- X.Y.Z
+npm run version:set -- 1.1.1
 npm run version:check
 ```
 

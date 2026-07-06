@@ -11,6 +11,8 @@ QUIC_FILE="$SCRIPT_DIR/docker-compose.quic.yml"
 QUIC_BUILD_FILE="$SCRIPT_DIR/docker-compose.quic.build.yml"
 HA_FILE="$SCRIPT_DIR/docker-compose.ha.yml"
 HA_BUILD_FILE="$SCRIPT_DIR/docker-compose.ha.build.yml"
+OBSERVABILITY_FILE="$SCRIPT_DIR/docker-compose.observability.yml"
+DISTRIBUTED_FILE="$SCRIPT_DIR/docker-compose.distributed.yml"
 
 info() { printf '[Tunnara] %s\n' "$*"; }
 warn() { printf '[Tunnara] AVISO: %s\n' "$*" >&2; }
@@ -35,6 +37,29 @@ random_cluster_token() {
 import secrets
 print('tnr_cluster_' + secrets.token_urlsafe(36))
 PY
+  fi
+}
+
+random_password() {
+  if command -v openssl >/dev/null 2>&1; then
+    openssl rand -base64 30 | tr -d '\n=/+' | head -c 32
+  else
+    python3 - <<'PY2'
+import secrets
+print(secrets.token_urlsafe(24))
+PY2
+  fi
+}
+
+random_app_key() {
+  if command -v openssl >/dev/null 2>&1; then
+    printf 'base64:%s
+' "$(openssl rand -base64 32 | tr -d '\n')"
+  else
+    python3 - <<'PYAPP'
+import base64, secrets
+print('base64:' + base64.b64encode(secrets.token_bytes(32)).decode())
+PYAPP
   fi
 }
 
@@ -69,18 +94,30 @@ get_env() {
 init() {
   [[ -f "$ENV_FILE" ]] || cp "$SCRIPT_DIR/.env.example" "$ENV_FILE"
 
-  local token master cluster
+  local token master cluster grafana_password app_key db_password redis_password
   token="$(get_env TUNNARA_BOOTSTRAP_ADMIN_TOKEN)"
   master="$(get_env TUNNARA_MASTER_KEY_BASE64)"
   cluster="$(get_env TUNNARA_CLUSTER_TOKEN)"
+  grafana_password="$(get_env GRAFANA_ADMIN_PASSWORD)"
+  app_key="$(get_env APP_KEY)"
+  db_password="$(get_env DB_PASSWORD)"
+  redis_password="$(get_env REDIS_PASSWORD)"
 
-  [[ "$token" == tnr_admin_* && "$token" != "tnr_admin_change_me" ]] || token="$(random_admin_token)"
+  [[ "$token" == tnr_admin_* ]] || token="$(random_admin_token)"
   [[ -n "$master" && "$master" != change-me ]] || master="$(random_master_key)"
-  [[ "$cluster" == tnr_cluster_* && "$cluster" != "tnr_cluster_change_me" ]] || cluster="$(random_cluster_token)"
+  [[ "$cluster" == tnr_cluster_* ]] || cluster="$(random_cluster_token)"
+  [[ -n "$grafana_password" && "$grafana_password" != change_me ]] || grafana_password="$(random_password)"
+  [[ "$app_key" == base64:* ]] || app_key="$(random_app_key)"
+  [[ -n "$db_password" && "$db_password" != change_me ]] || db_password="$(random_password)"
+  [[ -n "$redis_password" && "$redis_password" != change_me ]] || redis_password="$(random_password)"
 
   set_env TUNNARA_BOOTSTRAP_ADMIN_TOKEN "$token"
   set_env TUNNARA_MASTER_KEY_BASE64 "$master"
   set_env TUNNARA_CLUSTER_TOKEN "$cluster"
+  set_env GRAFANA_ADMIN_PASSWORD "$grafana_password"
+  set_env APP_KEY "$app_key"
+  set_env DB_PASSWORD "$db_password"
+  set_env REDIS_PASSWORD "$redis_password"
   chmod 600 "$ENV_FILE"
 
   info "Ambiente criado/atualizado em $ENV_FILE"
@@ -128,6 +165,13 @@ compose_run() {
       files=(-f "$HA_FILE")
       if [[ "$(deploy_mode)" == build ]]; then files+=(-f "$HA_BUILD_FILE"); fi
       ;;
+    observability)
+      files=(-f "$BASE_FILE" -f "$OBSERVABILITY_FILE")
+      if [[ "$(deploy_mode)" == build ]]; then files+=(-f "$BASE_BUILD_FILE"); fi
+      ;;
+    distributed)
+      files=(-f "$DISTRIBUTED_FILE")
+      ;;
     *) die "Stack Docker desconhecida: $stack" ;;
   esac
 
@@ -138,6 +182,8 @@ compose_base() { compose_run base "$@"; }
 compose_cloudflare() { compose_run cloudflare "$@"; }
 compose_full() { compose_run full "$@"; }
 compose_ha() { compose_run ha "$@"; }
+compose_observability() { compose_run observability "$@"; }
+compose_distributed() { compose_run distributed "$@"; }
 
 start_stack() {
   local stack="$1"; shift || true
@@ -297,6 +343,22 @@ update_stack() {
   health
 }
 
+
+bootstrap_distributed() {
+  [[ -f "$ENV_FILE" ]] || init
+  local token organization
+  token="$(admin_token)"
+  organization="$(get_env TUNNARA_BOOTSTRAP_ORGANIZATION)"
+  compose_distributed exec -T control-a php artisan tunnara:bootstrap "${organization:-Tunnara Community}" --token-name=Console --token="$token"
+}
+
+wait_distributed() {
+  local retries=90
+  until compose_distributed exec -T control-a wget -q -O - http://127.0.0.1:8080/api/v1/health >/dev/null 2>&1; do
+    retries=$((retries-1)); [[ $retries -gt 0 ]] || die 'Control API distribuída não ficou saudável.'; sleep 2
+  done
+}
+
 case "${1:-help}" in
   init) init ;;
   quickstart) quickstart ;;
@@ -352,6 +414,29 @@ case "${1:-help}" in
   down-cloudflare) compose_cloudflare down ;;
   status-cloudflare) compose_cloudflare ps ;;
   logs-cloudflare) shift; compose_cloudflare logs -f --tail=200 "$@" ;;
+
+  up-observability)
+    init
+    start_stack observability
+    wait_control
+    info "Observabilidade ativa: Prometheus http://127.0.0.1:$(get_env PROMETHEUS_PORT) e Grafana http://127.0.0.1:$(get_env GRAFANA_PORT)"
+    ;;
+  down-observability) compose_observability down ;;
+  status-observability) compose_observability ps ;;
+  logs-observability) shift; compose_observability logs -f --tail=200 "$@" ;;
+
+  up-distributed)
+    require_cloudflare_env
+    start_stack distributed
+    wait_distributed
+    bootstrap_distributed
+    info 'Plano de controle distribuído iniciado com PostgreSQL, Redis, dois Controls, dois Edges e dois Relays.'
+    ;;
+  bootstrap-distributed) bootstrap_distributed ;;
+  down-distributed) compose_distributed down ;;
+  status-distributed) compose_distributed ps ;;
+  logs-distributed) shift; compose_distributed logs -f --tail=200 "$@" ;;
+  destroy-distributed) compose_distributed down --volumes --remove-orphans ;;
 
   up-ha)
     require_cloudflare_env
@@ -414,7 +499,14 @@ Produção Cloudflare/ACME/QUIC:
   down-production | status-production | logs-production
   update-production | destroy-production
 
-Alta disponibilidade:
+Observabilidade:
+  up-observability | down-observability | status-observability | logs-observability
+
+Plano distribuído PostgreSQL/Redis:
+  up-distributed | bootstrap-distributed | down-distributed
+  status-distributed | logs-distributed | destroy-distributed
+
+Alta disponibilidade embedded:
   up-ha | down-ha | restart-ha | status-ha | logs-ha | destroy-ha
 
 Administração:

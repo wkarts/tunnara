@@ -28,6 +28,7 @@ const NodesPage = () => import("../pages/tunnara/NodesPage.vue");
 const DomainsPage = () => import("../pages/tunnara/DomainsPage.vue");
 const NetworksPage = () => import("../pages/tunnara/NetworksPage.vue");
 const PoliciesPage = () => import("../pages/tunnara/PoliciesPage.vue");
+const RequestInspectorPage = () => import("../pages/tunnara/RequestInspectorPage.vue");
 const DeploymentsPage = () => import("../pages/tunnara/DeploymentsPage.vue");
 const AuditPage = () => import("../pages/tunnara/AuditPage.vue");
 
@@ -67,6 +68,7 @@ const routes: RouteRecordRaw[] = [
       { path: "dominios", component: DomainsPage, meta: { permission: "config:view", feature: "domains" } },
       { path: "redes", component: NetworksPage, meta: { permission: "config:view", feature: "privateNetworks" } },
       { path: "politicas", component: PoliciesPage, meta: { permission: "config:view", feature: "accessPolicies" } },
+      { path: "inspector", component: RequestInspectorPage, meta: { permission: "config:view", feature: "requestInspector" } },
       { path: "implantacoes", component: DeploymentsPage, meta: { permission: "config:view", feature: "deployments" } },
       { path: "auditoria", component: AuditPage, meta: { permission: "config:view" } },
       { path: "empresas", component: EmpresaPage, meta: { permission: "empresas:view" } },

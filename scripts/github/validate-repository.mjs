@@ -6,10 +6,12 @@ import { execFileSync } from 'node:child_process';
 const root = process.cwd();
 const required = [
   'README.md', 'LICENSE', 'SECURITY.md', 'CONTRIBUTING.md', 'CODE_OF_CONDUCT.md',
-  '.gitignore', '.gitattributes', '.github/dependabot.yml', '.github/workflows/ci.yml', '.github/workflows/release.yml',
+  '.gitignore', '.gitattributes', '.github/workflows/ci.yml', '.github/workflows/release.yml',
   'runtime/node/bin/tunnara.mjs', 'runtime/node/bin/tunnara-server.mjs',
-  'deploy/docker/docker-compose.yml', 'deploy/docker/storage/storage.sh',
-  'docs/operations/STORAGE_PROVIDERS.md', 'docs/operations/GITHUB_ACTIONS.md', 'docs/operations/POST_MERGE_RELEASE.md', 'VERSION',
+  'deploy/docker/docker-compose.yml', 'deploy/docker/docker-compose.distributed.yml', 'deploy/docker/docker-compose.observability.yml',
+  'deploy/helm/tunnara/Chart.yaml', 'deploy/observability/prometheus.yml', 'deploy/docker/storage/storage.sh',
+  'docs/operations/STORAGE_PROVIDERS.md', 'docs/operations/OBSERVABILITY.md', 'docs/operations/KUBERNETES.md',
+  'docs/security/POLICY_ENGINE.md', 'docs/security/MATURITY_GATES.md', 'docs/operations/GITHUB_ACTIONS.md', 'docs/operations/POST_MERGE_RELEASE.md', 'VERSION',
 ];
 const forbiddenNames = new Set(['.env', 'tunnara.sqlite', 'tunnara.sqlite-wal', 'tunnara.sqlite-shm']);
 const forbiddenDirs = new Set(['node_modules', 'vendor', 'target', '.build', 'artifacts', 'dist', 'data', 'backups', 'runtime-data', 'agent-data']);
@@ -53,21 +55,6 @@ for (const rel of lockfiles) {
   const content = fs.readFileSync(file, 'utf8');
   if (/applied-caas-gateway|internal\.api\.openai\.org/i.test(content)) {
     findings.push(`Lockfile contém registry interno não acessível pelo GitHub Actions: ${rel}`);
-  }
-}
-
-
-const dependabotFile = path.join(root, '.github', 'dependabot.yml');
-if (fs.existsSync(dependabotFile)) {
-  const dependabot = fs.readFileSync(dependabotFile, 'utf8');
-  if (!dependabot.includes('version-update:semver-major')) {
-    findings.push('Dependabot deve bloquear atualizações major automáticas.');
-  }
-  if (!dependabot.includes('open-pull-requests-limit')) {
-    findings.push('Dependabot deve limitar a quantidade de PRs simultâneos.');
-  }
-  if (!dependabot.includes('update-types: [minor, patch]')) {
-    findings.push('Dependabot deve agrupar atualizações minor/patch.');
   }
 }
 

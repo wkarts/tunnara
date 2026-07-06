@@ -1,47 +1,77 @@
-# Publicação da correção Tunnara 1.1.3
+# Publicação da Tunnara 2.0.0-rc.1 no GitHub
 
-## Branch recomendada
+## Branch do Pull Request
 
 ```bash
 git switch main
 git pull --rebase origin main
-git switch -c fix/immutable-auto-version-release
+git switch -c release/v2.0.0-rc1-platform-hardening
 ```
 
-Depois de aplicar as alterações:
+Aplique o patch ou copie o conteúdo GitHub Ready, depois:
 
 ```bash
 git add --all
-git commit -m "fix(release): auto-increment versions and keep published releases immutable"
-git push -u origin fix/immutable-auto-version-release
+git commit -m "feat: deliver Tunnara 2.0.0 RC platform hardening"
+git push -u origin release/v2.0.0-rc1-platform-hardening
 ```
 
-Abra o Pull Request para `main`. A versão deste hotfix já está sincronizada em `1.1.3`. No merge, `Version and release after merge` respeita essa versão explícita e dispara a release `v1.1.3`. Nos próximos merges elegíveis, o incremento padrão será `patch`.
+## Release
 
-## Labels de versão
+O arquivo `VERSION` está em `2.0.0-rc.1`. Após o merge, o workflow de release deve:
 
-- `release:patch`: incrementa o PATCH; padrão quando nenhuma label é informada.
-- `release:minor`: incrementa o MINOR e zera o PATCH.
-- `release:major`: incrementa o MAJOR e zera MINOR/PATCH.
-- `release:none`: mescla sem criar nova release.
+1. criar `v2.0.0-rc.1` como draft;
+2. gerar os assets centrais;
+3. executar Runtime, SDK, Desktop, Mobile e Containers;
+4. anexar os artefatos diretamente à release;
+5. publicar a release somente se os jobs obrigatórios terminarem com sucesso.
 
-## Regra de imutabilidade
-
-Uma release já publicada não é reaberta, sobrescrita ou movida para outro commit. Se `vX.Y.Z` já estiver publicada, uma nova alteração deve usar uma versão superior. Somente uma release ainda em draft pode ser retomada e receber assets com `--clobber`.
-
-## Limpeza dos drafts duplicados 1.1.2
-
-Depois que `v1.1.3` for publicada com sucesso, remova os drafts antigos e incompletos de `v1.1.2` pela interface do GitHub. Não publique esses drafts, pois eles foram gerados pela lógica anterior e podem conter apenas parte dos assets.
-
-## Imagens GHCR
-
-A release publica:
+Para reconstrução manual:
 
 ```text
-ghcr.io/wkarts/tunnara-server:1.1.3
-ghcr.io/wkarts/tunnara-agent:1.1.3
-ghcr.io/wkarts/tunnara-console:1.1.3
-ghcr.io/wkarts/tunnara-control-api:1.1.3
-ghcr.io/wkarts/tunnara-quic-bridge:1.1.3
-ghcr.io/wkarts/tunnara-caddy-cloudflare:1.1.3
+Actions → Release after merge → Run workflow
+force_rebuild: true
 ```
+
+## Imagens GHCR esperadas
+
+```text
+ghcr.io/wkarts/tunnara-server:2.0.0-rc.1
+ghcr.io/wkarts/tunnara-agent:2.0.0-rc.1
+ghcr.io/wkarts/tunnara-console:2.0.0-rc.1
+ghcr.io/wkarts/tunnara-control-api:2.0.0-rc.1
+ghcr.io/wkarts/tunnara-quic-bridge:2.0.0-rc.1
+ghcr.io/wkarts/tunnara-caddy-cloudflare:2.0.0-rc.1
+```
+
+## Ambiente distribuído
+
+```bash
+cd deploy/docker
+./tunnara.sh init
+# configure domínio, Cloudflare e ACME no .env
+./tunnara.sh up-distributed
+./tunnara.sh bootstrap-distributed
+./tunnara.sh status-distributed
+```
+
+## Observabilidade
+
+```bash
+cd deploy/docker
+./tunnara.sh up-observability
+```
+
+## Kubernetes
+
+```bash
+helm upgrade --install tunnara deploy/helm/tunnara \
+  --namespace tunnara --create-namespace \
+  --set-string server.adminToken='tnr_admin_...' \
+  --set-string server.masterKey='...' \
+  --set-string server.clusterToken='tnr_cluster_...'
+```
+
+## Gates de promoção para GA
+
+A tag RC deve ser promovida para `2.0.0` somente após os testes descritos em `docs/security/MATURITY_GATES.md`.

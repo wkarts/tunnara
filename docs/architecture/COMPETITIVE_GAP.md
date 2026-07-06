@@ -1,58 +1,45 @@
-# Lacunas para paridade com ngrok e Pangolin
+# Alinhamento funcional com ngrok e Pangolin
 
-## Estado atual
+A Tunnara 2.0 RC busca paridade funcional, não compatibilidade binária ou de protocolo.
 
-A Tunnara possui um runtime de referência que cobre túneis HTTP/WebSocket, TCP/UDP, Agent, Relay, Edge, integração Cloudflare, ACME/Caddy, QUIC bridge, redes privadas e uma base de Console/SDKs.
+## Capacidades alinhadas
 
-Isso demonstra a arquitetura e permite implantações iniciais, mas ainda não equivale à maturidade operacional, segurança, experiência de usuário e ecossistema de ngrok ou Pangolin.
+| Área | Tunnara 2.0 RC |
+|---|---|
+| Agente iniciado de dentro da rede | Sim |
+| HTTP/HTTPS/WebSocket | Sim |
+| TCP/UDP | Sim |
+| Domínio próprio e subdomínio automático | Sim |
+| TLS automático | Sim |
+| QUIC | Sim, por bridge nativo |
+| Rede privada | Sim, WireGuard |
+| Multi-edge/multi-relay | Sim |
+| Múltiplos targets e failover | Sim |
+| Política no Edge | Sim |
+| JWT/OIDC, Basic Auth e API key | Sim |
+| Rate limit e transformações | Sim |
+| Request Inspector e replay | Sim |
+| Control Plane PostgreSQL/Redis | Sim |
+| Console e API | Sim |
+| Docker e Helm | Sim |
+| SDK C/Delphi | Sim |
+| Android/iOS | Projetos e pipelines entregues |
 
-## Prioridade P0 — produção segura e distribuída
+## Diferenças deliberadas
 
-- Unificar o Control API distribuído com o data plane; hoje o runtime Node usa SQLite/memory e o Laravel/PostgreSQL/MySQL/Redis permanece um plano modular separado.
-- Remover SQLite do caminho de HA real e implementar estado compartilhado, leases, locks, eleição e reconciliação.
-- Implementar RBAC/ABAC completo, organizações, usuários, equipes, convites e isolamento multi-tenant testado.
-- Implementar OIDC/OAuth2, SAML, MFA e gestão/revogação de sessões de usuários.
-- Criar policy engine no Edge para autenticação, IP/CIDR, rate limit, headers, redirects, rewrites e regras por request/response.
-- Hardening criptográfico, rotação automatizada, CA interna, mTLS e storage seguro de chaves.
-- Testes de carga, soak, caos, NAT real, perda de pacotes, MTU, reconexão e failover entre regiões.
-- Observabilidade de produção: métricas, tracing, logs estruturados, cardinalidade controlada, alertas e dashboards.
+- Não executa agentes nem protocolos proprietários do ngrok/Pangolin.
+- Cloudflare é uma integração opcional, não requisito do núcleo.
+- O runtime embedded permanece disponível para Community single-node.
+- O Control API distribuído é separado do plano de dados.
 
-## Prioridade P1 — paridade funcional
+## Lacunas para equivalência operacional de grande escala
 
-- NAT traversal direto entre clientes/sites com STUN/ICE-like discovery e relay apenas como fallback.
-- Clientes desktop e mobile totalmente funcionais e testados em hardware real.
-- Recursos de acesso privado por usuário, máquina, papel e política com deny-by-default.
-- DNS privado, split DNS, rotas sobrepostas, subnet routers e conflito de CIDR.
-- Browser-based SSH/RDP/VNC e gateways específicos de protocolo.
-- TLS passthrough, SNI routing, gRPC streaming, HTTP/2 e HTTP/3 completos.
-- Pooling/load balancing entre múltiplos Agents e targets com health checks ativos.
-- Domínios customizados com verificação de propriedade e múltiplos providers DNS.
-- Atualização assinada e rollback coordenado para Agent, Edge, Relay e Console.
-- Migrações compatíveis entre versões e política formal de compatibilidade de protocolo.
+- NAT traversal P2P/STUN/ICE ainda não substitui o relay em todos os cenários.
+- Kubernetes Operator e CRDs ainda não existem; há Helm Chart e recursos padrão.
+- SAML/SCIM/LDAP e device posture não estão completos.
+- Geo-routing/Anycast dependem da infraestrutura de implantação.
+- O Request Inspector ainda não possui armazenamento analítico de alta escala.
+- Não há certificação externa de segurança ou SLA público.
+- A escala global precisa ser comprovada em ambiente dedicado e multi-região.
 
-## Prioridade P2 — ecossistema e operação
-
-- Kubernetes Operator, Helm chart, Ingress e Gateway API.
-- Terraform provider e SDKs oficiais por linguagem.
-- API pública estável, paginada e versionada.
-- Auditoria exportável, SIEM, retenção configurável e relatórios.
-- Request inspection e replay seguro para desenvolvimento.
-- Usage metering, quotas, billing e planos.
-- Gestão de abuso, reputação, bloqueios e resposta a incidentes.
-- Instalação guiada, upgrade sem indisponibilidade e disaster recovery testado.
-- Documentação completa por cenário e suporte operacional.
-
-## Critério sugerido para afirmar paridade
-
-A Tunnara somente deve ser apresentada como equivalente de produção após:
-
-1. Control plane distribuído integrado ao data plane.
-2. Zero-trust identity e policy enforcement no Edge.
-3. Clientes Windows, Linux, macOS, Android e iOS testados.
-4. HA multi-host com PostgreSQL/Valkey ou Redis validada sob falhas.
-5. NAT traversal e private access completos.
-6. Observabilidade, segurança e testes de carga publicados.
-7. Instaladores, atualização assinada e migrações reproduzíveis.
-8. Kubernetes/Terraform e SDKs estáveis.
-
-Até lá, a descrição adequada é: plataforma self-hosted em desenvolvimento avançado, com runtime funcional de referência e recursos iniciais de túnel e rede privada.
+A versão RC é adequada para homologação e produção controlada. A promoção para GA depende dos gates documentados, não apenas de uma alteração de versão.

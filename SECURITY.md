@@ -2,57 +2,47 @@
 
 ## Comunicação responsável
 
-Não abra issue pública para vulnerabilidades. Utilize o canal privado configurado no GitHub Security Advisories do repositório.
+Não abra issue pública para vulnerabilidades. Utilize GitHub Security Advisories ou o canal privado definido pelo mantenedor. Inclua versão, componente, impacto, reprodução e mitigação, sem tokens, certificados ou dados reais.
 
-Inclua versão, componente, impacto, forma de reprodução e mitigação sugerida. Não inclua tokens, certificados ou dados reais de clientes.
+## Controles da série 2.0
 
-## Controles da versão 1.0.1
-
-- TLS 1.3 no QUIC e TLS configurável no Relay.
-- Let’s Encrypt automático por DNS-01.
-- Prova Ed25519, nonce e janela temporal por conexão Agent/Relay.
-- Tokens de provisionamento de uso único.
-- Tokens administrativos por hash e scopes.
-- Segredos Cloudflare criptografados com chave mestra AES-GCM.
+- TLS 1.3 no transporte QUIC e TLS configurável no Relay.
+- Agent com identidade Ed25519, nonce, timestamp e proteção contra replay.
+- Provisionamento descartável e sessões com expiração/revogação.
+- Tokens administrativos persistidos por hash e limitados por abilities.
 - Isolamento obrigatório por organização.
-- Restrição do Agent a loopback por padrão.
-- Rate limit local de provisionamento.
-- Auditoria de operações administrativas.
-- CSP e capacidades Tauri restritas conforme configuração do Console.
+- Segredos Cloudflare criptografados com chave mestra.
+- Agent limitado a destinos loopback por padrão.
+- Rate limits em provisionamento e Policy Engine.
+- Policy Engine com validação defensiva e limites estruturais.
+- Request Inspector com redação de Authorization, cookies e campos sensíveis.
+- Retenção configurável e manutenção automática de inspeções/auditoria.
+- NetworkPolicy, PDB e secrets no Helm Chart.
+- Fuzzing automatizado do Policy Engine.
 
-## Segredos de produção
+## Request Inspector
 
-Nunca versionar:
+A captura deve ser habilitada conscientemente por túnel. Antes de produção:
 
-- `.env`;
-- token Cloudflare;
-- chave mestra Tunnara;
-- token de cluster;
-- chaves privadas TLS/QUIC;
-- keystore Android;
-- certificados Apple;
-- provisioning profiles Apple;
-- chaves privadas App Store Connect;
-- service account do Google Play;
-- bancos e backups.
+- defina base legal e política de privacidade;
+- limite retenção e tamanho de body;
+- evite capturar credenciais, documentos e dados de saúde;
+- restrinja `audit:read` e acesso às inspeções;
+- use criptografia de volume/banco;
+- valide os padrões de redação específicos do negócio.
 
-Use secrets do GitHub, Docker secrets, Vault ou mecanismo equivalente.
+## Segredos
 
-## Cloudflare
-
-Use um API Token específico para a zona do Tunnara, com permissões mínimas `Zone:Read` e `DNS:Edit`. Não use Global API Key.
+Nunca versionar `.env`, tokens Cloudflare, master key, cluster token, chaves TLS/QUIC, keystores, certificados Apple, provisioning profiles, service accounts, bancos ou backups. Use GitHub Secrets, Docker/Kubernetes Secrets ou cofre dedicado.
 
 ## Alta disponibilidade
 
-Não compartilhe o arquivo SQLite em NFS entre múltiplos hosts. Para Control Plane multi-host, use PostgreSQL/datastore replicado. Edges e Relays são distribuíveis e não armazenam o estado empresarial principal.
+Não compartilhe SQLite por NFS. Instalações multi-Control devem usar PostgreSQL ou MySQL e Redis. Proteja a API interna com `TUNNARA_CLUSTER_TOKEN`, rede privada e, antes de GA, mTLS de serviço.
 
+## Builds e publicação
 
-## Builds mobile
+Build mobile não depende da publicação nas lojas. Assinatura, notarização e publicação são etapas opcionais e separadas. Binários de produção devem ser assinados antes de distribuição pública.
 
-Os workflows de compilação não exigem secrets de loja. Assinatura e publicação são etapas separadas:
+## Status RC
 
-- APK debug usa somente a chave de debug do ambiente de build;
-- APK/AAB release ficam sem assinatura quando o keystore não está disponível;
-- IPA sem assinatura não é instalável em dispositivos iOS comuns;
-- certificados, perfis e chaves de publicação são importados apenas em keychains temporários;
-- publicação Google Play/TestFlight é desabilitada por padrão e não bloqueia os artefatos de build.
+A versão `2.0.0-rc.1` não substitui pentest, auditoria externa, soak test ou avaliação jurídica. Consulte `docs/security/MATURITY_GATES.md`.

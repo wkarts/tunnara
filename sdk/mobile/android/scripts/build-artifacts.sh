@@ -11,7 +11,7 @@ if [[ -x "$ROOT/gradlew" ]]; then
 elif command -v gradle >/dev/null 2>&1; then
   GRADLE=(gradle -p "$ROOT")
 else
-  echo "Gradle não encontrado. Use o Gradle Wrapper ou instale Gradle 9.4.1+." >&2
+  echo "Gradle não encontrado. Use o Gradle Wrapper ou instale Gradle 8.10.2+." >&2
   exit 1
 fi
 
@@ -43,7 +43,7 @@ fi
 
 cp "$RELEASE_AAB" "$OUT_DIR/Tunnara-Android-v${VERSION}-release-${SIGNING_MODE}.aab"
 
-cat > "$OUT_DIR/build-metadata-android.json" <<JSON
+cat > "$OUT_DIR/build-metadata.json" <<JSON
 {
   "product": "Tunnara Mobile Android",
   "version": "$VERSION",
@@ -56,7 +56,7 @@ JSON
 
 (
   cd "$OUT_DIR"
-  sha256sum ./*.apk ./*.aab > SHA256SUMS-android.txt
+  sha256sum ./*.apk ./*.aab > SHA256SUMS.txt
 )
 
 printf 'Artefatos Android gerados em %s (%s).\n' "$OUT_DIR" "$SIGNING_MODE"
