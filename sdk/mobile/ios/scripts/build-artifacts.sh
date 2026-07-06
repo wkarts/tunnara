@@ -15,6 +15,8 @@ command -v xcodegen >/dev/null 2>&1 || { echo "xcodegen não encontrado; instale
 rm -rf "$OUT_DIR"
 mkdir -p "$OUT_DIR" "$UNSIGNED_BUILD" "$SIMULATOR_BUILD"
 
+"$ROOT/scripts/prepare-wireguard-kit.sh"
+
 (
   cd "$ROOT"
   xcodegen generate

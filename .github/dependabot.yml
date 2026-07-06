@@ -1,39 +1,148 @@
 version: 2
+
 updates:
   - package-ecosystem: npm
     directory: /
+    target-branch: main
     schedule:
       interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/Sao_Paulo
+    open-pull-requests-limit: 3
+    labels: [dependencies, javascript]
     groups:
-      root-tooling:
-        patterns: ['*']
+      root-tooling-minor-patch:
+        patterns: ["*"]
+        update-types: [minor, patch]
+    ignore:
+      - dependency-name: "*"
+        update-types: [version-update:semver-major]
 
   - package-ecosystem: npm
     directory: /apps/console
+    target-branch: main
     schedule:
       interval: weekly
+      day: monday
+      time: "06:10"
+      timezone: America/Sao_Paulo
+    open-pull-requests-limit: 4
+    labels: [dependencies, javascript]
+    groups:
+      console-npm-minor-patch:
+        patterns: ["*"]
+        update-types: [minor, patch]
+    ignore:
+      - dependency-name: "*"
+        update-types: [version-update:semver-major]
+      - dependency-name: pinia
+        versions: [">=3.0.0"]
+      - dependency-name: vue-router
+        versions: [">=5.0.0"]
+      - dependency-name: typescript
+        versions: [">=6.0.0"]
 
   - package-ecosystem: cargo
     directory: /
+    target-branch: main
     schedule:
       interval: weekly
+      day: monday
+      time: "06:20"
+      timezone: America/Sao_Paulo
+    open-pull-requests-limit: 4
+    labels: [dependencies, rust]
+    groups:
+      workspace-cargo-minor-patch:
+        patterns: ["*"]
+        update-types: [minor, patch]
+    ignore:
+      - dependency-name: "*"
+        update-types: [version-update:semver-major]
 
   - package-ecosystem: cargo
     directory: /apps/console/src-tauri
+    target-branch: main
     schedule:
       interval: weekly
+      day: monday
+      time: "06:30"
+      timezone: America/Sao_Paulo
+    open-pull-requests-limit: 4
+    labels: [dependencies, rust]
+    groups:
+      console-cargo-minor-patch:
+        patterns: ["*"]
+        update-types: [minor, patch]
+    ignore:
+      - dependency-name: "*"
+        update-types: [version-update:semver-major]
+      - dependency-name: rand
+        versions: [">=0.9.0"]
+      - dependency-name: sha1
+        versions: [">=0.11.0"]
+      - dependency-name: sha2
+        versions: [">=0.11.0"]
+      - dependency-name: hmac
+        versions: [">=0.13.0"]
+      - dependency-name: reqwest
+        versions: [">=0.13.0"]
+      - dependency-name: axum
+        versions: [">=0.8.0"]
+      - dependency-name: tower-http
+        versions: [">=0.7.0"]
 
   - package-ecosystem: composer
     directory: /apps/control-api
+    target-branch: main
     schedule:
       interval: weekly
+      day: monday
+      time: "06:40"
+      timezone: America/Sao_Paulo
+    open-pull-requests-limit: 4
+    labels: [dependencies, php]
+    groups:
+      control-api-minor-patch:
+        patterns: ["*"]
+        update-types: [minor, patch]
+    ignore:
+      - dependency-name: "*"
+        update-types: [version-update:semver-major]
 
   - package-ecosystem: gradle
     directory: /sdk/mobile/android
+    target-branch: main
     schedule:
       interval: weekly
+      day: monday
+      time: "06:50"
+      timezone: America/Sao_Paulo
+    open-pull-requests-limit: 4
+    labels: [dependencies, java]
+    groups:
+      android-minor-patch:
+        patterns: ["*"]
+        update-types: [minor, patch]
+    ignore:
+      - dependency-name: "*"
+        update-types: [version-update:semver-major]
 
   - package-ecosystem: github-actions
     directory: /
+    target-branch: main
     schedule:
       interval: weekly
+      day: monday
+      time: "07:00"
+      timezone: America/Sao_Paulo
+    open-pull-requests-limit: 4
+    labels: [dependencies, github_actions]
+    groups:
+      github-actions-minor-patch:
+        patterns: ["*"]
+        update-types: [minor, patch]
+    ignore:
+      - dependency-name: "*"
+        update-types: [version-update:semver-major]

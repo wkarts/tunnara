@@ -37,6 +37,18 @@ replaceRequired('apps/console/src/config/projectConfig.ts', /version:\s*"[^"]+"/
 replaceRequired('apps/control-api/.env.example', /^APP_VERSION=.*$/m, `APP_VERSION=${version}`, 'APP_VERSION');
 replaceRequired('apps/control-api/config/app.php', /'version' => env\('APP_VERSION', '[^']+'\)/, `'version' => env('APP_VERSION', '${version}')`, 'config.app.version');
 replaceRequired('runtime/node/lib/utils.mjs', /export const VERSION = '[^']+';/, `export const VERSION = '${version}';`, 'runtime VERSION');
+{
+  const file = 'ARTIFACT_MANIFEST.md';
+  const source = fs.readFileSync(file, 'utf8');
+  const current = source.match(/# Manifesto de artefatos — Tunnara Platform (\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)/)?.[1];
+  if (!current) throw new Error(`Não foi possível localizar artifact manifest version em ${file}`);
+  fs.writeFileSync(
+    file,
+    source
+      .replace(`# Manifesto de artefatos — Tunnara Platform ${current}`, `# Manifesto de artefatos — Tunnara Platform ${version}`)
+      .replaceAll(`v${current}`, `v${version}`),
+  );
+}
 replaceRequired('sdk/c/src/tunnara.c', /#define TUNNARA_VERSION "[^"]+"/, `#define TUNNARA_VERSION "${version}"`, 'TUNNARA_VERSION');
 replaceRequired('sdk/c/CMakeLists.txt', /project\(tunnara_sdk_c VERSION [^ )]+/, `project(tunnara_sdk_c VERSION ${version}`, 'CMake project version');
 replaceRequired('sdk/mobile/android/app/build.gradle.kts', /versionName = "[^"]+"/, `versionName = "${version}"`, 'Android versionName');
@@ -58,6 +70,7 @@ for (const absolute of walk(dockerDir)) {
   source = source.replace(/(TUNNARA_VERSION=)\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?/g, `$1${version}`);
   source = source.replace(/(APP_VERSION:\s*)\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?/g, `$1${version}`);
   source = source.replace(/(tunnara-(?:server|agent|console|control-api|caddy-cloudflare|quic-bridge):)\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?/g, `$1${version}`);
+  source = source.replace(/(tunnara-(?:server|agent|console|control-api|caddy-cloudflare|quic-bridge):\$\{TUNNARA_VERSION:-)\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(\})/g, `$1${version}$2`);
   fs.writeFileSync(absolute, source);
 }
 

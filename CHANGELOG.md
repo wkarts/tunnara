@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.1.2
+
+### Correções pós-merge e release
+
+- Corrigida a feature TLS do `reqwest 0.13` no workspace Rust (`rustls`) e alinhado o MSRV/imagem QUIC para Rust 1.85, eliminando a falha de resolução e a incompatibilidade posterior de toolchain.
+- Restauradas versões compatíveis de `rand`, `sha1` e `sha2` no Console Tauri, eliminando conflitos de API e de versões do crate `digest`.
+- Alinhado Android Gradle Plugin 9.2.1 com Gradle 9.4.1 e incluído smoke build Android em Pull Requests.
+- Corrigida a resolução do WireGuardKit no iOS por checkout local fixado, ajuste determinístico de `swift-tools-version` para 5.5 e target legado Xcode para compilar o bridge `wireguard-go` com Go 1.19.
+- Adicionadas compilações reais do workspace Rust, Console Tauri, Android e aplicativo iOS Simulator ao CI de Pull Requests.
+- Atualizadas GitHub Actions para runtimes Node 24 e isolado o cache Docker por imagem da matriz.
+- Reconfigurado Dependabot para agrupar atualizações minor/patch, limitar PRs simultâneos e bloquear majors automáticos sem migração validada.
+
 ## 1.1.1
 
 - Adicionados exemplos Docker Compose explícitos para ambiente local e VPS.

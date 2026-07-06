@@ -1,17 +1,17 @@
-# Manifesto de artefatos — Tunnara Platform 1.1.0
+# Manifesto de artefatos — Tunnara Platform 1.1.2
 
 ## Assets centrais
 
-- `tunnara-platform-v1.1.0-source.zip`
-- `tunnara-platform-v1.1.0-source.tar.gz`
-- `tunnara-platform-v1.1.0-github-ready.zip`
-- `tunnara-platform-v1.1.0-git-repository.bundle`
-- `tunnara-platform-v1.1.0-complete.zip`
-- `tunnara-console-web-v1.1.0.zip`
-- `tunnara-runtime-linux-x64-v1.1.0.zip`
-- `tunnara-runtime-linux-x64-v1.1.0.tar.gz`
-- `tunnara-sdk-c-linux-x64-v1.1.0.zip`
-- `Tunnara-Docker-v1.1.0.zip`
+- `tunnara-platform-v1.1.2-source.zip`
+- `tunnara-platform-v1.1.2-source.tar.gz`
+- `tunnara-platform-v1.1.2-github-ready.zip`
+- `tunnara-platform-v1.1.2-git-repository.bundle`
+- `tunnara-platform-v1.1.2-complete.zip`
+- `tunnara-console-web-v1.1.2.zip`
+- `tunnara-runtime-linux-x64-v1.1.2.zip`
+- `tunnara-runtime-linux-x64-v1.1.2.tar.gz`
+- `tunnara-sdk-c-linux-x64-v1.1.2.zip`
+- `Tunnara-Docker-v1.1.2.zip`
 - `release-manifest.json`
 - `SHA256SUMS.txt`
 
@@ -25,7 +25,7 @@
 
 ## Bundle Docker
 
-`Tunnara-Docker-v1.1.0.zip` contém:
+`Tunnara-Docker-v1.1.2.zip` contém:
 
 - Compose Community single-node;
 - Compose de produção Cloudflare/ACME/QUIC;
