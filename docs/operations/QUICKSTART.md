@@ -1,10 +1,32 @@
-# Quickstart — Tunnara 1.0.0
+# Quickstart — Tunnara 1.1.0
 
-## Desenvolvimento local
+## Docker
 
 ```bash
+git clone https://github.com/wkarts/tunnara.git
+cd tunnara
+./docker.sh quickstart
+```
+
+Verifique:
+
+```bash
+./docker.sh health
+./docker.sh urls
+./docker.sh token
+```
+
+Crie um token de Agent:
+
+```bash
+./docker.sh provision notebook
+```
+
+## Código-fonte local
+
+```bash
+npm ci
 export TUNNARA_BOOTSTRAP_ADMIN_TOKEN="tnr_admin_$(openssl rand -hex 24)"
-export TUNNARA_BASE_DOMAIN=tunnara.local
 node runtime/node/bin/tunnara-server.mjs serve-all
 ```
 
@@ -17,13 +39,8 @@ node runtime/node/bin/tunnara.mjs admin provision \
   --name notebook
 ```
 
-Use o token retornado:
+## Próximos passos
 
-```bash
-node runtime/node/bin/tunnara.mjs login --token TOKEN --control-url http://127.0.0.1:7100
-node runtime/node/bin/tunnara.mjs http 8080 --domain app.tunnara.local
-```
-
-## Produção
-
-Consulte `docs/operations/PRODUCTION.md` e execute `deploy/docker/tunnara.sh up-production`.
+- Docker: `docs/operations/DOCKER_DEPLOYMENT.md`.
+- Produção: `docs/operations/PRODUCTION.md`.
+- Storage: `docs/operations/STORAGE_PROVIDERS.md`.

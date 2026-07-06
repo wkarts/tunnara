@@ -1,0 +1,6 @@
+services:
+  quic-bridge:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/quic/Dockerfile
+    pull_policy: build

@@ -1,7 +1,7 @@
 {
   "name": "tunnara-platform",
   "private": true,
-  "version": "1.0.1",
+  "version": "1.1.1",
   "description": "Plataforma self-hosted de túneis seguros, edge networking e conectividade privada.",
   "license": "AGPL-3.0-or-later",
   "scripts": {
@@ -11,8 +11,7 @@
     "console:typecheck": "npm --prefix apps/console run typecheck",
     "version:check": "node scripts/version/check-version.mjs",
     "version:set": "node scripts/version/set-version.mjs",
-    "release": "semantic-release",
-    "validate": "npm run repository:check && npm run version:check && npm run validate:node && npm run validate:shell && npm run validate:php && npm run validate:storage && npm run runtime:test && npm run sdk:c:test && npm run console:typecheck && npm run console:build",
+    "validate": "npm run repository:check && npm run version:check && npm run validate:node && npm run validate:shell && npm run validate:php && npm run validate:storage && npm run validate:release && npm run validate:docker && npm run runtime:test && npm run sdk:c:test && npm run console:typecheck && npm run console:build",
     "artifacts:package": "bash scripts/release/package-artifacts.sh",
     "validate:php": "find apps/control-api -type f -name '*.php' -print0 | xargs -0 -n1 php -l",
     "runtime:server": "node runtime/node/bin/tunnara-server.mjs serve-all",
@@ -35,17 +34,11 @@
     "mobile:ios:build": "bash sdk/mobile/ios/scripts/build-artifacts.sh",
     "mobile:validate:scripts": "bash -n sdk/mobile/android/scripts/build-artifacts.sh && bash -n sdk/mobile/ios/scripts/build-artifacts.sh && bash -n sdk/mobile/ios/scripts/sign-and-export.sh",
     "validate:storage": "node scripts/ci/validate-storage-profiles.mjs",
-    "validate:release": "node scripts/ci/validate-release-pipeline.mjs"
+    "validate:release": "node scripts/ci/validate-release-pipeline.mjs",
+    "validate:docker": "node scripts/ci/validate-docker-deployment.mjs"
   },
   "devDependencies": {
-    "@semantic-release/changelog": "^6.0.3",
-    "@semantic-release/commit-analyzer": "^13.0.1",
-    "@semantic-release/exec": "^7.1.0",
-    "@semantic-release/git": "^10.0.1",
-    "@semantic-release/github": "^12.0.9",
-    "@semantic-release/release-notes-generator": "^14.1.1",
     "esbuild": "^0.28.1",
-    "postject": "^1.0.0-alpha.6",
-    "semantic-release": "^25.0.3"
+    "postject": "^1.0.0-alpha.6"
   }
 }

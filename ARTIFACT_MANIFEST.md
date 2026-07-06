@@ -1,86 +1,39 @@
-# Manifesto de artefatos — Tunnara Platform 1.0.1
+# Manifesto de artefatos — Tunnara Platform 1.1.0
 
-## Pacotes de distribuição
+## Assets centrais
 
-- `Tunnara-Platform-v1.0.1-GitHub-Ready.zip`: repositório limpo para publicação.
-- `Tunnara-Platform-v1.0.1-Git-Repository.bundle`: branch `main` e tag `v1.0.1`.
-- `Tunnara-Platform-v1.0.1-Pacote-Completo.zip`: fontes, Console compilado, runtime e SDK C Linux.
-- `Tunnara-Platform-v1.0.1-Codigo-Fonte.zip` e `.tar.gz`.
-- `Tunnara-Console-Web-v1.0.1.zip`.
-- `Tunnara-Runtime-Linux-x64-v1.0.1.zip` e `.tar.gz`.
-- `Tunnara-SDK-C-Linux-x64-v1.0.1.zip`.
-- `Tunnara-Platform-v1.0.1-SHA256SUMS.txt`.
+- `tunnara-platform-v1.1.0-source.zip`
+- `tunnara-platform-v1.1.0-source.tar.gz`
+- `tunnara-platform-v1.1.0-github-ready.zip`
+- `tunnara-platform-v1.1.0-git-repository.bundle`
+- `tunnara-platform-v1.1.0-complete.zip`
+- `tunnara-console-web-v1.1.0.zip`
+- `tunnara-runtime-linux-x64-v1.1.0.zip`
+- `tunnara-runtime-linux-x64-v1.1.0.tar.gz`
+- `tunnara-sdk-c-linux-x64-v1.1.0.zip`
+- `Tunnara-Docker-v1.1.0.zip`
+- `release-manifest.json`
+- `SHA256SUMS.txt`
 
-## Distribuição mobile pelo GitHub Actions
+## Assets multiplataforma gerados pelo GitHub Actions
 
-Os binários mobile são gerados após o upload do repositório:
+- Runtime Agent, Server e QUIC Bridge para Linux x64, Windows x64, macOS ARM64 e macOS x64.
+- SDK C para Linux x64, Windows x64, macOS ARM64 e macOS x64.
+- Instaladores Tauri para Linux, Windows e macOS.
+- APK/AAB Android e IPA/simulador iOS conforme disponibilidade de assinatura.
+- Imagens OCI `amd64` e `arm64` para Server, Agent, Console, Control API, QUIC Bridge e Caddy Cloudflare.
 
-### Android sem secrets
+## Bundle Docker
 
-- `Tunnara-Android-v1.0.1-debug-installable.apk`;
-- `Tunnara-Android-v1.0.1-release-unsigned.apk`;
-- `Tunnara-Android-v1.0.1-release-unsigned.aab`.
+`Tunnara-Docker-v1.1.0.zip` contém:
 
-### Android com secrets de assinatura
+- Compose Community single-node;
+- Compose de produção Cloudflare/ACME/QUIC;
+- Compose HA;
+- perfis SQLite/PostgreSQL/MySQL/Redis da Control API;
+- scripts de instalação, atualização, diagnóstico, backup e restore;
+- documentação operacional.
 
-- `Tunnara-Android-v1.0.1-release-signed.apk`;
-- `Tunnara-Android-v1.0.1-release-signed.aab`.
+## Política de release
 
-### iOS sem secrets
-
-- `Tunnara-iOS-v1.0.1-simulator-app.zip`;
-- `Tunnara-iOS-v1.0.1-unsigned.ipa`.
-
-### iOS com certificado e perfis
-
-- `Tunnara-iOS-v1.0.1-<método>-signed.ipa`.
-
-A publicação nas lojas é opcional e não faz parte do job de compilação.
-
-## Componentes
-
-- Control, Edge, Relay e Agent runtime.
-- QUIC crate e QUIC Bridge Rust.
-- Console Vue/Tauri.
-- Cloudflare, ACME/Let’s Encrypt e Caddy HTTP/3.
-- TCP/UDP, WireGuard e redes privadas.
-- Multi-edge/multi-relay e HA.
-- SDK C e Delphi.
-- Clientes Android e iOS.
-- Docker, CloudPanel, native, systemd e GitHub Actions.
-
-## Binários locais incluídos
-
-- `tunnara-agent-linux-x64`;
-- `tunnara-server-linux-x64`;
-- `libtunnara.so` e `libtunnara.a`.
-
-Os artefatos Android/iOS são gerados nos runners oficiais, pois Android SDK e Xcode não estão disponíveis no ambiente Linux utilizado para montar este pacote.
-
-## Correção do primeiro PR
-
-Esta revisão inclui:
-
-- CI rápido sem artifacts em PR/push;
-- remoção de `macos-13`;
-- limpeza manual da cota de Actions artifacts;
-- registry npm público;
-- suporte SQLite/PostgreSQL/MySQL;
-- estado em memória, arquivos, banco ou Redis;
-- runtime embedded SQLite/memory;
-- Docker e modelos nativos para os provedores.
-
-## Pacotes
-
-- `Tunnara-Platform-v1.0.1-CI-Storage-Fix-GitHub-Ready.zip`;
-- `Tunnara-Platform-v1.0.1-CI-Storage-Fix-Pacote-Completo.zip`;
-- `Tunnara-Platform-v1.0.1-CI-Storage-Fix-Codigo-Fonte.zip`;
-- `Tunnara-Platform-v1.0.1-CI-Storage-Fix.patch`;
-- `Tunnara-Platform-v1.0.1-CI-Storage-Fix-Arquivos-Alterados.zip`;
-- `Tunnara-Platform-v1.0.1-CI-Storage-Fix-Git-Repository.bundle`;
-- Console Web, Runtime Linux e SDK C Linux;
-- checksums SHA-256.
-
-## Builds mobile
-
-O workflow de release mobile anexa APK, AAB e IPA diretamente a uma GitHub Release e não usa o armazenamento temporário de artifacts. O workflow rápido de PR apenas valida configuração e versões.
+A release permanece em draft até que os assets centrais e todos os builds obrigatórios terminem. Os arquivos são anexados diretamente à GitHub Release; o pipeline não utiliza Actions Artifact Storage.

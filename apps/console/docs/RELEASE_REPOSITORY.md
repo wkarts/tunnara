@@ -1,25 +1,20 @@
 # Release e repositório GitHub
 
-O template não deve apontar para um repositório fixo.
+O Console faz parte da release unificada da Tunnara e não executa um release próprio.
 
-A configuração de release usa esta ordem:
-
-1. `REPOSITORY_URL`, quando definida explicitamente;
-2. `GITHUB_SERVER_URL` + `GITHUB_REPOSITORY`, no GitHub Actions;
-3. autodetecção padrão do `semantic-release`, quando executado localmente.
-
-Isso evita erro como:
+A publicação é coordenada pelo workflow raiz:
 
 ```text
-remote: Repository not found.
-fatal: repository 'https://github.com/<org>/<repo>.git/' not found
+.github/workflows/release.yml
 ```
 
-## Exemplo opcional
+A versão vem do arquivo `VERSION`. Quando esse arquivo muda em `main`, o fluxo cria ou retoma uma GitHub Release em draft, compila todos os componentes e somente publica a release depois do sucesso dos builds obrigatórios.
 
-```yaml
-env:
-  REPOSITORY_URL: https://github.com/sua-org/seu-repositorio.git
+Para repositórios derivados, ajuste as imagens e o instalador em:
+
+```text
+deploy/docker/.env.example
+deploy/docker/install-from-github.sh
 ```
 
-Na maioria dos repositórios GitHub, não é necessário configurar `REPOSITORY_URL`.
+O workflow utiliza `GITHUB_REPOSITORY` e `GITHUB_REPOSITORY_OWNER`; não existe URL fixa de release no Console.

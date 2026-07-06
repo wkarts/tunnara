@@ -1,85 +1,106 @@
-# Tunnara Platform 1.0.1
+# Tunnara Platform 1.1.0
 
-A Tunnara é uma plataforma self-hosted de conectividade para publicar serviços atrás de NAT/CGNAT, criar túneis HTTP/HTTPS/TCP/UDP, formar redes privadas WireGuard e integrar aplicações por SDK.
+A Tunnara é uma plataforma self-hosted de conectividade para publicar serviços atrás de NAT/CGNAT, criar túneis HTTP/HTTPS/WebSocket/TCP/UDP, operar redes privadas WireGuard e integrar aplicações por CLI e SDK.
 
-## Capacidades entregues
+## O que esta versão entrega
 
-- Control API multi-tenant com tokens por escopo, provisionamento de uso único, auditoria e revogação.
-- Edge HTTP/HTTPS com roteamento por hostname, WebSocket/upgrade, TCP e UDP público.
-- Relay persistente e multiplexado, reconexão, heartbeat e failover entre múltiplos relays.
-- Agent multiplataforma, CLI, daemon, API local, destinos loopback por padrão e reconexão automática.
-- Transporte TCP/TLS e transporte QUIC/TLS 1.3 pelo `tunnara-quic-bridge`.
-- Caddy HTTP/1.1, HTTP/2 e HTTP/3 na borda.
-- Cloudflare DNS API: validação de token/zona, registros base, wildcard e subdomínios por túnel.
-- SSL automático Let’s Encrypt por ACME DNS-01, incluindo certificado wildcard.
-- Cloudflare Tunnel opcional usando QUIC.
-- Multi-edge e multi-relay com registro de nós, heartbeat, descoberta e failover do plano de dados.
-- Redes privadas WireGuard, peers, CIDR virtual, topologia mesh ou hub-spoke e lifecycle pelo Agent.
-- SDK C ABI compartilhado/estático e unit Delphi com HTTP, TCP, UDP e redes privadas.
-- Cliente Android com `VpnService`/WireGuard e cliente iOS com Network Extension/WireGuardKit.
-- Console Vue 3/Tauri para agentes, túneis, DNS/Cloudflare, nós, redes e auditoria.
-- Docker Compose single-node, Cloudflare/ACME/QUIC e stack HA.
-- Instalação nativa, CloudPanel, systemd, Windows e macOS.
-- GitHub Actions para CI, releases, containers, desktop, SDKs e mobile.
+- Runtime funcional com Control, Edge, Relay e Agent.
+- Túneis HTTP/HTTPS, WebSocket, TCP e UDP.
+- Transporte Agent–Relay por TCP/TLS ou QUIC/TLS 1.3.
+- Cloudflare DNS, subdomínios automáticos e wildcard.
+- Let’s Encrypt por ACME DNS-01, HTTP/2 e HTTP/3 com Caddy.
+- Multi-edge, multi-relay, heartbeat e failover.
+- Redes privadas WireGuard.
+- Console Vue 3/Tauri.
+- SDK C ABI e integração Delphi.
+- Projetos Android e iOS.
+- Docker, CloudPanel, serviços nativos e GitHub Releases.
 
-## Arquitetura
+## Exemplos Docker Compose prontos
+
+Para quem deseja montar a stack diretamente, sem depender dos scripts auxiliares, o repositório inclui:
 
 ```text
-                              ┌─────────────────────┐
-                              │ Tunnara Console     │
-                              └──────────┬──────────┘
-                                         │ REST
-                              ┌──────────▼──────────┐
-                              │ Control API         │
-                              │ tenants, tokens,    │
-                              │ DNS, nodes, redes   │
-                              └─────┬─────────┬─────┘
-                                    │         │
-                          cluster   │         │ provisioning
-                                    │         │
-          ┌─────────────────────────▼──┐   ┌──▼───────────────────┐
-Internet ─► Edge HTTP/HTTPS/TCP/UDP    │   │ Agent / SDK          │
-          └──────────────────┬─────────┘   │ localhost / rede     │
-                             │             └──────────▲───────────┘
-                             ▼                        │
-                    ┌──────────────────┐              │
-                    │ Relay distribuído├──────────────┘
-                    └──────────────────┘   TCP/TLS ou QUIC/TLS 1.3
+docker-compose.example.yml                         # local/VPS sem TLS
+deploy/docker/examples/docker-compose.local.yml   # exemplo local
+deploy/docker/examples/docker-compose.vps.yml     # VPS + Cloudflare + Let's Encrypt + QUIC
 ```
 
-## Início rápido de produção: Cloudflare + Let’s Encrypt + QUIC
+Guia passo a passo: [`docs/operations/VPS_DOCKER_QUICKSTART.md`](docs/operations/VPS_DOCKER_QUICKSTART.md).
 
-Requisitos:
+## Instalação Docker mais simples
 
-- VPS Linux com Docker Engine e Docker Compose v2.
-- Domínio administrado pela Cloudflare.
-- API Token Cloudflare restrito à zona, com leitura da zona e edição de DNS.
-- Portas públicas `80/tcp`, `443/tcp`, `443/udp`, `7443/udp` e a faixa TCP/UDP configurada.
+### Usando as imagens da release
+
+```bash
+git clone https://github.com/wkarts/tunnara.git
+cd tunnara
+./docker.sh quickstart
+```
+
+O comando:
+
+1. cria `deploy/docker/.env` a partir do modelo;
+2. gera token administrativo, chave mestra e cluster token;
+3. valida Docker e o Compose;
+4. baixa as imagens publicadas no GHCR;
+5. inicia Server e Console;
+6. aguarda os health checks.
+
+Endereços locais padrão:
+
+```text
+Console: http://localhost:7400
+Control: http://127.0.0.1:7100
+Edge:    http://localhost:8080
+Relay:   tcp://localhost:7300
+```
+
+Obtenha o token administrativo:
+
+```bash
+./docker.sh token
+```
+
+Gere um token para instalar um Agent:
+
+```bash
+./docker.sh provision servidor-erp
+```
+
+### Construindo localmente
+
+```bash
+./docker.sh quickstart-build
+```
+
+Esse modo usa o código-fonte atual e não depende das imagens do GHCR.
+
+## Produção com Cloudflare e SSL automático
 
 ```bash
 cd deploy/docker
-cp .env.example .env
 ./tunnara.sh init
 ```
 
-Edite `.env`:
+Edite `deploy/docker/.env`:
 
 ```dotenv
 TUNNARA_BASE_DOMAIN=tunnel.seudominio.com.br
 TUNNARA_PUBLIC_HOST=edge.seudominio.com.br
 TUNNARA_PUBLIC_CONTROL_URL=https://control.tunnel.seudominio.com.br
 TUNNARA_PUBLIC_RELAY_URL=quic://relay.tunnel.seudominio.com.br:7443
+TUNNARA_PUBLIC_SCHEME=https
 TUNNARA_CORS_ORIGIN=https://console.tunnel.seudominio.com.br
 
 CLOUDFLARE_ZONE_NAME=seudominio.com.br
 CLOUDFLARE_API_TOKEN=TOKEN_RESTRITO_DA_ZONA
 TUNNARA_ACME_EMAIL=administrador@seudominio.com.br
-TUNNARA_ACME_CA=https://acme-v02.api.letsencrypt.org/directory
 TUNNARA_CLOUDFLARE_EDGE_ADDRESS=IP_PUBLICO_DA_VPS
 TUNNARA_QUIC_PUBLIC_HOST=relay.tunnel.seudominio.com.br
 ```
 
-Suba a plataforma:
+Depois:
 
 ```bash
 ./tunnara.sh preflight
@@ -87,192 +108,80 @@ Suba a plataforma:
 ./tunnara.sh status-production
 ```
 
-Esse comando:
+A stack cria ou atualiza os registros DNS, solicita o wildcard Let’s Encrypt, publica HTTPS/HTTP3 e disponibiliza o Relay QUIC.
 
-1. inicia Server, Console, Caddy e QUIC Bridge;
-2. valida a integração Cloudflare;
-3. cria/atualiza `control`, `console`, `relay`, domínio raiz e wildcard;
-4. emite e renova certificados Let’s Encrypt por DNS-01;
-5. habilita HTTP/3 em `443/udp`;
-6. publica o Relay em QUIC na porta `7443/udp`.
-
-## Registrar um Agent
-
-No servidor:
+## Operação Docker
 
 ```bash
-cd deploy/docker
-./tunnara.sh provision servidor-erp
+./docker.sh doctor
+./docker.sh health
+./docker.sh urls
+./docker.sh status
+./docker.sh logs
+./docker.sh update
+./docker.sh backup
 ```
 
-No cliente, instale `tunnara` e `tunnara-quic-bridge`, depois:
+Documentação detalhada: [`docs/operations/DOCKER_DEPLOYMENT.md`](docs/operations/DOCKER_DEPLOYMENT.md).
 
-```bash
-tunnara login \
-  --token tnr_prov_TOKEN \
-  --name servidor-erp \
-  --control-url https://control.tunnel.seudominio.com.br
+Análise honesta das lacunas para paridade com ngrok/Pangolin: [`docs/architecture/COMPETITIVE_GAP.md`](docs/architecture/COMPETITIVE_GAP.md).
 
-tunnara serve
-```
+## Storage e bancos
 
-Quando a Control API anuncia `quic://relay...`, o Agent inicia automaticamente o bridge QUIC. Certificados públicos do Let’s Encrypt usam o repositório de CAs do sistema; `--quic-ca` é necessário apenas para uma CA privada.
+A Tunnara possui dois perfis:
 
-## Criar túneis
+### Runtime embarcado funcional
 
-```bash
-# HTTP com subdomínio automático Cloudflare
-tunnara http 8080 --domain erp.tunnel.seudominio.com.br --auto-dns
+- `sqlite`: persistência local e backup.
+- `memory`: execução efêmera.
 
-# HTTPS de aplicação
-tunnara https 8443 --domain api.tunnel.seudominio.com.br --auto-dns
+Esse runtime executa o caminho de dados completo e é o perfil padrão da Community Edition.
 
-# TCP público
-tunnara tcp 22 --remote-port 22022
+### Control API Laravel
 
-# UDP público
-tunnara udp 51820 --remote-port 25182
-```
+O plano de gestão em `apps/control-api` suporta:
 
-Subdomínios dentro do domínio base são cobertos pelo wildcard Let’s Encrypt. O lifecycle DNS pode ser vinculado ao túnel: criação no cadastro e remoção ao excluir.
-
-## Redes privadas WireGuard
-
-No Console, crie uma rede com CIDR e topologia. No Agent:
-
-```bash
-tunnara network list
-tunnara network join UUID_DA_REDE
-tunnara network leave UUID_DA_REDE
-```
-
-Linux requer `wireguard-tools`; Windows requer WireGuard oficial; macOS pode usar `wireguard-go`/WireGuard; Android e iOS usam os backends nativos incluídos nos projetos mobile.
-
-## Alta disponibilidade
-
-```bash
-cd deploy/docker
-./tunnara.sh up-ha
-```
-
-A stack HA inclui:
-
-- dois Controls atrás de HAProxy para redundância local;
-- dois Relays registrados no Control Plane;
-- dois Edges;
-- descoberta de presença do Agent;
-- lista de relays no provisionamento;
-- reconexão/failover automático do Agent;
-- Caddy com HTTP/3 e wildcard ACME.
-
-Para múltiplos hosts, execute Edges e Relays em VPS distintas usando o mesmo `TUNNARA_CLUSTER_TOKEN` e uma Control API central. Para HA do banco/control plane entre hosts, use a implementação Laravel/PostgreSQL ou um datastore replicado; não compartilhe SQLite por NFS.
-
-## Cloudflare Tunnel opcional
-
-Além do DNS normal, a composição pode iniciar um Cloudflare Tunnel:
-
-```bash
-# Configure CLOUDFLARED_TUNNEL_TOKEN no .env
-./tunnara.sh up-cloudflare-tunnel
-```
-
-O `cloudflared` usa QUIC e conexões de saída. Túneis TCP/UDP públicos diretos continuam exigindo portas públicas ou produtos Cloudflare compatíveis com esses protocolos.
-
-## SDK C ABI
-
-```bash
-npm run sdk:c:test
-```
-
-Artefatos:
-
-- Windows: `tunnara.dll`, `.lib` e biblioteca estática.
-- Linux: `libtunnara.so` e `libtunnara.a`.
-- macOS: `libtunnara.dylib` e `libtunnara.a`.
-
-Funções disponíveis:
-
-- status do Agent;
-- listar/criar/excluir túneis HTTP/TCP/UDP;
-- listar/entrar/sair de redes privadas;
-- tratamento de erro e memória com ABI estável por handles opacos.
-
-## Delphi
-
-A unit `sdk/delphi/TunnaraAgent.pas` carrega a biblioteca dinamicamente e expõe:
-
-```pascal
-Agent := TTunnaraAgent.Create('127.0.0.1', 7390, LocalApiToken);
-try
-  Json := Agent.CreateHttpTunnel(8080, 'erp.tunnel.seudominio.com.br', True);
-  Json := Agent.CreateTcpTunnel(3050, 23050);
-  Json := Agent.JoinNetwork(NetworkId, True);
-finally
-  Agent.Free;
-end;
-```
-
-Há exemplos e documentação em `sdk/delphi`.
-
-## Android e iOS
-
-- Android: projeto Gradle/Kotlin com WireGuard userspace e autorização `VpnService`.
-- iOS: SwiftUI, `NETunnelProviderManager`, Packet Tunnel Network Extension e WireGuardKit.
-
-Os builds mobile são independentes das lojas:
-
-- sem secrets, o Android gera APK debug instalável, APK release sem assinatura e AAB sem assinatura;
-- sem credenciais Apple, o iOS gera aplicativo de Simulator e IPA `iphoneos` sem assinatura;
-- com secrets de assinatura, os mesmos workflows acrescentam APK/AAB e IPA assinados;
-- Google Play e TestFlight são jobs opcionais, desabilitados por padrão, e não impedem a geração dos binários.
-
-O IPA sem assinatura serve para CI, auditoria e assinatura posterior, mas não instala em dispositivos iOS comuns. Consulte `docs/mobile/BUILD_AND_DISTRIBUTION.md`.
-
-
-## Bancos, cache e modos de implantação
-
-A Tunnara não ficou limitada ao SQLite. Há dois perfis explícitos:
-
-- **runtime embarcado:** SQLite persistente ou memória efêmera;
-- **Control API distribuída:** SQLite, PostgreSQL ou MySQL, combinados com estado em memória, arquivos locais, tabelas do banco ou Redis.
-
-Exemplos Docker:
+- SQLite;
+- PostgreSQL;
+- MySQL/MariaDB;
+- cache, sessão e filas por arquivo, banco, memória ou Redis.
 
 ```bash
 cd deploy/docker/storage
 ./storage.sh init
-./storage.sh up sqlite local
 ./storage.sh up postgres redis
-./storage.sh up mysql database
 ```
 
-Consulte `docs/operations/STORAGE_PROVIDERS.md`. A composição de alta disponibilidade não compartilha mais um único arquivo SQLite entre dois Controls: ela mantém um Control embarcado e redundância no plano de dados. Para HA completa do plano de gestão, utilize PostgreSQL/MySQL e Redis.
+A separação entre os dois perfis está documentada em [`docs/operations/STORAGE_PROVIDERS.md`](docs/operations/STORAGE_PROVIDERS.md). PostgreSQL/MySQL/Redis não substituem silenciosamente o banco do runtime embarcado; eles pertencem ao plano de gestão distribuído.
 
-## Validações rápidas no GitHub
-
-Pull requests e commits não geram artifacts de distribuição. Os checks rápidos executam testes, typecheck e validações estáticas; SDKs, executáveis, mobile e desktop são compilados somente em tags ou execução manual e anexados diretamente à GitHub Release.
-
-O runner `macos-13` foi removido de todas as matrizes. Há também um workflow manual para limpar artifacts antigos que estejam consumindo a cota. Consulte `docs/operations/GITHUB_ACTIONS.md`.
-
-## GitHub
+## CLI do Agent
 
 ```bash
-gh auth login
-./scripts/github/publish.sh SUA_ORGANIZACAO tunnara public
+tunnara login --token TOKEN --control-url https://control.tunnel.seudominio.com.br
+tunnara serve
+
+tunnara http 8080 --domain erp.tunnel.seudominio.com.br --auto-dns
+tunnara tcp 22 --remote-port 22022
+tunnara udp 51820 --remote-port 25182
+
+tunnara network list
+tunnara network join UUID_DA_REDE
 ```
 
-Pipelines disponíveis:
+## Releases e GitHub Actions
 
-- testes Node e end-to-end;
-- Vue/Tauri;
-- Rust, QUIC e Laravel;
-- imagens multi-arquitetura no GHCR;
-- executáveis Agent/Server;
-- SDK C multiplataforma;
-- APK/AAB Android e IPA/projeto iOS;
-- CodeQL, Dependabot, SBOM, provenance e checksums.
+Pull Requests executam apenas validações, sem gerar artifacts temporários. Uma nova release é iniciada somente quando o arquivo `VERSION` muda em `main`.
 
-## Validação
+O workflow cria uma release draft, compila o núcleo, chama os workflows reutilizáveis de Runtime, SDK, Desktop, Mobile e Containers e publica a release somente quando todos os builds obrigatórios terminam.
+
+```bash
+npm run version:set -- 1.1.1
+npm run version:check
+```
+
+Consulte [`docs/operations/RELEASE_PROCESS.md`](docs/operations/RELEASE_PROCESS.md).
+
+## Desenvolvimento
 
 ```bash
 npm ci
@@ -280,22 +189,20 @@ npm --prefix apps/console ci
 npm run validate
 ```
 
-O conjunto cobre HTTP/WebSocket, TCP, UDP, Cloudflare/DNS, multi-edge/relay, failover, WireGuard, redes privadas, configuração ACME/HTTP3/QUIC, SDK C e Console.
+Testes funcionais cobrem HTTP/WebSocket, TCP, UDP, Cloudflare, failover, WireGuard e redes privadas.
 
-## Limites externos
+## Estrutura
 
-Para operar em produção são necessários dados que não podem ser embutidos no código:
-
-- domínio e API Token Cloudflare;
-- e-mail ACME;
-- endereço IP ou hostname público;
-- certificados de assinatura de código;
-- keystore Android;
-- conta, equipe, certificados e provisioning profiles Apple.
+```text
+apps/        Console e Control API
+runtime/     Server/Agent funcional de referência
+crates/      Núcleo e transporte Rust
+services/    Serviços Rust
+sdk/         C, Delphi, Android e iOS
+deploy/      Docker, CloudPanel e instalações nativas
+docs/        Arquitetura e operação
+```
 
 ## Licenciamento
 
-- Servidor e Console: `AGPL-3.0-or-later`.
-- SDKs e QUIC Bridge: `Apache-2.0` conforme arquivos específicos.
-
-Revise a estratégia com assessoria jurídica antes de uma oferta comercial.
+Consulte `LICENSE` e `LICENSE-NOTICE.md`.

@@ -1,20 +1,24 @@
 name: Runtime executables
 
 on:
+  workflow_call:
+    inputs:
+      release_tag:
+        description: 'Tag da GitHub Release draft que receberá os executáveis'
+        required: true
+        type: string
   workflow_dispatch:
     inputs:
       release_tag:
-        description: 'Tag de uma GitHub Release existente ou nova (opcional)'
-        required: false
+        description: 'Tag da GitHub Release existente que receberá os executáveis'
+        required: true
         type: string
-  push:
-    tags: ['v*.*.*']
 
 permissions:
   contents: write
 
 concurrency:
-  group: runtime-release-${{ github.ref }}-${{ inputs.release_tag || 'tag' }}
+  group: runtime-${{ inputs.release_tag }}
   cancel-in-progress: false
 
 jobs:
@@ -26,51 +30,60 @@ jobs:
           - os: ubuntu-24.04
             suffix: linux-x64
             ext: ''
-            archive: tar.gz
           - os: windows-latest
             suffix: windows-x64
             ext: '.exe'
-            archive: zip
-          - os: macos-14
+          - os: macos-15
             suffix: macos-arm64
             ext: ''
-            archive: tar.gz
+          - os: macos-15-intel
+            suffix: macos-x64
+            ext: ''
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 35
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
-      - name: Resolve release tag
-        id: release
+
+      - name: Ensure target release exists
         shell: bash
         env:
-          REQUESTED_TAG: ${{ inputs.release_tag }}
-        run: |
-          tag="${REQUESTED_TAG:-$GITHUB_REF_NAME}"
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.release_tag }}
+        run: gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null
+
       - uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: package-lock.json
+
       - name: Install dependencies
         shell: bash
         run: bash scripts/ci/npm-ci.sh .
+
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: runtime-${{ matrix.suffix }}
+
       - name: Build QUIC bridge
         run: cargo build --release -p tunnara-quic-bridge
+
       - name: Build Agent and Server
         shell: bash
         run: |
+          mkdir -p dist
           node scripts/release/build-sea.mjs agent "dist/tunnara-agent-${{ matrix.suffix }}${{ matrix.ext }}"
           node scripts/release/build-sea.mjs server "dist/tunnara-server-${{ matrix.suffix }}${{ matrix.ext }}"
           cp "target/release/tunnara-quic-bridge${{ matrix.ext }}" "dist/tunnara-quic-bridge-${{ matrix.suffix }}${{ matrix.ext }}"
+
       - name: Smoke test
         shell: bash
         run: |
-          ./dist/tunnara-agent-${{ matrix.suffix }}${{ matrix.ext }} --version
-          ./dist/tunnara-server-${{ matrix.suffix }}${{ matrix.ext }} version
-          ./dist/tunnara-quic-bridge-${{ matrix.suffix }}${{ matrix.ext }} --version
+          "./dist/tunnara-agent-${{ matrix.suffix }}${{ matrix.ext }}" --version
+          "./dist/tunnara-server-${{ matrix.suffix }}${{ matrix.ext }}" version
+          "./dist/tunnara-quic-bridge-${{ matrix.suffix }}${{ matrix.ext }}" --version
+
       - name: E2E standalone Linux
         if: runner.os == 'Linux'
         shell: bash
@@ -78,27 +91,30 @@ jobs:
           TUNNARA_E2E_AGENT_BIN: dist/tunnara-agent-${{ matrix.suffix }}
           TUNNARA_E2E_SERVER_BIN: dist/tunnara-server-${{ matrix.suffix }}
         run: npm run runtime:test
+
       - name: Package Unix
         if: runner.os != 'Windows'
         shell: bash
         run: |
           mkdir -p release-assets
-          tar -C dist -czf "release-assets/Tunnara-Runtime-${{ matrix.suffix }}-${{ steps.release.outputs.tag }}.tar.gz" .
+          version="${{ inputs.release_tag }}"
+          tar -C dist -czf "release-assets/Tunnara-Runtime-${{ matrix.suffix }}-${version}.tar.gz" .
           (cd release-assets && shasum -a 256 * > "SHA256SUMS-${{ matrix.suffix }}.txt")
+
       - name: Package Windows
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path release-assets | Out-Null
-          $name = '${{ steps.release.outputs.tag }}'
-          Compress-Archive -Path dist/* -DestinationPath "release-assets/Tunnara-Runtime-${{ matrix.suffix }}-$name.zip" -Force
-          Get-FileHash release-assets/* -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $([IO.Path]::GetFileName($_.Path))" } | Set-Content "release-assets/SHA256SUMS-${{ matrix.suffix }}.txt"
+          $tag = '${{ inputs.release_tag }}'
+          Compress-Archive -Path dist/* -DestinationPath "release-assets/Tunnara-Runtime-${{ matrix.suffix }}-$tag.zip" -Force
+          Get-FileHash release-assets/* -Algorithm SHA256 | ForEach-Object {
+            "$($_.Hash.ToLower())  $([IO.Path]::GetFileName($_.Path))"
+          } | Set-Content "release-assets/SHA256SUMS-${{ matrix.suffix }}.txt"
+
       - name: Attach directly to GitHub Release
-        if: startsWith(github.ref, 'refs/tags/') || inputs.release_tag != ''
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || inputs.release_tag }}
-          target_commitish: ${{ github.sha }}
-          generate_release_notes: false
+          tag_name: ${{ inputs.release_tag }}
           files: release-assets/*
           fail_on_unmatched_files: true

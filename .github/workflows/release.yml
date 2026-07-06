@@ -3,22 +3,25 @@ name: Release after merge
 on:
   push:
     branches: [main]
+    paths:
+      - VERSION
   workflow_dispatch:
     inputs:
       force_rebuild:
-        description: 'Regerar e substituir os assets da versão atual'
+        description: 'Regerar e substituir todos os assets da versão atual'
         required: false
         default: false
         type: boolean
 
 permissions:
-  actions: write
+  actions: read
   contents: write
-  issues: write
-  pull-requests: write
+  packages: write
+  attestations: write
+  id-token: write
 
 concurrency:
-  group: release-main
+  group: release-${{ github.ref }}
   cancel-in-progress: false
 
 env:
@@ -27,9 +30,85 @@ env:
   NPM_CONFIG_FUND: 'false'
 
 jobs:
-  release:
-    name: Build core release and dispatch platform builds
+  prepare:
+    name: Prepare draft release
     if: github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+      tag: ${{ steps.release.outputs.tag }}
+      should_build: ${{ steps.release.outputs.should_build }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Resolve deterministic release version
+        id: release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FORCE_REBUILD: ${{ github.event_name == 'workflow_dispatch' && inputs.force_rebuild || false }}
+        run: |
+          set -Eeuo pipefail
+          version="$(tr -d '[:space:]' < VERSION)"
+          tag="v${version}"
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?$ ]] || {
+            echo "VERSION inválida: $version" >&2
+            exit 1
+          }
+
+          should_build=true
+          notes_file="docs/releases/v${version}.md"
+
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            is_draft="$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)"
+            if [[ "$is_draft" == 'true' ]]; then
+              echo "::notice::A release $tag está em draft; os builds serão retomados e os assets substituídos."
+              edit_args=(--repo "$GITHUB_REPOSITORY" --title "Tunnara Platform $version" --draft=true --latest=false)
+              if [[ -f "$notes_file" ]]; then edit_args+=(--notes-file "$notes_file"); fi
+              gh release edit "$tag" "${edit_args[@]}"
+            elif [[ "$FORCE_REBUILD" == 'true' ]]; then
+              edit_args=(--repo "$GITHUB_REPOSITORY" --title "Tunnara Platform $version" --draft=true --latest=false)
+              if [[ -f "$notes_file" ]]; then edit_args+=(--notes-file "$notes_file"); fi
+              gh release edit "$tag" "${edit_args[@]}"
+            else
+              should_build=false
+              echo "::notice::A release publicada $tag já existe. Use force_rebuild para reconstruí-la."
+            fi
+          else
+            create_args=(--repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Tunnara Platform $version" --draft)
+            if [[ -f "$notes_file" ]]; then
+              create_args+=(--notes-file "$notes_file")
+            else
+              create_args+=(--generate-notes)
+            fi
+            gh release create "$tag" "${create_args[@]}"
+          fi
+
+          {
+            echo "version=$version"
+            echo "tag=$tag"
+            echo "should_build=$should_build"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Release summary
+        shell: bash
+        run: |
+          {
+            echo '## Release Tunnara'
+            echo
+            echo '- Versão: `${{ steps.release.outputs.version }}`'
+            echo '- Tag: `${{ steps.release.outputs.tag }}`'
+            echo '- Build necessário: `${{ steps.release.outputs.should_build }}`'
+            echo '- A release permanece em draft até todos os builds obrigatórios terminarem.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  core:
+    name: Build and upload core assets
+    needs: prepare
+    if: needs.prepare.outputs.should_build == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
@@ -45,43 +124,12 @@ jobs:
             package-lock.json
             apps/console/package-lock.json
 
-      - name: Resolve deterministic release version
-        id: release
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
-          FORCE_REBUILD: ${{ github.event_name == 'workflow_dispatch' && inputs.force_rebuild || false }}
+      - name: Install root and console dependencies
         run: |
-          set -Eeuo pipefail
-          version="$(tr -d '[:space:]' < VERSION)"
-          tag="v${version}"
-          should_build=true
+          bash scripts/ci/npm-ci.sh .
+          bash scripts/ci/npm-ci.sh apps/console
 
-          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            if [[ "$FORCE_REBUILD" != 'true' ]]; then
-              should_build=false
-              echo "::notice::A release $tag já existe. Nenhum rebuild será executado."
-            else
-              echo "::notice::A release $tag será reconstruída e seus assets serão substituídos."
-            fi
-          fi
-
-          {
-            echo "version=$version"
-            echo "tag=$tag"
-            echo "should_build=$should_build"
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Install root dependencies
-        if: steps.release.outputs.should_build == 'true'
-        run: bash scripts/ci/npm-ci.sh .
-
-      - name: Install console dependencies
-        if: steps.release.outputs.should_build == 'true'
-        run: bash scripts/ci/npm-ci.sh apps/console
-
-      - name: Validate repository and runtime
-        if: steps.release.outputs.should_build == 'true'
+      - name: Validate repository
         run: |
           npm run repository:check
           npm run version:check
@@ -90,10 +138,10 @@ jobs:
           npm run validate:php
           npm run validate:storage
           npm run validate:release
+          npm run validate:docker
           npm run runtime:test
 
-      - name: Build console, Linux runtime and C SDK
-        if: steps.release.outputs.should_build == 'true'
+      - name: Build core deliverables
         shell: bash
         run: |
           npm run console:build
@@ -105,84 +153,115 @@ jobs:
             npm run runtime:test
           npm run artifacts:package
 
-      - name: Create or reuse draft GitHub Release
-        if: steps.release.outputs.should_build == 'true'
+      - name: Upload core assets to draft release
         shell: bash
         env:
-          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
-          TAG: ${{ steps.release.outputs.tag }}
-          VERSION: ${{ steps.release.outputs.version }}
-        run: |
-          set -Eeuo pipefail
-          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --title "Tunnara Platform $VERSION"
-          else
-            gh release create "$TAG" \
-              --repo "$GITHUB_REPOSITORY" \
-              --target "$GITHUB_SHA" \
-              --title "Tunnara Platform $VERSION" \
-              --generate-notes \
-              --draft
-          fi
-
-      - name: Upload core assets directly to the GitHub Release
-        if: steps.release.outputs.should_build == 'true'
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
-          TAG: ${{ steps.release.outputs.tag }}
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.prepare.outputs.tag }}
         run: |
           set -Eeuo pipefail
           mapfile -d '' files < <(find artifacts -maxdepth 1 -type f -print0 | sort -z)
           ((${#files[@]} > 0)) || { echo 'Nenhum artefato foi gerado.' >&2; exit 1; }
           gh release upload "$TAG" "${files[@]}" --repo "$GITHUB_REPOSITORY" --clobber
 
-      - name: Publish core release
-        if: steps.release.outputs.should_build == 'true'
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
-          TAG: ${{ steps.release.outputs.tag }}
-        run: gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false --latest
+  runtime:
+    name: Runtime executables
+    needs: [prepare, core]
+    if: needs.prepare.outputs.should_build == 'true'
+    uses: ./.github/workflows/runtime-release.yml
+    with:
+      release_tag: ${{ needs.prepare.outputs.tag }}
+    secrets: inherit
 
-      - name: Dispatch platform-specific release workflows
-        if: steps.release.outputs.should_build == 'true'
+  sdk:
+    name: SDK binaries
+    needs: [prepare, core]
+    if: needs.prepare.outputs.should_build == 'true'
+    uses: ./.github/workflows/sdk-build.yml
+    with:
+      release_tag: ${{ needs.prepare.outputs.tag }}
+    secrets: inherit
+
+  desktop:
+    name: Desktop applications
+    needs: [prepare, core]
+    if: needs.prepare.outputs.should_build == 'true'
+    uses: ./.github/workflows/desktop-release.yml
+    with:
+      release_tag: ${{ needs.prepare.outputs.tag }}
+    secrets: inherit
+
+  mobile:
+    name: Mobile applications
+    needs: [prepare, core]
+    if: needs.prepare.outputs.should_build == 'true'
+    uses: ./.github/workflows/mobile-release.yml
+    with:
+      release_tag: ${{ needs.prepare.outputs.tag }}
+      publish_google_play: false
+      publish_testflight: false
+      ios_export_method: development
+    secrets: inherit
+
+  containers:
+    name: Container images
+    needs: [prepare, core]
+    if: needs.prepare.outputs.should_build == 'true'
+    uses: ./.github/workflows/docker-publish.yml
+    with:
+      release_tag: ${{ needs.prepare.outputs.tag }}
+    secrets: inherit
+
+  finalize:
+    name: Publish completed release
+    needs: [prepare, core, runtime, sdk, desktop, mobile, containers]
+    if: always() && needs.prepare.outputs.should_build == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Verify required build results
         shell: bash
         env:
-          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
-          TAG: ${{ steps.release.outputs.tag }}
+          CORE_RESULT: ${{ needs.core.result }}
+          RUNTIME_RESULT: ${{ needs.runtime.result }}
+          SDK_RESULT: ${{ needs.sdk.result }}
+          DESKTOP_RESULT: ${{ needs.desktop.result }}
+          MOBILE_RESULT: ${{ needs.mobile.result }}
+          CONTAINERS_RESULT: ${{ needs.containers.result }}
         run: |
           set -Eeuo pipefail
-          workflows=(
-            runtime-release.yml
-            sdk-build.yml
-            desktop-release.yml
-            mobile-release.yml
-            docker-publish.yml
-          )
-
-          for workflow in "${workflows[@]}"; do
-            echo "Disparando $workflow para $TAG..."
-            gh workflow run "$workflow" \
-              --repo "$GITHUB_REPOSITORY" \
-              --ref main \
-              -f release_tag="$TAG"
+          failed=0
+          for item in \
+            "core:$CORE_RESULT" \
+            "runtime:$RUNTIME_RESULT" \
+            "sdk:$SDK_RESULT" \
+            "desktop:$DESKTOP_RESULT" \
+            "mobile:$MOBILE_RESULT" \
+            "containers:$CONTAINERS_RESULT"; do
+            name="${item%%:*}"
+            result="${item#*:}"
+            echo "$name=$result"
+            [[ "$result" == success ]] || failed=1
           done
+          if [[ "$failed" -ne 0 ]]; then
+            echo 'Um ou mais builds obrigatórios falharam. A release permanecerá em draft.' >&2
+            exit 1
+          fi
 
-      - name: Job summary
-        if: always()
-        shell: bash
+      - name: Publish release
         env:
-          TAG: ${{ steps.release.outputs.tag }}
-          VERSION: ${{ steps.release.outputs.version }}
-          SHOULD_BUILD: ${{ steps.release.outputs.should_build }}
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+        run: gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false --latest
+
+      - name: Final summary
+        shell: bash
         run: |
           {
-            echo "## Tunnara release"
+            echo '## Release publicada'
             echo
-            echo "- Versão: \`$VERSION\`"
-            echo "- Tag: \`$TAG\`"
-            echo "- Build executado: \`$SHOULD_BUILD\`"
-            echo "- Assets de núcleo: enviados diretamente à GitHub Release"
-            echo "- Builds de plataforma: disparados por \`workflow_dispatch\`, sem Actions artifacts"
+            echo '- Tag: `${{ needs.prepare.outputs.tag }}`'
+            echo '- Core, runtimes, SDKs, desktop, mobile e containers concluídos.'
+            echo '- Os binários foram anexados diretamente à GitHub Release.'
+            echo '- As imagens foram publicadas no GHCR.'
           } >> "$GITHUB_STEP_SUMMARY"

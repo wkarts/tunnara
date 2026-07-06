@@ -1,13 +1,10 @@
 import fs from 'node:fs';
+import path from 'node:path';
 
 const version = process.argv[2];
-const numericVersion = String(version || '').split('-')[0].split('.').map(Number);
-const buildNumber = numericVersion.length === 3 && numericVersion.every(Number.isInteger)
-  ? numericVersion[0] * 10000 + numericVersion[1] * 100 + numericVersion[2]
-  : 1;
-if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(version || '')) {
-  throw new Error('Versão SemVer inválida');
-}
+if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(version || '')) throw new Error('Versão SemVer inválida');
+const numericVersion = version.split('-')[0].split('.').map(Number);
+const buildNumber = numericVersion[0] * 10000 + numericVersion[1] * 100 + numericVersion[2];
 
 function updateJson(file) {
   const json = JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -15,21 +12,22 @@ function updateJson(file) {
   if (json.packages?.['']) json.packages[''].version = version;
   fs.writeFileSync(file, `${JSON.stringify(json, null, 2)}\n`);
 }
-
 function replaceRequired(file, pattern, replacement, description) {
   const source = fs.readFileSync(file, 'utf8');
   if (!pattern.test(source)) throw new Error(`Não foi possível localizar ${description} em ${file}`);
   fs.writeFileSync(file, source.replace(pattern, replacement));
 }
+function walk(dir) {
+  return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const absolute = path.join(dir, entry.name);
+    return entry.isDirectory() ? walk(absolute) : [absolute];
+  });
+}
 
 for (const file of [
-  'package.json',
-  'package-lock.json',
-  'runtime/node/package.json',
-  'apps/console/package.json',
-  'apps/console/package-lock.json',
-  'apps/console/src-tauri/tauri.conf.json',
-  'apps/console/src/assets/branding/brand.json',
+  'package.json', 'package-lock.json', 'runtime/node/package.json',
+  'apps/console/package.json', 'apps/console/package-lock.json',
+  'apps/console/src-tauri/tauri.conf.json', 'apps/console/src/assets/branding/brand.json',
 ]) updateJson(file);
 
 replaceRequired('Cargo.toml', /(\[workspace\.package\][\s\S]*?\nversion\s*=\s*")[^"]+("\s*)/, `$1${version}$2`, 'workspace.package.version');
@@ -50,20 +48,27 @@ for (const [pattern, replacement, description] of [
   [/MARKETING_VERSION: [^\n]+/g, `MARKETING_VERSION: ${version}`, 'iOS project marketing version'],
   [/INFOPLIST_KEY_CFBundleVersion: \d+/g, `INFOPLIST_KEY_CFBundleVersion: ${buildNumber}`, 'iOS project bundle build'],
   [/CURRENT_PROJECT_VERSION: \d+/g, `CURRENT_PROJECT_VERSION: ${buildNumber}`, 'iOS project build number'],
-]) {
-  replaceRequired('sdk/mobile/ios/project.yml', pattern, replacement, description);
+]) replaceRequired('sdk/mobile/ios/project.yml', pattern, replacement, description);
+
+const dockerDir = path.resolve('deploy/docker');
+for (const absolute of walk(dockerDir)) {
+  const relative = path.relative(process.cwd(), absolute).replaceAll(path.sep, '/');
+  if (!/\.(?:ya?ml|env|example|md)$/.test(relative) && !relative.endsWith('.env.example')) continue;
+  let source = fs.readFileSync(absolute, 'utf8');
+  source = source.replace(/(TUNNARA_VERSION=)\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?/g, `$1${version}`);
+  source = source.replace(/(APP_VERSION:\s*)\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?/g, `$1${version}`);
+  source = source.replace(/(tunnara-(?:server|agent|console|control-api|caddy-cloudflare|quic-bridge):)\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?/g, `$1${version}`);
+  fs.writeFileSync(absolute, source);
 }
-replaceRequired('deploy/docker/docker-compose.yml', /(tunnara-server:)[^}\s]+/g, `$1${version}`, 'imagem do servidor');
-replaceRequired('deploy/docker/docker-compose.yml', /(tunnara-console:)[^}\s]+/g, `$1${version}`, 'imagem do console');
-replaceRequired('deploy/docker/.env.example', /(tunnara-server:)[^\s]+/g, `$1${version}`, 'imagem do servidor no env Docker');
-replaceRequired('deploy/docker/.env.example', /(tunnara-console:)[^\s]+/g, `$1${version}`, 'imagem do console no env Docker');
-replaceRequired('deploy/docker/.env.example', /(tunnara-caddy-cloudflare:)[^\s]+/g, `$1${version}`, 'imagem Caddy no env Docker');
-replaceRequired('deploy/docker/.env.example', /(tunnara-quic-bridge:)[^\s]+/g, `$1${version}`, 'imagem QUIC no env Docker');
-for (const file of ['deploy/docker/docker-compose.cloudflare.yml', 'deploy/docker/docker-compose.ha.yml', 'deploy/docker/docker-compose.quic.yml']) {
-  const source = fs.readFileSync(file, 'utf8');
-  fs.writeFileSync(file, source.replace(/(tunnara-(?:server|console|caddy-cloudflare|quic-bridge):)\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?/g, `$1${version}`));
+
+for (const file of ['docker.env.example', 'docker-compose.example.yml']) {
+  if (!fs.existsSync(file)) continue;
+  let source = fs.readFileSync(file, 'utf8');
+  source = source.replace(/(TUNNARA_VERSION=)\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?/g, `$1${version}`);
+  source = source.replace(/(tunnara-(?:server|agent|console|control-api|caddy-cloudflare|quic-bridge):\$\{TUNNARA_VERSION:-)\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(\})/g, `$1${version}$2`);
+  fs.writeFileSync(file, source);
 }
 
 fs.writeFileSync('VERSION', `${version}\n`);
 fs.writeFileSync('apps/console/VERSION', `${version}\n`);
-console.log(`Versão atualizada para ${version}`);
+console.log(`Versão atualizada para ${version}; build mobile ${buildNumber}.`);

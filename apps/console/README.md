@@ -167,6 +167,8 @@ Hook local recomendado:
 git config core.hooksPath .githooks
 ```
 
-## Release em repositórios derivados
+## Release da plataforma
 
-Este template não possui mais URL fixa de repositório no `semantic-release`. Em GitHub Actions, o repositório é detectado automaticamente por `GITHUB_REPOSITORY`. Consulte `docs/RELEASE_REPOSITORY.md`.
+O Console não publica releases de forma independente. O workflow raiz `Release after merge` coordena Console, Runtime, SDKs, Desktop, Mobile e Containers usando a versão definida no arquivo `VERSION`.
+
+Consulte `../../docs/operations/RELEASE_PROCESS.md` e `docs/RELEASE_REPOSITORY.md`.

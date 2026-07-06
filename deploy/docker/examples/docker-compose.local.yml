@@ -1,0 +1,77 @@
+# Exemplo mínimo e funcional para ambiente local ou uma VPS sem proxy TLS.
+# Uso:
+#   cp docker.env.example .env
+#   ./docker.sh init
+#   docker compose -f docker-compose.example.yml --env-file deploy/docker/.env up -d
+
+name: ${COMPOSE_PROJECT_NAME:-tunnara}
+
+services:
+  tunnara-server:
+    image: ghcr.io/wkarts/tunnara-server:${TUNNARA_VERSION:-1.1.1}
+    pull_policy: ${TUNNARA_PULL_POLICY:-missing}
+    restart: unless-stopped
+    environment:
+      NODE_NO_WARNINGS: "1"
+      TUNNARA_STORAGE_DRIVER: ${TUNNARA_STORAGE_DRIVER:-sqlite}
+      TUNNARA_DATA_DIR: /var/lib/tunnara
+      TUNNARA_CONTROL_HOST: 0.0.0.0
+      TUNNARA_CONTROL_PORT: 7100
+      TUNNARA_EDGE_HOST: 0.0.0.0
+      TUNNARA_EDGE_PORT: 7200
+      TUNNARA_RELAY_HOST: 0.0.0.0
+      TUNNARA_RELAY_PORT: 7300
+      TUNNARA_RELAY_EDGE_HOST: 127.0.0.1
+      TUNNARA_RELAY_EDGE_PORT: 7301
+      TUNNARA_BASE_DOMAIN: ${TUNNARA_BASE_DOMAIN:-tunnara.local}
+      TUNNARA_PUBLIC_SCHEME: ${TUNNARA_PUBLIC_SCHEME:-http}
+      TUNNARA_PUBLIC_CONTROL_URL: ${TUNNARA_PUBLIC_CONTROL_URL:-http://127.0.0.1:7100}
+      TUNNARA_PUBLIC_RELAY_URL: ${TUNNARA_PUBLIC_RELAY_URL:-tcp://127.0.0.1:7300}
+      TUNNARA_BOOTSTRAP_ORGANIZATION: ${TUNNARA_BOOTSTRAP_ORGANIZATION:-Tunnara Community}
+      TUNNARA_BOOTSTRAP_ADMIN_TOKEN: ${TUNNARA_BOOTSTRAP_ADMIN_TOKEN:?Defina TUNNARA_BOOTSTRAP_ADMIN_TOKEN}
+      TUNNARA_CORS_ORIGIN: ${TUNNARA_CORS_ORIGIN:-http://localhost:7400}
+      TUNNARA_LOG_FORMAT: ${TUNNARA_LOG_FORMAT:-json}
+      TUNNARA_MASTER_KEY_BASE64: ${TUNNARA_MASTER_KEY_BASE64:?Defina TUNNARA_MASTER_KEY_BASE64}
+      TUNNARA_CLUSTER_TOKEN: ${TUNNARA_CLUSTER_TOKEN:?Defina TUNNARA_CLUSTER_TOKEN}
+      TUNNARA_PUBLIC_PORT_MIN: ${PUBLIC_PORT_MIN:-20000}
+      TUNNARA_PUBLIC_PORT_MAX: ${PUBLIC_PORT_MAX:-20100}
+    volumes:
+      - tunnara_data:/var/lib/tunnara
+    ports:
+      - "${CONTROL_BIND:-127.0.0.1}:${CONTROL_PORT:-7100}:7100/tcp"
+      - "${EDGE_BIND:-0.0.0.0}:${EDGE_PORT:-8080}:7200/tcp"
+      - "${RELAY_BIND:-0.0.0.0}:${RELAY_PORT:-7300}:7300/tcp"
+      - "${PUBLIC_BIND:-0.0.0.0}:${PUBLIC_PORT_MIN:-20000}-${PUBLIC_PORT_MAX:-20100}:${PUBLIC_PORT_MIN:-20000}-${PUBLIC_PORT_MAX:-20100}/tcp"
+      - "${PUBLIC_BIND:-0.0.0.0}:${PUBLIC_PORT_MIN:-20000}-${PUBLIC_PORT_MAX:-20100}:${PUBLIC_PORT_MIN:-20000}-${PUBLIC_PORT_MAX:-20100}/udp"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:7100/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    networks: [tunnara]
+    security_opt: ["no-new-privileges:true"]
+
+  console:
+    image: ghcr.io/wkarts/tunnara-console:${TUNNARA_VERSION:-1.1.1}
+    pull_policy: ${TUNNARA_PULL_POLICY:-missing}
+    restart: unless-stopped
+    depends_on:
+      tunnara-server:
+        condition: service_healthy
+    ports:
+      - "${CONSOLE_BIND:-0.0.0.0}:${CONSOLE_PORT:-7400}:80/tcp"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [tunnara]
+    security_opt: ["no-new-privileges:true"]
+
+volumes:
+  tunnara_data:
+
+networks:
+  tunnara:
+    driver: bridge
