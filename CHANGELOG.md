@@ -4,6 +4,8 @@
 
 ### Correção da matriz nativa pós-merge
 
+- Corrigido o erro Rust `E0308` no loop de aceitação do `tunnara-quic-bridge`: os dois braços do `match` agora retornam `()`, sem propagar o `JoinHandle` de `tokio::spawn`.
+- Removido o import não utilizado `SinkExt` do Coordinator, eliminando o warning observado no `cargo check`.
 - Corrigida a feature TLS do `reqwest 0.13`: `rustls-tls` foi substituída por `rustls` no workspace Rust.
 - Restaurada a compatibilidade do Console Tauri com as APIs utilizadas pelo código, fixando `rand 0.8.5`, `sha2 0.10.9`, `hmac 0.12.1` e `sha1 0.10.6`.
 - O Pull Request passa a executar `cargo check --workspace --all-targets` e um `cargo check` independente do Console Tauri.

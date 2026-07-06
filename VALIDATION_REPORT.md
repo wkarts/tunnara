@@ -1,5 +1,22 @@
 # Relatório de validação — Tunnara Platform 2.0.0-rc.5
 
+## Correção complementar do Rust workspace
+
+O `cargo check --workspace --all-targets` falhava no `tunnara-quic-bridge` com `E0308`, porque o braço `Ok` do `match` devolvia `JoinHandle<()>` e o braço `Err` devolvia `()`. O `tokio::spawn` agora é executado dentro de um bloco, descartando explicitamente o handle e fazendo ambos os braços retornarem `()`.
+
+Também foi removido o import não utilizado `SinkExt` do Coordinator.
+
+Validações locais executadas após a correção:
+
+- `git diff --check`;
+- `npm run version:check`;
+- `npm run repository:check`;
+- `npm run validate:native-deps`;
+- `npm run validate:node`;
+- `npm run validate:shell`.
+
+O ambiente local não possui a toolchain Cargo/Rust e não tem acesso externo para instalá-la. A confirmação compilada ocorre no mesmo job `Rust workspace check` que identificou a falha. A alteração corrige diretamente a incompatibilidade de tipos apontada pelo compilador.
+
 ## Diagnóstico do workflow pós-merge
 
 ### Runtime executables — todos os sistemas

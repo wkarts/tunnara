@@ -10,7 +10,7 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
-use futures_util::{SinkExt, StreamExt};
+use futures_util::StreamExt;
 use tokio::sync::RwLock;
 use tower_http::trace::TraceLayer;
 use tunnara_protocol::{ControlEnvelope, ControlMessage};
