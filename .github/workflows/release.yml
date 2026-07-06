@@ -46,6 +46,7 @@ jobs:
       version: ${{ steps.release.outputs.version }}
       tag: ${{ steps.release.outputs.tag }}
       should_build: ${{ steps.release.outputs.should_build }}
+      rebuild_requested: ${{ steps.release.outputs.rebuild_requested }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -56,6 +57,7 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          AUTO_REBUILD: ${{ github.event_name == 'push' }}
           FORCE_REBUILD: ${{ github.event_name == 'workflow_dispatch' && inputs.force_rebuild || false }}
         run: |
           set -Eeuo pipefail
@@ -68,15 +70,23 @@ jobs:
 
           should_build=true
           notes_file="docs/releases/v${version}.md"
+          rebuild_requested=false
+          if [[ "$AUTO_REBUILD" == 'true' || "$FORCE_REBUILD" == 'true' ]]; then
+            rebuild_requested=true
+          fi
 
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             is_draft="$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)"
-            if [[ "$is_draft" == 'true' ]]; then
-              echo "::notice::A release $tag está em draft; os builds serão retomados e os assets substituídos."
+            if [[ "$is_draft" == 'true' || "$rebuild_requested" == 'true' ]]; then
+              if [[ "$is_draft" == 'true' ]]; then
+                echo "::notice::A release $tag está em draft; os builds serão retomados e os assets substituídos."
+              else
+                echo "::notice::A release publicada $tag será reaberta em draft para reconstruir os assets do commit $GITHUB_SHA."
+              fi
 
               current_ref_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" --jq '.object.sha' 2>/dev/null || true)"
               if [[ -n "$current_ref_sha" && "$current_ref_sha" != "$GITHUB_SHA" ]]; then
-                echo "::notice::Atualizando a tag draft $tag de $current_ref_sha para $GITHUB_SHA."
+                echo "::notice::Atualizando a tag $tag de $current_ref_sha para $GITHUB_SHA."
                 gh api --method PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/$tag" \
                   -f sha="$GITHUB_SHA" \
                   -F force=true >/dev/null
@@ -85,14 +95,9 @@ jobs:
               edit_args=(--repo "$GITHUB_REPOSITORY" --title "Tunnara Platform $version" --draft=true --latest=false)
               if [[ -f "$notes_file" ]]; then edit_args+=(--notes-file "$notes_file"); fi
               gh release edit "$tag" "${edit_args[@]}"
-
-            elif [[ "$FORCE_REBUILD" == 'true' ]]; then
-              edit_args=(--repo "$GITHUB_REPOSITORY" --title "Tunnara Platform $version" --draft=true --latest=false)
-              if [[ -f "$notes_file" ]]; then edit_args+=(--notes-file "$notes_file"); fi
-              gh release edit "$tag" "${edit_args[@]}"
             else
               should_build=false
-              echo "::notice::A release publicada $tag já existe. Use force_rebuild para reconstruí-la."
+              echo "::notice::A release publicada $tag já existe e esta execução não solicitou reconstrução."
             fi
           else
             create_args=(--repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Tunnara Platform $version" --draft)
@@ -122,6 +127,7 @@ jobs:
             echo "version=$version"
             echo "tag=$tag"
             echo "should_build=$should_build"
+            echo "rebuild_requested=$rebuild_requested"
           } >> "$GITHUB_OUTPUT"
 
       - name: Release summary
@@ -133,6 +139,8 @@ jobs:
             echo '- Versão: `${{ steps.release.outputs.version }}`'
             echo '- Tag: `${{ steps.release.outputs.tag }}`'
             echo '- Build necessário: `${{ steps.release.outputs.should_build }}`'
+            echo '- Reconstrução solicitada: `${{ steps.release.outputs.rebuild_requested }}`'
+            echo '- Evento: `${{ github.event_name }}`'
             echo '- A release permanece em draft até todos os builds obrigatórios terminarem.'
           } >> "$GITHUB_STEP_SUMMARY"
 

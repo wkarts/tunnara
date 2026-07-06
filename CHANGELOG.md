@@ -18,6 +18,7 @@
 
 ### Correções pós-merge e release
 
+- Corrigido o fluxo pós-merge que marcava Core, Runtime, SDK, Desktop, Mobile, Containers e Finalização como `skipped` quando a versão atual já possuía uma release publicada; pushes de correção do pipeline agora reabrem a release em draft, reposicionam a tag e executam a reconstrução completa.
 - Corrigida a execução dos CLIs `esbuild` e `postject` no Windows sem depender de wrappers `.cmd`, eliminando o `spawnSync` com status nulo no build SEA.
 - Tornado o upload de assets da GitHub Release sequencial, idempotente e com `--clobber`, evitando falhas `ReleaseAsset already_exists` em reexecuções.
 - Corrigido o build iOS para invocar scripts auxiliares via `bash`, independentemente do bit executável preservado pelo checkout.
