@@ -1,17 +1,17 @@
-# Manifesto de artefatos — Tunnara Platform 1.1.2
+# Manifesto de artefatos — Tunnara Platform 1.1.3
 
 ## Assets centrais
 
-- `tunnara-platform-v1.1.2-source.zip`
-- `tunnara-platform-v1.1.2-source.tar.gz`
-- `tunnara-platform-v1.1.2-github-ready.zip`
-- `tunnara-platform-v1.1.2-git-repository.bundle`
-- `tunnara-platform-v1.1.2-complete.zip`
-- `tunnara-console-web-v1.1.2.zip`
-- `tunnara-runtime-linux-x64-v1.1.2.zip`
-- `tunnara-runtime-linux-x64-v1.1.2.tar.gz`
-- `tunnara-sdk-c-linux-x64-v1.1.2.zip`
-- `Tunnara-Docker-v1.1.2.zip`
+- `tunnara-platform-v1.1.3-source.zip`
+- `tunnara-platform-v1.1.3-source.tar.gz`
+- `tunnara-platform-v1.1.3-github-ready.zip`
+- `tunnara-platform-v1.1.3-git-repository.bundle`
+- `tunnara-platform-v1.1.3-complete.zip`
+- `tunnara-console-web-v1.1.3.zip`
+- `tunnara-runtime-linux-x64-v1.1.3.zip`
+- `tunnara-runtime-linux-x64-v1.1.3.tar.gz`
+- `tunnara-sdk-c-linux-x64-v1.1.3.zip`
+- `Tunnara-Docker-v1.1.3.zip`
 - `release-manifest.json`
 - `SHA256SUMS-core.txt`
 
@@ -27,7 +27,7 @@
 
 ## Bundle Docker
 
-`Tunnara-Docker-v1.1.2.zip` contém:
+`Tunnara-Docker-v1.1.3.zip` contém:
 
 - Compose Community single-node;
 - Compose de produção Cloudflare/ACME/QUIC;
@@ -39,4 +39,4 @@
 ## Política de release
 
 A release permanece em draft até que os assets centrais e todos os builds obrigatórios terminem. Os arquivos são anexados diretamente à GitHub Release; o pipeline não utiliza Actions Artifact Storage.
-Correções mescladas nos workflows ou scripts de release reabrem automaticamente a versão corrente em draft, reposicionam a tag para o commit do hotfix e reconstruem todos os assets obrigatórios, mesmo quando a release já havia sido publicada.
+Cada merge elegível incrementa a versão SemVer antes dos builds. Releases publicadas são imutáveis; apenas drafts da mesma versão podem ser retomados e ter seus assets substituídos.

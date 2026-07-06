@@ -23,48 +23,83 @@ for (const workflow of workflows) {
 
 const release = read('.github/workflows/release.yml');
 for (const expected of [
+  'release_version:',
+  'ref: main',
+  'Resolve immutable release version',
+  'REQUESTED_VERSION:',
+  'release_id: ${{ steps.release.outputs.release_id }}',
+  'releases?per_page=100',
+  'A release $tag já está publicada e é imutável',
+  'Existem múltiplas releases associadas a $tag',
+  'repos/$GITHUB_REPOSITORY/releases/$release_id',
+  'scripts/release/upload-release-assets.sh',
   'npm run sdk:c:build',
   'npm run artifacts:package',
-  'scripts/release/upload-release-assets.sh',
-  'git/refs/tags/$tag',
-  'gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false',
-  '--json isDraft',
-  "AUTO_REBUILD: ${{ github.event_name == 'push' }}",
-  'rebuild_requested=false',
-  `if [[ "$AUTO_REBUILD" == 'true' || "$FORCE_REBUILD" == 'true' ]]`,
-  `if [[ "$is_draft" == 'true' || "$rebuild_requested" == 'true' ]]`,
-  'rebuild_requested=$rebuild_requested',
   'uses: ./.github/workflows/runtime-release.yml',
   'uses: ./.github/workflows/sdk-build.yml',
   'uses: ./.github/workflows/desktop-release.yml',
   'uses: ./.github/workflows/mobile-release.yml',
   'uses: ./.github/workflows/docker-publish.yml',
+  'RELEASE_ID: ${{ needs.prepare.outputs.release_id }}',
+  '-F draft=false',
+  '-f make_latest=true',
 ]) {
   if (!release.includes(expected)) errors.push(`release.yml não contém: ${expected}`);
 }
-for (const triggerPath of [
-  '- VERSION',
-  '- .github/workflows/release.yml',
-  '- .github/workflows/runtime-release.yml',
-  '- .github/workflows/sdk-build.yml',
-  '- .github/workflows/desktop-release.yml',
-  '- .github/workflows/mobile-release.yml',
-  '- scripts/release/**',
-  '- sdk/mobile/ios/scripts/**',
-]) {
-  if (!release.includes(triggerPath)) errors.push(`release.yml não observa alteração em ${triggerPath.slice(2)}.`);
+if (!/workflow_dispatch:/.test(release)) errors.push('release.yml deve ser iniciado por workflow_dispatch após o versionamento.');
+if (/\n\s{2}push:/.test(release)) {
+  errors.push('release.yml não deve disparar diretamente em push; o version-after-merge deve sincronizar VERSION antes do dispatch.');
 }
-if (!release.includes('--draft')) errors.push('release.yml deve criar a release em draft antes dos builds.');
+if (/git\/refs\/tags\/\$tag|force=true|será reaberta em draft/.test(release)) {
+  errors.push('release.yml não deve mover tags nem reabrir releases já publicadas.');
+}
+if (/gh release edit "\$tag".*--draft=true/.test(release)) {
+  errors.push('release.yml não deve converter uma release publicada em draft.');
+}
+if (!release.includes('--draft') && !release.includes('-F draft=true')) {
+  errors.push('release.yml deve criar ou retomar uma release em draft antes dos builds.');
+}
 if (/semantic-release/.test(release)) errors.push('release.yml não deve depender de semantic-release.');
-if (/gh workflow run/.test(release)) errors.push('release.yml deve usar reusable workflows, não dispatch assíncrono por gh workflow run.');
-if (/elif \[\[ "\$FORCE_REBUILD" == 'true' \]\]/.test(release)) {
-  errors.push('release.yml não deve limitar a reconstrução automática somente ao workflow_dispatch.');
+
+const versionAfterMerge = read('.github/workflows/version-after-merge.yml');
+for (const expected of [
+  'push:',
+  'branches: [main]',
+  'actions: write',
+  'contents: write',
+  'release:major',
+  'release:minor',
+  'release:patch',
+  'release:none',
+  'scripts/version/next-version.mjs',
+  'npm run version:set --',
+  'git push origin HEAD:main',
+  'gh workflow run release.yml',
+  '-f release_version="$VERSION"',
+]) {
+  if (!versionAfterMerge.includes(expected)) {
+    errors.push(`version-after-merge.yml não contém: ${expected}`);
+  }
 }
-if (!release.includes('A release publicada $tag será reaberta em draft')) {
-  errors.push('release.yml deve reabrir uma release publicada quando uma correção do pipeline for mesclada.');
+if (!versionAfterMerge.includes("github.actor != 'github-actions[bot]'")) {
+  errors.push('version-after-merge.yml deve ignorar o commit de sincronização criado pelo próprio bot.');
 }
-if (!/AUTO_REBUILD:[^\n]*github\.event_name == 'push'/.test(release)) {
-  errors.push('release.yml deve tratar o push automático do pipeline como solicitação de rebuild.');
+if (!versionAfterMerge.includes('commits/$GITHUB_SHA/pulls')) {
+  errors.push('version-after-merge.yml deve recuperar as labels do Pull Request associado ao merge.');
+}
+if (!versionAfterMerge.includes("current_version") || !versionAfterMerge.includes("latest_version")) {
+  errors.push('version-after-merge.yml deve comparar VERSION com a última release publicada.');
+}
+
+const nextVersion = read('scripts/version/next-version.mjs');
+for (const expected of [
+  "['patch', 'minor', 'major']",
+  'compare(current, latest) > 0',
+  "next = [base[0] + 1, 0, 0]",
+  "next = [base[0], base[1] + 1, 0]",
+  "next = [base[0], base[1], base[2] + 1]",
+]) {
+  if (!nextVersion.includes(expected)) errors.push(`next-version.mjs não contém: ${expected}`);
 }
 
 const reusable = ['runtime-release.yml', 'sdk-build.yml', 'desktop-release.yml', 'mobile-release.yml', 'docker-publish.yml'];
@@ -85,8 +120,14 @@ for (const expected of [
   'TUNNARA_APPLE_CERTIFICATE:',
   'uploadUpdaterJson:',
   'uploadUpdaterSignatures:',
+  'releaseId: ${{ inputs.release_id }}',
 ]) {
   if (!desktop.includes(expected)) errors.push(`desktop-release.yml não contém: ${expected}`);
+}
+
+if (!desktop.includes('release_id:')) errors.push('desktop-release.yml deve receber release_id para anexar bundles ao draft correto.');
+if (!release.includes('release_id: ${{ needs.prepare.outputs.release_id }}')) {
+  errors.push('release.yml deve encaminhar release_id ao workflow desktop.');
 }
 const tauriActionBlock = desktop.split('- name: Build and upload Tauri bundles')[1] ?? '';
 if (/APPLE_CERTIFICATE:\s*\$\{\{\s*secrets\./.test(tauriActionBlock)) {

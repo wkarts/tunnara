@@ -7,10 +7,18 @@ on:
         description: 'Tag da GitHub Release draft que receberá os instaladores desktop'
         required: true
         type: string
+      release_id:
+        description: 'ID numérico da GitHub Release draft existente'
+        required: true
+        type: string
   workflow_dispatch:
     inputs:
       release_tag:
         description: 'Tag da GitHub Release existente que receberá os instaladores desktop'
+        required: true
+        type: string
+      release_id:
+        description: 'ID numérico da GitHub Release existente'
         required: true
         type: string
 
@@ -44,8 +52,8 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ inputs.release_tag }}
-        run: gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null
+          RELEASE_ID: ${{ inputs.release_id }}
+        run: gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" >/dev/null
 
       - uses: actions/setup-node@v6
         with:
@@ -157,6 +165,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         with:
           projectPath: apps/console
+          releaseId: ${{ inputs.release_id }}
           tagName: ${{ inputs.release_tag }}
           releaseName: Tunnara Platform __VERSION__
           releaseDraft: true

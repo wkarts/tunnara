@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.1.3
+
+### Versionamento e releases imutáveis
+
+- Incrementa a plataforma para `1.1.3`, substituindo as tentativas duplicadas de publicar novamente `1.1.2`.
+- Adiciona versionamento automático após merge em `main`: o padrão é incremento `patch`, com suporte às labels `release:major`, `release:minor`, `release:patch` e `release:none`.
+- Respeita um bump explícito já presente no Pull Request e sincroniza todos os pontos de versão antes de disparar os builds.
+- Separa o workflow de versionamento do workflow de construção da release, evitando corrida entre commit, tag e assets.
+- Torna releases publicadas imutáveis: uma versão publicada nunca é reaberta como draft, nunca tem a tag movida e nunca recebe novos binários de outro commit.
+- Retoma somente drafts da mesma versão e usa o `release_id` para preparar e publicar a release.
+- Interrompe o pipeline com erro claro quando existem drafts duplicados ou quando a versão solicitada já foi publicada.
+- Corrige o `HTTP 404` causado pela consulta `releases/tags/v1.1.2` depois de converter uma release publicada em draft.
+
 ## 1.1.2
 
 ### Correções adicionais de validação (CI)

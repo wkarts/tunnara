@@ -13,7 +13,7 @@ export const projectConfig = {
     windowTitle: "Tunnara Console",
     subtitle: "túneis seguros • redes privadas • edge platform",
     description: "Console unificado para administração de túneis, agentes, edges, relays e redes privadas Tunnara.",
-    version: "1.1.2",
+    version: "1.1.3",
     mode: "desktop" as RuntimeMode,
     identifier: "br.com.wwsoftwares.tunnara.console",
     developer: "WWSoftware's Sistemas",
