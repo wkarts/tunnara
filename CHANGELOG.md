@@ -12,6 +12,7 @@
 - Mantém AndroidX Core 1.16.0 compatível com `compileSdk 35` e impede upgrades automáticos para linhas que exigem APIs 36/37.
 - Corrige o módulo C do WireGuardKit para o import modular do Xcode 16.4 e adiciona suporte `GOOS=ios` ao build `iphonesimulator`.
 - Limita o smoke build e o artefato de simulador a `arm64` nos runners Apple Silicon.
+- Adiciona parser wg-quick local ao Packet Tunnel, pois o initializer `fromWgQuickConfig` pertence ao aplicativo WireGuard e não é exportado pelo produto Swift Package `WireGuardKit`.
 
 
 ### Correções pós-merge e release

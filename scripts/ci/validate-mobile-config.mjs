@@ -11,6 +11,8 @@ const required = [
   'sdk/mobile/android/app/build.gradle.kts',
   'sdk/mobile/android/scripts/build-artifacts.sh',
   'sdk/mobile/ios/project.yml',
+  'sdk/mobile/ios/TunnaraPacketTunnel/PacketTunnelProvider.swift',
+  'sdk/mobile/ios/TunnaraPacketTunnel/WgQuickConfigParser.swift',
   'sdk/mobile/ios/scripts/build-artifacts.sh',
   'sdk/mobile/ios/scripts/prepare-wireguard-kit.sh',
   'sdk/mobile/ios/scripts/sign-and-export.sh',
@@ -29,6 +31,8 @@ const androidApp = read('sdk/mobile/android/app/build.gradle.kts');
 const androidRoot = read('sdk/mobile/android/build.gradle.kts');
 const androidScript = read('sdk/mobile/android/scripts/build-artifacts.sh');
 const iosProject = read('sdk/mobile/ios/project.yml');
+const iosPacketTunnel = read('sdk/mobile/ios/TunnaraPacketTunnel/PacketTunnelProvider.swift');
+const iosWgQuickParser = read('sdk/mobile/ios/TunnaraPacketTunnel/WgQuickConfigParser.swift');
 const iosBuild = read('sdk/mobile/ios/scripts/build-artifacts.sh');
 const iosPrepare = read('sdk/mobile/ios/scripts/prepare-wireguard-kit.sh');
 const mobileChecks = read('.github/workflows/mobile.yml');
@@ -69,6 +73,31 @@ for (const dependency of ['androidx.core:core', 'androidx.core:core-ktx']) {
   );
   if (!rule.test(dependabot)) {
     throw new Error(`Dependabot deve bloquear ${dependency} >=1.17.0 enquanto compileSdk for 35.`);
+  }
+}
+
+if (iosPacketTunnel.includes('TunnelConfiguration(fromWgQuickConfig:')) {
+  throw new Error(
+    'PacketTunnelProvider não pode chamar fromWgQuickConfig diretamente: ' +
+    'esse initializer não é exportado pelo produto Swift Package WireGuardKit.'
+  );
+}
+if (!iosPacketTunnel.includes('WgQuickConfigParser.parse(raw, name: "Tunnara")')) {
+  throw new Error('PacketTunnelProvider deve usar o parser wg-quick local validado.');
+}
+for (const expected of [
+  'import WireGuardKit',
+  'enum WgQuickConfigParser',
+  'static func parse(_ source: String, name: String? = nil) throws -> TunnelConfiguration',
+  'InterfaceConfiguration(privateKey: privateKey)',
+  'PeerConfiguration(publicKey: publicKey)',
+  'TunnelConfiguration(',
+  'name: name',
+  'interface: interfaceConfiguration',
+  'peers: peers',
+]) {
+  if (!iosWgQuickParser.includes(expected)) {
+    throw new Error(`Parser wg-quick local incompleto: ${expected}`);
   }
 }
 
