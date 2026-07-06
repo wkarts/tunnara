@@ -2,6 +2,17 @@
 
 ## Requisitos
 
+## Arquivos Compose de exemplo
+
+A versão 1.1.1 inclui exemplos diretamente executáveis:
+
+- `docker-compose.example.yml`: instalação local/VPS sem TLS;
+- `deploy/docker/examples/docker-compose.local.yml`: equivalente local;
+- `deploy/docker/examples/docker-compose.vps.yml`: VPS com Cloudflare, ACME DNS-01 e QUIC.
+
+Instruções completas: `docs/operations/VPS_DOCKER_QUICKSTART.md`.
+
+
 - Linux x86_64 ou ARM64.
 - Docker Engine.
 - Docker Compose v2.

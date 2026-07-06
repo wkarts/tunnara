@@ -1,8 +1,14 @@
+# Exemplo mínimo e funcional para ambiente local ou uma VPS sem proxy TLS.
+# Uso:
+#   cp docker.env.example .env
+#   ./docker.sh init
+#   docker compose -f docker-compose.example.yml --env-file deploy/docker/.env up -d
+
 name: ${COMPOSE_PROJECT_NAME:-tunnara}
 
 services:
   tunnara-server:
-    image: ${TUNNARA_SERVER_IMAGE:-ghcr.io/wkarts/tunnara-server:1.1.1}
+    image: ghcr.io/wkarts/tunnara-server:${TUNNARA_VERSION:-1.1.1}
     pull_policy: ${TUNNARA_PULL_POLICY:-missing}
     restart: unless-stopped
     environment:
@@ -22,11 +28,11 @@ services:
       TUNNARA_PUBLIC_CONTROL_URL: ${TUNNARA_PUBLIC_CONTROL_URL:-http://127.0.0.1:7100}
       TUNNARA_PUBLIC_RELAY_URL: ${TUNNARA_PUBLIC_RELAY_URL:-tcp://127.0.0.1:7300}
       TUNNARA_BOOTSTRAP_ORGANIZATION: ${TUNNARA_BOOTSTRAP_ORGANIZATION:-Tunnara Community}
-      TUNNARA_BOOTSTRAP_ADMIN_TOKEN: ${TUNNARA_BOOTSTRAP_ADMIN_TOKEN:?Execute ./tunnara.sh init}
+      TUNNARA_BOOTSTRAP_ADMIN_TOKEN: ${TUNNARA_BOOTSTRAP_ADMIN_TOKEN:?Defina TUNNARA_BOOTSTRAP_ADMIN_TOKEN}
       TUNNARA_CORS_ORIGIN: ${TUNNARA_CORS_ORIGIN:-http://localhost:7400}
       TUNNARA_LOG_FORMAT: ${TUNNARA_LOG_FORMAT:-json}
-      TUNNARA_MASTER_KEY_BASE64: ${TUNNARA_MASTER_KEY_BASE64:?Execute ./tunnara.sh init}
-      TUNNARA_CLUSTER_TOKEN: ${TUNNARA_CLUSTER_TOKEN:?Execute ./tunnara.sh init}
+      TUNNARA_MASTER_KEY_BASE64: ${TUNNARA_MASTER_KEY_BASE64:?Defina TUNNARA_MASTER_KEY_BASE64}
+      TUNNARA_CLUSTER_TOKEN: ${TUNNARA_CLUSTER_TOKEN:?Defina TUNNARA_CLUSTER_TOKEN}
       TUNNARA_PUBLIC_PORT_MIN: ${PUBLIC_PORT_MIN:-20000}
       TUNNARA_PUBLIC_PORT_MAX: ${PUBLIC_PORT_MAX:-20100}
     volumes:
@@ -44,11 +50,10 @@ services:
       retries: 12
       start_period: 10s
     networks: [tunnara]
-    security_opt:
-      - no-new-privileges:true
+    security_opt: ["no-new-privileges:true"]
 
   console:
-    image: ${TUNNARA_CONSOLE_IMAGE:-ghcr.io/wkarts/tunnara-console:1.1.1}
+    image: ghcr.io/wkarts/tunnara-console:${TUNNARA_VERSION:-1.1.1}
     pull_policy: ${TUNNARA_PULL_POLICY:-missing}
     restart: unless-stopped
     depends_on:
@@ -62,8 +67,7 @@ services:
       timeout: 5s
       retries: 10
     networks: [tunnara]
-    security_opt:
-      - no-new-privileges:true
+    security_opt: ["no-new-privileges:true"]
 
 volumes:
   tunnara_data:

@@ -71,8 +71,38 @@ curl -fsSL https://raw.githubusercontent.com/wkarts/tunnara/main/deploy/docker/i
 Variáveis opcionais:
 
 ```bash
-TUNNARA_VERSION=1.1.0
+TUNNARA_VERSION=1.1.1
 TUNNARA_INSTALL_DIR=/opt/tunnara
 TUNNARA_START_MODE=image|build|production|none
 GITHUB_TOKEN=token_para_repositorio_privado
 ```
+
+## Exemplos Compose explícitos
+
+Além do Compose modular usado por `tunnara.sh`, estão disponíveis exemplos completos:
+
+```text
+../../docker-compose.example.yml
+examples/docker-compose.local.yml
+examples/docker-compose.vps.yml
+examples/local.env.example
+examples/vps.env.example
+```
+
+Para ambiente local:
+
+```bash
+cp examples/local.env.example examples/.env.local
+docker compose -f examples/docker-compose.local.yml --env-file examples/.env.local up -d
+```
+
+Para VPS com Cloudflare, Let's Encrypt e QUIC:
+
+```bash
+cp examples/vps.env.example examples/.env.vps
+# edite domínio, IP, token Cloudflare e segredos
+docker compose -f examples/docker-compose.vps.yml --env-file examples/.env.vps config
+docker compose -f examples/docker-compose.vps.yml --env-file examples/.env.vps up -d
+```
+
+Consulte `docs/operations/VPS_DOCKER_QUICKSTART.md`.

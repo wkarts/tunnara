@@ -16,6 +16,18 @@ A Tunnara é uma plataforma self-hosted de conectividade para publicar serviços
 - Projetos Android e iOS.
 - Docker, CloudPanel, serviços nativos e GitHub Releases.
 
+## Exemplos Docker Compose prontos
+
+Para quem deseja montar a stack diretamente, sem depender dos scripts auxiliares, o repositório inclui:
+
+```text
+docker-compose.example.yml                         # local/VPS sem TLS
+deploy/docker/examples/docker-compose.local.yml   # exemplo local
+deploy/docker/examples/docker-compose.vps.yml     # VPS + Cloudflare + Let's Encrypt + QUIC
+```
+
+Guia passo a passo: [`docs/operations/VPS_DOCKER_QUICKSTART.md`](docs/operations/VPS_DOCKER_QUICKSTART.md).
+
 ## Instalação Docker mais simples
 
 ### Usando as imagens da release
@@ -111,6 +123,8 @@ A stack cria ou atualiza os registros DNS, solicita o wildcard Let’s Encrypt, 
 ```
 
 Documentação detalhada: [`docs/operations/DOCKER_DEPLOYMENT.md`](docs/operations/DOCKER_DEPLOYMENT.md).
+
+Análise honesta das lacunas para paridade com ngrok/Pangolin: [`docs/architecture/COMPETITIVE_GAP.md`](docs/architecture/COMPETITIVE_GAP.md).
 
 ## Storage e bancos
 

@@ -61,6 +61,14 @@ for (const absolute of walk(dockerDir)) {
   fs.writeFileSync(absolute, source);
 }
 
+for (const file of ['docker.env.example', 'docker-compose.example.yml']) {
+  if (!fs.existsSync(file)) continue;
+  let source = fs.readFileSync(file, 'utf8');
+  source = source.replace(/(TUNNARA_VERSION=)\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?/g, `$1${version}`);
+  source = source.replace(/(tunnara-(?:server|agent|console|control-api|caddy-cloudflare|quic-bridge):\$\{TUNNARA_VERSION:-)\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(\})/g, `$1${version}$2`);
+  fs.writeFileSync(file, source);
+}
+
 fs.writeFileSync('VERSION', `${version}\n`);
 fs.writeFileSync('apps/console/VERSION', `${version}\n`);
 console.log(`Versão atualizada para ${version}; build mobile ${buildNumber}.`);

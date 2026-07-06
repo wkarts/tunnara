@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.1
+
+- Adicionados exemplos Docker Compose explícitos para ambiente local e VPS.
+- Adicionado exemplo de VPS com Cloudflare, Let's Encrypt, HTTP/3 e Relay QUIC.
+- Adicionados modelos de ambiente separados para local e VPS.
+- Adicionado guia operacional passo a passo para Docker em VPS.
+- Validação de repositório passa a exigir os exemplos e a documentação Docker.
+- Documentada de forma explícita a separação entre runtime SQLite/memory e Control API PostgreSQL/MySQL/Redis.
+- Adicionado relatório técnico de lacunas para paridade com ngrok e Pangolin.
+
 ## [Unreleased]
 
 ## [1.1.0] - 2026-07-05

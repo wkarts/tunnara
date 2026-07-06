@@ -1,0 +1,142 @@
+# Exemplo completo para VPS com Cloudflare, Let's Encrypt, HTTP/3 e Relay QUIC.
+# Execute a partir da raiz do repositório:
+# docker compose -f deploy/docker/examples/docker-compose.vps.yml \
+#   --env-file deploy/docker/examples/.env.vps up -d
+
+name: ${COMPOSE_PROJECT_NAME:-tunnara}
+
+services:
+  tunnara-server:
+    image: ghcr.io/wkarts/tunnara-server:${TUNNARA_VERSION:-1.1.1}
+    pull_policy: ${TUNNARA_PULL_POLICY:-missing}
+    restart: unless-stopped
+    environment:
+      NODE_NO_WARNINGS: "1"
+      TUNNARA_STORAGE_DRIVER: ${TUNNARA_STORAGE_DRIVER:-sqlite}
+      TUNNARA_DATA_DIR: /var/lib/tunnara
+      TUNNARA_CONTROL_HOST: 0.0.0.0
+      TUNNARA_CONTROL_PORT: 7100
+      TUNNARA_EDGE_HOST: 0.0.0.0
+      TUNNARA_EDGE_PORT: 7200
+      TUNNARA_RELAY_HOST: 0.0.0.0
+      TUNNARA_RELAY_PORT: 7300
+      TUNNARA_RELAY_EDGE_HOST: 127.0.0.1
+      TUNNARA_RELAY_EDGE_PORT: 7301
+      TUNNARA_BASE_DOMAIN: ${TUNNARA_BASE_DOMAIN:?Defina TUNNARA_BASE_DOMAIN}
+      TUNNARA_PUBLIC_SCHEME: https
+      TUNNARA_PUBLIC_CONTROL_URL: ${TUNNARA_PUBLIC_CONTROL_URL:?Defina TUNNARA_PUBLIC_CONTROL_URL}
+      TUNNARA_PUBLIC_RELAY_URL: ${TUNNARA_PUBLIC_RELAY_URL:?Defina TUNNARA_PUBLIC_RELAY_URL}
+      TUNNARA_PUBLIC_EDGE_HOST: ${TUNNARA_BASE_DOMAIN}
+      TUNNARA_BOOTSTRAP_ORGANIZATION: ${TUNNARA_BOOTSTRAP_ORGANIZATION:-Tunnara Community}
+      TUNNARA_BOOTSTRAP_ADMIN_TOKEN: ${TUNNARA_BOOTSTRAP_ADMIN_TOKEN:?Defina TUNNARA_BOOTSTRAP_ADMIN_TOKEN}
+      TUNNARA_CORS_ORIGIN: ${TUNNARA_CORS_ORIGIN:?Defina TUNNARA_CORS_ORIGIN}
+      TUNNARA_LOG_FORMAT: ${TUNNARA_LOG_FORMAT:-json}
+      TUNNARA_MASTER_KEY_BASE64: ${TUNNARA_MASTER_KEY_BASE64:?Defina TUNNARA_MASTER_KEY_BASE64}
+      TUNNARA_CLUSTER_TOKEN: ${TUNNARA_CLUSTER_TOKEN:?Defina TUNNARA_CLUSTER_TOKEN}
+      TUNNARA_AUTO_DNS: ${TUNNARA_AUTO_DNS:-true}
+      CLOUDFLARE_ZONE_NAME: ${CLOUDFLARE_ZONE_NAME:?Defina CLOUDFLARE_ZONE_NAME}
+      CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:?Defina CLOUDFLARE_API_TOKEN}
+      TUNNARA_CLOUDFLARE_EDGE_ADDRESS: ${TUNNARA_CLOUDFLARE_EDGE_ADDRESS:?Defina o IP público da VPS}
+      TUNNARA_PUBLIC_PORT_MIN: ${PUBLIC_PORT_MIN:-20000}
+      TUNNARA_PUBLIC_PORT_MAX: ${PUBLIC_PORT_MAX:-20100}
+    volumes:
+      - tunnara_data:/var/lib/tunnara
+    ports:
+      - "${CONTROL_BIND:-127.0.0.1}:${CONTROL_PORT:-7100}:7100/tcp"
+      - "${RELAY_BIND:-0.0.0.0}:${RELAY_PORT:-7300}:7300/tcp"
+      - "${PUBLIC_BIND:-0.0.0.0}:${PUBLIC_PORT_MIN:-20000}-${PUBLIC_PORT_MAX:-20100}:${PUBLIC_PORT_MIN:-20000}-${PUBLIC_PORT_MAX:-20100}/tcp"
+      - "${PUBLIC_BIND:-0.0.0.0}:${PUBLIC_PORT_MIN:-20000}-${PUBLIC_PORT_MAX:-20100}:${PUBLIC_PORT_MIN:-20000}-${PUBLIC_PORT_MAX:-20100}/udp"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:7100/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    networks: [tunnara]
+    security_opt: ["no-new-privileges:true"]
+
+  console:
+    image: ghcr.io/wkarts/tunnara-console:${TUNNARA_VERSION:-1.1.1}
+    pull_policy: ${TUNNARA_PULL_POLICY:-missing}
+    restart: unless-stopped
+    depends_on:
+      tunnara-server:
+        condition: service_healthy
+    networks: [tunnara]
+    security_opt: ["no-new-privileges:true"]
+
+  caddy:
+    image: ghcr.io/wkarts/tunnara-caddy-cloudflare:${TUNNARA_VERSION:-1.1.1}
+    pull_policy: ${TUNNARA_PULL_POLICY:-missing}
+    restart: unless-stopped
+    depends_on:
+      tunnara-server:
+        condition: service_healthy
+      console:
+        condition: service_started
+    environment:
+      TUNNARA_BASE_DOMAIN: ${TUNNARA_BASE_DOMAIN:?Defina TUNNARA_BASE_DOMAIN}
+      TUNNARA_ACME_EMAIL: ${TUNNARA_ACME_EMAIL:?Defina TUNNARA_ACME_EMAIL}
+      TUNNARA_ACME_CA: ${TUNNARA_ACME_CA:-https://acme-v02.api.letsencrypt.org/directory}
+      CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:?Defina CLOUDFLARE_API_TOKEN}
+    volumes:
+      - ../cloudflare/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    ports:
+      - "80:80/tcp"
+      - "443:443/tcp"
+      - "443:443/udp"
+    networks: [tunnara]
+
+  quic-cert-exporter:
+    image: alpine:3.22
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "/opt/tunnara/export-caddy-cert.sh"]
+    environment:
+      CADDY_DATA_DIR: /caddy-data/caddy/certificates
+      TARGET_DIR: /certs
+    volumes:
+      - caddy_data:/caddy-data:ro
+      - quic_certs:/certs
+      - ../quic/export-caddy-cert.sh:/opt/tunnara/export-caddy-cert.sh:ro
+    depends_on: [caddy]
+    networks: [tunnara]
+
+  quic-bridge:
+    image: ghcr.io/wkarts/tunnara-quic-bridge:${TUNNARA_VERSION:-1.1.1}
+    pull_policy: ${TUNNARA_PULL_POLICY:-missing}
+    restart: unless-stopped
+    command:
+      - server
+      - --listen
+      - 0.0.0.0:7443
+      - --upstream
+      - tunnara-server:7300
+      - --cert
+      - /certs/fullchain.pem
+      - --key
+      - /certs/privkey.pem
+    environment:
+      TUNNARA_QUIC_CERT_WAIT_SECONDS: ${TUNNARA_QUIC_CERT_WAIT_SECONDS:-300}
+      RUST_LOG: ${TUNNARA_QUIC_LOG:-info}
+    volumes:
+      - quic_certs:/certs:ro
+    ports:
+      - "${TUNNARA_QUIC_PORT:-7443}:7443/udp"
+    depends_on:
+      tunnara-server:
+        condition: service_healthy
+      quic-cert-exporter:
+        condition: service_started
+    networks: [tunnara]
+
+volumes:
+  tunnara_data:
+  caddy_data:
+  caddy_config:
+  quic_certs:
+
+networks:
+  tunnara:
+    driver: bridge

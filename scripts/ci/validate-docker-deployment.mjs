@@ -6,6 +6,8 @@ const version = fs.readFileSync(path.join(root, 'VERSION'), 'utf8').trim();
 const errors = [];
 const required = [
   'docker.sh',
+  'docker.env.example',
+  'docker-compose.example.yml',
   'deploy/docker/.env.example',
   'deploy/docker/tunnara.sh',
   'deploy/docker/bootstrap.sh',
@@ -26,6 +28,11 @@ const required = [
   'deploy/docker/storage/docker-compose.redis.yml',
   'deploy/docker/README.md',
   'docs/operations/DOCKER_DEPLOYMENT.md',
+  'docs/operations/VPS_DOCKER_QUICKSTART.md',
+  'deploy/docker/examples/local.env.example',
+  'deploy/docker/examples/vps.env.example',
+  'deploy/docker/examples/docker-compose.local.yml',
+  'deploy/docker/examples/docker-compose.vps.yml',
 ];
 const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8');
 for (const file of required) {
@@ -33,6 +40,11 @@ for (const file of required) {
 }
 
 if (!errors.length) {
+  const rootEnv = read('docker.env.example');
+  const rootCompose = read('docker-compose.example.yml');
+  if (!rootEnv.includes(`TUNNARA_VERSION=${version}`)) errors.push('docker.env.example não acompanha VERSION.');
+  if (!rootCompose.includes(`TUNNARA_VERSION:-${version}`)) errors.push('docker-compose.example.yml não acompanha VERSION.');
+
   const env = read('deploy/docker/.env.example');
   if (!env.includes(`TUNNARA_VERSION=${version}`)) errors.push('.env.example não acompanha VERSION.');
   for (const image of ['server', 'agent', 'console', 'control-api', 'caddy-cloudflare', 'quic-bridge']) {
@@ -82,8 +94,8 @@ if (!errors.length) {
   if (!installer.includes('Tunnara-Docker-{tag}.zip')) errors.push('Instalador GitHub não procura o bundle Docker da release.');
   if (!installer.includes('GITHUB_TOKEN')) errors.push('Instalador GitHub não suporta repositórios privados via GITHUB_TOKEN.');
 
-  const docs = `${read('README.md')}\n${read('deploy/docker/README.md')}\n${read('docs/operations/DOCKER_DEPLOYMENT.md')}`;
-  for (const fragment of ['./docker.sh quickstart', './tunnara.sh quickstart', 'PostgreSQL', 'MySQL', 'Redis', 'SQLite']) {
+  const docs = `${read('README.md')}\n${read('deploy/docker/README.md')}\n${read('docs/operations/DOCKER_DEPLOYMENT.md')}\n${read('docs/operations/VPS_DOCKER_QUICKSTART.md')}`;
+  for (const fragment of ['./docker.sh quickstart', './tunnara.sh quickstart', 'docker-compose.example.yml', 'docker-compose.vps.yml', 'PostgreSQL', 'MySQL', 'Redis', 'SQLite']) {
     if (!docs.includes(fragment)) errors.push(`Documentação Docker não contém: ${fragment}`);
   }
 }
