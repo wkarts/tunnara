@@ -1,49 +1,104 @@
-# Relatório de validação — Tunnara Platform 2.0.0-rc.2
+# Relatório de validação — Tunnara Platform 2.0.0-rc.4
 
-Data: 2026-07-06
+## Diagnóstico dos logs
 
-## Falhas reproduzidas dos logs
+O pacote `logs_77802296964.zip` contém quatro jobs de Pull Request:
 
-- Console Vue: `Cannot find package 'esbuild'` durante o Vite 8.1.3.
-- Mobile: versão SemVer prerelease comparada diretamente ao campo numérico do iOS.
-- Android: configurações legadas de Kotlin incompatíveis com AGP 9 e dependências acima do `compileSdk` adotado.
-- iOS: incompatibilidades do WireGuardKit/Xcode, parser wg-quick, `Info.plist` ausente e diferenças entre GNU/Linux e macOS.
-- Runtime Windows: execução de wrappers `.cmd` do `esbuild`/`postject` pelo `spawnSync`.
-- Release: colisões entre assets concorrentes, drafts paralelas e jobs ignorados pela reutilização de uma versão publicada.
-- Versionamento: cálculo anterior ignorava prereleases ou tags sem release e permitia tentativa de reutilização de tag.
+- Core and runtime;
+- Distributed Control API;
+- Docker configuration;
+- Console Vue.
 
-## Correções aplicadas
+Somente `Core and runtime` falhou. A interrupção ocorreu antes dos testes de
+runtime, em `npm run version:check`, por uma tag antiga no overlay distribuído
+QUIC:
 
-- `esbuild` explícito no Console e lockfile público sincronizado.
-- SemVer completo com incremento automático `rc.N`, promoção estável e bumps patch/minor/major.
-- Cálculo da próxima versão considera releases, drafts e tags existentes.
-- Build mobile monotônico: `200007002` para `2.0.0-rc.2`.
-- iOS usa versão base `2.0.0`, gera `Info.plist`, compila simulador arm64 e prepara WireGuardKit de forma idempotente.
-- Android usa Kotlin integrado do AGP 9.2.1 e dependências compatíveis com API 35.
-- Executáveis SEA usam os CLIs JavaScript via Node, inclusive no Windows.
-- Uploader sequencial e idempotente com nomes exclusivos de checksums/metadados.
-- Uma única release draft recebe Core, Runtime, SDK, Desktop e Mobile pelo mesmo SHA e `releaseId`.
-- Releases publicadas e tags são imutáveis; apenas drafts do mesmo SHA podem ser retomadas.
-- Containers prerelease não sobrescrevem `latest`.
-- PRs e validações comuns não criam artefatos de distribuição.
+```text
+deploy/docker/docker-compose.distributed.quic.yml: imagem 2.0.0-rc.2 != 2.0.0-rc.3
+```
 
-## Validações executadas localmente
+Os demais jobs não apresentaram erro de build no log anexado.
 
-- `npm ci` da raiz e do Console: aprovado.
-- `npm run repository:check`: aprovado.
-- `npm run version:check`: 25 pontos sincronizados.
-- `npm run version:test`: 5 testes aprovados.
-- `npm run validate:mobile`: aprovado sem gerar APK/IPA.
-- `npm run validate:release`: aprovado.
-- Sintaxe Node.js, Bash e PHP: aprovada.
-- Providers SQLite, Memory, PostgreSQL, MySQL e Redis: validados.
-- Modelos Docker e versionamento de imagens: validados.
-- Console Vue/TypeScript e build Vite: aprovados.
-- Runtime E2E HTTP, WebSocket, TCP, UDP, Cloudflare, HA, WireGuard, rede privada, produção e Policy Engine: aprovados.
-- SDK C compartilhado/estático e smoke test: aprovados.
-- Agent e Server SEA Linux x64 gerados e executados: aprovados.
-- Workflows YAML analisados e scripts de release verificados.
+## Auditoria da cópia local
 
-## Limitações do ambiente de validação
+A comparação com o pacote oficial RC.3 confirmou:
 
-Docker Engine, Cargo/Rust toolchain, Composer e Xcode não estavam instalados neste ambiente. Por isso, a compilação final do QUIC Bridge, Tauri, Android, iOS e containers permanece destinada aos runners nativos do GitHub Actions. Não é correto afirmar que esses binários nativos foram executados localmente; o que foi concluído aqui é a correção de código, configuração, sintaxe, contratos de workflow e validações disponíveis.
+- os 14 workflows atuais eram equivalentes aos do pacote oficial;
+- não havia workflow legado adicional em `.github/workflows`;
+- havia um Compose distribuído QUIC extra e não integrado;
+- havia backups `.bak` de versões antigas;
+- havia um helper Base64 sem uso;
+- havia um Compose `infrastructure` antigo sem referência;
+- exemplos Docker ainda possuíam fallback de imagem `1.1.1`;
+- scripts Windows divergiam apenas em LF/CRLF.
+
+## Correções
+
+- versão elevada para `2.0.0-rc.4`;
+- build mobile sincronizado em `200007004`;
+- overlay distribuído QUIC integrado ao `tunnara.sh`;
+- perfil distribuído padrão corrigido para anunciar Relay TCP;
+- perfil QUIC sobrescreve a descoberta para `quic://`;
+- composição combinada incluída no CI;
+- backup, restore, update e rollback distribuídos adicionados;
+- Compose `infrastructure` antigo removido;
+- arquivos `.bak` e helper órfão removidos;
+- exemplos Docker sincronizados com a versão atual;
+- `set-version.mjs`, `check-version.mjs` e o validador Docker reforçados para
+  interpolação `${TUNNARA_VERSION:-...}`;
+- validador do repositório reforçado contra arquivos legados e Compose órfão;
+- scripts Windows normalizados para CRLF.
+
+## Validações aprovadas
+
+- `npm run version:check`;
+- `npm run version:test`;
+- `npm run repository:check`;
+- `npm run validate:node`;
+- `npm run validate:shell`;
+- `npm run validate:php`;
+- `npm run validate:storage`;
+- `npm run validate:release`;
+- `npm run validate:sea`;
+- `npm run validate:docker`;
+- `npm run validate:mobile`;
+- `npm run mobile:validate:scripts`;
+- `npm run runtime:test`;
+- `npm run sdk:c:test`;
+- `npm run console:typecheck`;
+- `npm run console:build`.
+
+Resultados funcionais aprovados:
+
+- HTTP e WebSocket;
+- TCP e UDP;
+- Cloudflare DNS;
+- failover distribuído;
+- WireGuard e redes privadas;
+- Policy Engine e Request Inspector;
+- SQLite, memory, PostgreSQL, MySQL e Redis;
+- SDK C compartilhado e estático;
+- build Vue/Vite.
+
+## Testes negativos
+
+A validação foi deliberadamente executada com regressões temporárias:
+
+1. arquivo `.bak` — rejeitado;
+2. `docker-compose.orphan-test.yml` — rejeitado;
+3. fallback `${TUNNARA_VERSION:-2.0.0-rc.2}` — rejeitado.
+
+Após cada teste, os arquivos temporários foram removidos e os validadores
+voltaram a concluir com sucesso.
+
+## Limites do ambiente
+
+Não havia Docker Engine, Cargo/Rust, Composer ou Xcode instalados no ambiente
+local. Portanto:
+
+- `docker compose config` real será confirmado pelo runner Ubuntu do GitHub;
+- builds Rust/Tauri serão confirmados pelos runners nativos;
+- testes Laravel completos continuarão no job `Distributed Control API`;
+- Android e iOS continuarão nos respectivos runners.
+
+Esses jobs não foram apresentados como executados localmente.

@@ -8,7 +8,7 @@ name: ${COMPOSE_PROJECT_NAME:-tunnara}
 
 services:
   tunnara-server:
-    image: ghcr.io/wkarts/tunnara-server:${TUNNARA_VERSION:-2.0.0-rc.2}
+    image: ghcr.io/wkarts/tunnara-server:${TUNNARA_VERSION:-2.0.0-rc.4}
     pull_policy: ${TUNNARA_PULL_POLICY:-missing}
     restart: unless-stopped
     environment:
@@ -53,7 +53,7 @@ services:
     security_opt: ["no-new-privileges:true"]
 
   console:
-    image: ghcr.io/wkarts/tunnara-console:${TUNNARA_VERSION:-2.0.0-rc.2}
+    image: ghcr.io/wkarts/tunnara-console:${TUNNARA_VERSION:-2.0.0-rc.4}
     pull_policy: ${TUNNARA_PULL_POLICY:-missing}
     restart: unless-stopped
     depends_on:

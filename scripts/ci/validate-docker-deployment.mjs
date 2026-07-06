@@ -21,6 +21,7 @@ const required = [
   'deploy/docker/docker-compose.ha.yml',
   'deploy/docker/docker-compose.ha.build.yml',
   'deploy/docker/docker-compose.distributed.yml',
+  'deploy/docker/docker-compose.distributed.quic.yml',
   'deploy/docker/docker-compose.observability.yml',
   'deploy/docker/distributed/Caddyfile',
   'deploy/observability/README.md',
@@ -65,12 +66,15 @@ if (!errors.length) {
     'deploy/docker/docker-compose.quic.yml',
     'deploy/docker/docker-compose.ha.yml',
     'deploy/docker/docker-compose.distributed.yml',
+    'deploy/docker/docker-compose.distributed.quic.yml',
     'deploy/docker/docker-compose.observability.yml',
     'deploy/docker/storage/docker-compose.base.yml',
     'deploy/docker/storage/docker-compose.sqlite.yml',
     'deploy/docker/storage/docker-compose.postgres.yml',
     'deploy/docker/storage/docker-compose.mysql.yml',
     'deploy/docker/storage/docker-compose.redis.yml',
+    'deploy/docker/examples/docker-compose.local.yml',
+    'deploy/docker/examples/docker-compose.vps.yml',
   ];
   for (const file of imageComposes) {
     const source = read(file);
@@ -79,6 +83,10 @@ if (!errors.length) {
     const stale = source.match(/tunnara-[a-z0-9-]+:(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)/gi) ?? [];
     for (const occurrence of stale) {
       if (!occurrence.endsWith(`:${version}`)) errors.push(`${file}: tag divergente de VERSION em ${occurrence}.`);
+    }
+    const fallbacks = [...source.matchAll(/tunnara-[a-z0-9-]+:\$\{TUNNARA_VERSION:-(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)\}/gi)];
+    for (const occurrence of fallbacks) {
+      if (occurrence[1] !== version) errors.push(`${file}: fallback TUNNARA_VERSION ${occurrence[1]} != ${version}.`);
     }
   }
 
@@ -93,7 +101,7 @@ if (!errors.length) {
   }
 
   const launcher = read('deploy/docker/tunnara.sh');
-  for (const command of ['quickstart', 'quickstart-build', 'up-production', 'up-distributed', 'bootstrap-distributed', 'up-observability', 'update-production', 'backup', 'restore', 'provision']) {
+  for (const command of ['quickstart', 'quickstart-build', 'up-production', 'up-distributed', 'update-distributed', 'bootstrap-distributed', 'preflight-distributed-quic', 'up-distributed-quic', 'update-distributed-quic', 'bootstrap-distributed-quic', 'backup-distributed', 'restore-distributed', 'rollback-distributed', 'rollback-distributed-quic', 'up-observability', 'update-production', 'backup', 'restore', 'provision']) {
     if (!launcher.includes(`${command})`) && !launcher.includes(` ${command}`)) errors.push(`tunnara.sh não expõe o comando ${command}.`);
   }
   if (!launcher.includes('TUNNARA_DEPLOY_MODE')) errors.push('tunnara.sh não diferencia image/build.');
@@ -103,7 +111,7 @@ if (!errors.length) {
   if (!installer.includes('GITHUB_TOKEN')) errors.push('Instalador GitHub não suporta repositórios privados via GITHUB_TOKEN.');
 
   const docs = `${read('README.md')}\n${read('deploy/docker/README.md')}\n${read('docs/operations/DOCKER_DEPLOYMENT.md')}\n${read('docs/operations/VPS_DOCKER_QUICKSTART.md')}`;
-  for (const fragment of ['./docker.sh quickstart', './tunnara.sh quickstart', 'docker-compose.example.yml', 'docker-compose.vps.yml', 'PostgreSQL', 'MySQL', 'Redis', 'SQLite', 'up-distributed', 'Prometheus', 'Helm']) {
+  for (const fragment of ['./docker.sh quickstart', './tunnara.sh quickstart', 'docker-compose.example.yml', 'docker-compose.vps.yml', 'PostgreSQL', 'MySQL', 'Redis', 'SQLite', 'up-distributed', 'up-distributed-quic', 'Prometheus', 'Helm']) {
     if (!docs.includes(fragment)) errors.push(`Documentação Docker não contém: ${fragment}`);
   }
 }

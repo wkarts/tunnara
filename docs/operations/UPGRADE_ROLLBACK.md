@@ -18,7 +18,7 @@ cd deploy/docker
 Rollback de imagens:
 
 ```bash
-./tunnara.sh rollback-distributed-quic 2.0.0-rc.1
+./tunnara.sh rollback-distributed-quic 2.0.0-rc.3
 ```
 
 O rollback de imagem não desfaz automaticamente migrações destrutivas. Migrações da linha 2.0 devem ser aditivas/reversíveis; quando isso não for possível, restaure o dump correspondente:

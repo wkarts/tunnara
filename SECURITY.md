@@ -45,4 +45,4 @@ Build mobile não depende da publicação nas lojas. Assinatura, notarização e
 
 ## Status RC
 
-A versão `2.0.0-rc.2` não substitui pentest, auditoria externa, soak test ou avaliação jurídica. Consulte `docs/security/MATURITY_GATES.md`.
+A versão `2.0.0-rc.4` não substitui pentest, auditoria externa, soak test ou avaliação jurídica. Consulte `docs/security/MATURITY_GATES.md`.

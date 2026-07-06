@@ -59,6 +59,7 @@ for (const absolute of walk(dockerDir)) {
   source = source.replace(/(TUNNARA_VERSION=)\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?/g, `$1${version}`);
   source = source.replace(/(APP_VERSION:\s*)\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?/g, `$1${version}`);
   source = source.replace(/(tunnara-(?:server|agent|console|control-api|caddy-cloudflare|quic-bridge):)\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?/g, `$1${version}`);
+  source = source.replace(/(tunnara-(?:server|agent|console|control-api|caddy-cloudflare|quic-bridge):\$\{TUNNARA_VERSION:-)\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(\})/g, `$1${version}$2`);
   fs.writeFileSync(absolute, source);
 }
 

@@ -11,4 +11,4 @@ Ou, em repositório já criado:
 ./scripts/github/init-repository.sh git@github.com:SUA_ORGANIZACAO/tunnara.git
 ```
 
-Após o push, configure secrets para assinatura Android/Apple e proteja `main`. A tag `v1.0.0` dispara containers, runtimes, SDKs e mobile.
+Após o push, configure secrets para assinatura Android/Apple e proteja `main`. O merge em `main` dispara o versionamento automático e a release coordenada; tags publicadas permanecem imutáveis.

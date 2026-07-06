@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 
-export const VERSION = '2.0.0-rc.2';
+export const VERSION = '2.0.0-rc.4';
 export const DEFAULT_MAX_BODY = 10 * 1024 * 1024;
 
 export function nowIso() { return new Date().toISOString(); }

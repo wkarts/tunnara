@@ -15,6 +15,7 @@ test('ordena prereleases segundo SemVer e considera stable superior', () => {
 
 test('preserva uma versão explicitamente adiantada no primeiro merge', () => {
   assert.equal(nextVersion('2.0.0-rc.2', '1.1.2', 'auto'), '2.0.0-rc.2');
+  assert.equal(nextVersion('2.0.0-rc.4', '2.0.0-rc.3', 'auto'), '2.0.0-rc.4');
 });
 
 test('incrementa automaticamente prerelease e release estável', () => {

@@ -156,11 +156,24 @@ if (!/^4\./.test(packageDeps['vue-router'] ?? '')) errors.push('Console: vue-rou
 if (!/^2\./.test(packageDeps.pinia ?? '')) errors.push('Console: pinia deve permanecer em 2.x.');
 
 const seaBuilder = read('scripts/release/build-sea.mjs');
-if (!/path\.join\(root, 'node_modules', 'esbuild', 'bin', 'esbuild'\)/.test(seaBuilder)
+if (!/from ['"]esbuild['"]/.test(seaBuilder)
+    || !/await esbuildBuild\(/.test(seaBuilder)
     || !/path\.join\(root, 'node_modules', 'postject', 'dist', 'cli\.js'\)/.test(seaBuilder)
-    || !/run\(process\.execPath, \[esbuild/.test(seaBuilder)
     || !/run\(process\.execPath, \[postject/.test(seaBuilder)) {
-  errors.push('build-sea.mjs deve executar os CLIs JavaScript por Node para funcionar no Windows sem wrappers .cmd.');
+  errors.push('build-sea.mjs deve usar a API JavaScript do esbuild e executar somente o CLI JavaScript do postject por Node.');
+}
+if (/run\(process\.execPath,\s*\[esbuild/.test(seaBuilder)) {
+  errors.push('build-sea.mjs não pode executar o binário nativo do esbuild por Node.');
+}
+if (!fs.existsSync(path.join(root, 'scripts/ci/validate-sea-builder.mjs'))) {
+  errors.push('Validador real do bundler SEA ausente.');
+}
+if (!release.includes('npm run validate:sea')) {
+  errors.push('release.yml deve executar o preflight SEA antes do build de artefatos.');
+}
+const fastCi = read('.github/workflows/ci.yml');
+if (!fastCi.includes('npm run validate:sea')) {
+  errors.push('ci.yml deve executar o preflight SEA em Pull Requests.');
 }
 
 for (const file of [

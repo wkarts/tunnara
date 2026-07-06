@@ -2,7 +2,7 @@ name: ${COMPOSE_PROJECT_NAME:-tunnara-control}
 
 services:
   control-api:
-    image: ${TUNNARA_CONTROL_IMAGE:-ghcr.io/wkarts/tunnara-control-api:2.0.0-rc.2}
+    image: ${TUNNARA_CONTROL_IMAGE:-ghcr.io/wkarts/tunnara-control-api:2.0.0-rc.4}
     pull_policy: ${TUNNARA_PULL_POLICY:-missing}
     restart: unless-stopped
     environment:
@@ -11,7 +11,7 @@ services:
       APP_KEY: ${APP_KEY:?Execute ./storage.sh init}
       APP_DEBUG: ${APP_DEBUG:-false}
       APP_URL: ${APP_URL:-http://localhost:8080}
-      APP_VERSION: 2.0.0-rc.2
+      APP_VERSION: 2.0.0-rc.4
       LOG_CHANNEL: stderr
       LOG_LEVEL: ${LOG_LEVEL:-info}
       RUN_MIGRATIONS: "true"
@@ -37,7 +37,7 @@ services:
     networks: [tunnara-control]
 
   console:
-    image: ${TUNNARA_CONSOLE_IMAGE:-ghcr.io/wkarts/tunnara-console:2.0.0-rc.2}
+    image: ${TUNNARA_CONSOLE_IMAGE:-ghcr.io/wkarts/tunnara-console:2.0.0-rc.4}
     pull_policy: ${TUNNARA_PULL_POLICY:-missing}
     restart: unless-stopped
     depends_on:

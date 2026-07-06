@@ -1,6 +1,6 @@
 [package]
 name = "tunnara_console"
-version = "2.0.0-rc.2"
+version = "2.0.0-rc.4"
 description = "Console administrativo híbrido da plataforma Tunnara"
 authors = ["WWSoftware's Sistemas"]
 edition = "2021"

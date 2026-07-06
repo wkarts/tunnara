@@ -3,7 +3,7 @@ set -Eeuo pipefail
 
 REMOTE_URL="${1:-}"
 DEFAULT_BRANCH="${DEFAULT_BRANCH:-main}"
-COMMIT_MESSAGE="${COMMIT_MESSAGE:-feat: publish Tunnara platform 1.0.0}"
+COMMIT_MESSAGE="${COMMIT_MESSAGE:-feat: publish Tunnara platform}"
 
 command -v git >/dev/null || { echo 'git não encontrado.' >&2; exit 1; }
 node scripts/github/validate-repository.mjs
