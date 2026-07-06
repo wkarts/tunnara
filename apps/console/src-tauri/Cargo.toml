@@ -41,7 +41,7 @@ sha1 = "0.11"
 data-encoding = "2"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "signal"] }
 axum = { version = "0.7", features = ["ws"] }
-tower-http = { version = "0.6", features = ["cors"] }
+tower-http = { version = "0.7", features = ["cors"] }
 url = "2"
 futures-util = "0.3"
 
