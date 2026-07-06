@@ -108,6 +108,10 @@ cp \
   docs/operations/STORAGE_PROVIDERS.md \
   docs/operations/OBSERVABILITY.md \
   docs/operations/KUBERNETES.md \
+  docs/operations/PRODUCTION_READINESS.md \
+  docs/operations/UPGRADE_ROLLBACK.md \
+  docs/operations/DISASTER_RECOVERY.md \
+  docs/operations/INCIDENT_RESPONSE.md \
   "$DOCKER_DIR/docs/operations/"
 
 
@@ -173,6 +177,6 @@ fs.writeFileSync(path.join(dir, 'release-manifest.json'), JSON.stringify({
 NODE
 (
   cd "$ARTIFACTS"
-  sha256sum *.zip *.tar.gz *.bundle release-manifest.json > SHA256SUMS.txt
+  sha256sum *.zip *.tar.gz *.bundle release-manifest.json > SHA256SUMS-core.txt
 )
 printf 'Artefatos gerados em %s\n' "$ARTIFACTS"

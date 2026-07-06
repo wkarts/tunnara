@@ -2,47 +2,27 @@
 set -Eeuo pipefail
 
 TAG="${1:-}"
-ASSET_DIR="${2:-}"
-REPOSITORY="${GITHUB_REPOSITORY:-}"
-MAX_ATTEMPTS="${TUNNARA_RELEASE_UPLOAD_ATTEMPTS:-3}"
+shift || true
+[[ -n "$TAG" ]] || { echo 'Uso: upload-release-assets.sh <tag> <arquivo...>' >&2; exit 2; }
+(($# > 0)) || { echo 'Nenhum arquivo informado para upload.' >&2; exit 2; }
+command -v gh >/dev/null 2>&1 || { echo 'GitHub CLI (gh) não encontrado.' >&2; exit 2; }
+: "${GITHUB_REPOSITORY:?GITHUB_REPOSITORY não configurado}"
+: "${GH_TOKEN:?GH_TOKEN não configurado}"
 
-[[ -n "$TAG" ]] || { echo "Uso: $0 <tag> <diretorio-de-assets>" >&2; exit 2; }
-[[ -n "$ASSET_DIR" ]] || { echo "Uso: $0 <tag> <diretorio-de-assets>" >&2; exit 2; }
-[[ -n "$REPOSITORY" ]] || { echo "GITHUB_REPOSITORY não configurado." >&2; exit 2; }
-[[ -d "$ASSET_DIR" ]] || { echo "Diretório de assets não encontrado: $ASSET_DIR" >&2; exit 2; }
-command -v gh >/dev/null 2>&1 || { echo "GitHub CLI (gh) não encontrado." >&2; exit 2; }
+gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null
 
-assets=()
-shopt -s nullglob
-for asset in "$ASSET_DIR"/*; do
-  [[ -f "$asset" ]] && assets+=("$asset")
-done
-shopt -u nullglob
-
-((${#assets[@]} > 0)) || { echo "Nenhum asset encontrado em $ASSET_DIR." >&2; exit 1; }
-
-gh release view "$TAG" --repo "$REPOSITORY" >/dev/null
-
-for asset in "${assets[@]}"; do
-  name="$(basename "$asset")"
-  uploaded=false
-
-  for ((attempt = 1; attempt <= MAX_ATTEMPTS; attempt++)); do
-    echo "Enviando $name para $TAG (tentativa $attempt/$MAX_ATTEMPTS)..."
-    if gh release upload "$TAG" "$asset" --repo "$REPOSITORY" --clobber; then
-      uploaded=true
+for file in "$@"; do
+  [[ -f "$file" ]] || { echo "Asset não encontrado: $file" >&2; exit 1; }
+  name="$(basename "$file")"
+  for attempt in 1 2 3 4; do
+    echo "Upload $name (tentativa $attempt/4)"
+    if gh release upload "$TAG" "$file" --repo "$GITHUB_REPOSITORY" --clobber; then
       break
     fi
-
-    if ((attempt < MAX_ATTEMPTS)); then
-      sleep $((attempt * 2))
+    if [[ "$attempt" -eq 4 ]]; then
+      echo "Falha definitiva ao publicar $name." >&2
+      exit 1
     fi
+    sleep $((attempt * 5))
   done
-
-  [[ "$uploaded" == true ]] || {
-    echo "Falha ao enviar $name após $MAX_ATTEMPTS tentativas." >&2
-    exit 1
-  }
 done
-
-echo "${#assets[@]} asset(s) enviados para $TAG com substituição idempotente."

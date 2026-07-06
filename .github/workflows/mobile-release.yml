@@ -7,6 +7,11 @@ on:
         description: 'Tag da GitHub Release draft que receberá APK/AAB/IPA'
         required: true
         type: string
+      release_ref:
+        description: 'Git ref imutável usado no checkout'
+        required: false
+        default: ''
+        type: string
       publish_google_play:
         required: false
         default: false
@@ -22,21 +27,23 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: 'Tag da GitHub Release existente que receberá APK/AAB/IPA'
+        description: 'Tag da GitHub Release draft existente que receberá APK/AAB/IPA'
         required: true
         type: string
+      release_ref:
+        description: 'Git ref imutável usado no checkout'
+        required: false
+        default: ''
+        type: string
       publish_google_play:
-        description: 'Publicar o AAB assinado no Google Play'
         required: false
         default: false
         type: boolean
       publish_testflight:
-        description: 'Publicar o IPA assinado no TestFlight'
         required: false
         default: false
         type: boolean
       ios_export_method:
-        description: 'Método de exportação iOS'
         required: false
         default: development
         type: choice
@@ -51,28 +58,23 @@ concurrency:
 
 jobs:
   prepare-release:
-    name: Prepare GitHub Release storage
+    name: Verify coordinated GitHub Release
     runs-on: ubuntu-24.04
     outputs:
       tag: ${{ steps.tag.outputs.value }}
     steps:
-      - name: Resolve release tag
+      - name: Verify release draft exists
         id: tag
         shell: bash
-        run: |
-          tag="${{ inputs.release_tag }}"
-          [[ -n "$tag" ]] || { echo "release_tag é obrigatório." >&2; exit 1; }
-          echo "value=$tag" >> "$GITHUB_OUTPUT"
-      - name: Create release when missing
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.tag.outputs.value }}
-        shell: bash
+          TAG: ${{ inputs.release_tag }}
         run: |
-          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            exit 0
-          fi
-          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Tunnara $TAG" --notes "Artefatos mobile gerados automaticamente." --draft
+          set -Eeuo pipefail
+          [[ -n "$TAG" ]] || { echo 'release_tag é obrigatório.' >&2; exit 1; }
+          is_draft="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)"
+          [[ "$is_draft" == true ]] || { echo "A release $TAG deve existir e permanecer em draft durante os builds." >&2; exit 1; }
+          echo "value=$TAG" >> "$GITHUB_OUTPUT"
 
   build-android:
     name: Build Android APK/AAB
@@ -87,30 +89,35 @@ jobs:
       WANT_PUBLISH: ${{ inputs.publish_google_play || vars.TUNNARA_ENABLE_GOOGLE_PLAY_PUBLISH == 'true' }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.release_ref || inputs.release_tag }}
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v6
         with:
-          gradle-version: '8.10.2'
+          gradle-version: '9.1.0'
       - name: Prepare optional Android signing
         shell: bash
         run: |
           if [[ -n "$ANDROID_KEYSTORE_BASE64" && -n "$TUNNARA_ANDROID_STORE_PASSWORD" && -n "$TUNNARA_ANDROID_KEY_ALIAS" && -n "$TUNNARA_ANDROID_KEY_PASSWORD" ]]; then
-            echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/tunnara-release.jks"
+            printf '%s' "$ANDROID_KEYSTORE_BASE64" | bash scripts/ci/base64-decode.sh "$RUNNER_TEMP/tunnara-release.jks"
             echo "TUNNARA_ANDROID_KEYSTORE=$RUNNER_TEMP/tunnara-release.jks" >> "$GITHUB_ENV"
           else
-            echo "::notice::Keystore ausente ou incompleto; APK/AAB unsigned serão gerados sem falhar."
+            echo '::notice::Keystore ausente ou incompleto; APK/AAB unsigned serão gerados sem falhar.'
           fi
       - name: Build APK and AAB
         run: bash sdk/mobile/android/scripts/build-artifacts.sh
-      - name: Attach Android files directly to GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ needs.prepare-release.outputs.tag }}
-          files: sdk/mobile/android/dist/*
-          fail_on_unmatched_files: true
+      - name: Attach Android files sequentially
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.prepare-release.outputs.tag }}
+        run: |
+          set -Eeuo pipefail
+          files=(sdk/mobile/android/dist/*)
+          bash scripts/release/upload-release-assets.sh "$TAG" "${files[@]}"
       - name: Locate signed AAB
         id: signed-aab
         shell: bash
@@ -135,7 +142,7 @@ jobs:
     name: Build iOS IPA
     needs: prepare-release
     runs-on: macos-15
-    timeout-minutes: 75
+    timeout-minutes: 90
     env:
       APPLE_CERTIFICATE_BASE64: ${{ secrets.TUNNARA_APPLE_CERTIFICATE_BASE64 }}
       APPLE_APP_PROFILE_BASE64: ${{ secrets.TUNNARA_APPLE_APP_PROFILE_BASE64 }}
@@ -146,35 +153,41 @@ jobs:
       WANT_PUBLISH: ${{ inputs.publish_testflight || vars.TUNNARA_ENABLE_APPSTORE_PUBLISH == 'true' }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.release_ref || inputs.release_tag }}
       - name: Install XcodeGen
         run: brew install xcodegen
+      - name: Validate mobile configuration and scripts
+        shell: bash
+        run: |
+          node scripts/ci/validate-mobile-config.mjs
+          bash -n sdk/mobile/ios/scripts/*.sh
       - name: Prepare optional Apple signing
         shell: bash
         run: |
           if [[ -n "$APPLE_CERTIFICATE_BASE64" && -n "$APPLE_APP_PROFILE_BASE64" && -n "$APPLE_PACKET_PROFILE_BASE64" && -n "$TUNNARA_APPLE_CERTIFICATE_PASSWORD" && -n "$TUNNARA_APPLE_TEAM_ID" ]]; then
-            echo "$APPLE_CERTIFICATE_BASE64" | base64 --decode > "$RUNNER_TEMP/tunnara-distribution.p12"
-            echo "$APPLE_APP_PROFILE_BASE64" | base64 --decode > "$RUNNER_TEMP/tunnara-app.mobileprovision"
-            echo "$APPLE_PACKET_PROFILE_BASE64" | base64 --decode > "$RUNNER_TEMP/tunnara-packet.mobileprovision"
+            printf '%s' "$APPLE_CERTIFICATE_BASE64" | bash scripts/ci/base64-decode.sh "$RUNNER_TEMP/tunnara-distribution.p12"
+            printf '%s' "$APPLE_APP_PROFILE_BASE64" | bash scripts/ci/base64-decode.sh "$RUNNER_TEMP/tunnara-app.mobileprovision"
+            printf '%s' "$APPLE_PACKET_PROFILE_BASE64" | bash scripts/ci/base64-decode.sh "$RUNNER_TEMP/tunnara-packet.mobileprovision"
             {
               echo "TUNNARA_APPLE_CERTIFICATE_P12=$RUNNER_TEMP/tunnara-distribution.p12"
               echo "TUNNARA_APPLE_APP_PROFILE=$RUNNER_TEMP/tunnara-app.mobileprovision"
               echo "TUNNARA_APPLE_PACKET_TUNNEL_PROFILE=$RUNNER_TEMP/tunnara-packet.mobileprovision"
             } >> "$GITHUB_ENV"
           else
-            echo "::notice::Credenciais Apple ausentes ou incompletas; IPA unsigned será gerado sem falhar."
+            echo '::notice::Credenciais Apple ausentes ou incompletas; IPA unsigned será gerado sem falhar.'
           fi
       - name: Build simulator app and IPA files
         run: bash sdk/mobile/ios/scripts/build-artifacts.sh
-      - name: Attach iOS files directly to GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ needs.prepare-release.outputs.tag }}
-          files: |
-            sdk/mobile/ios/dist/*.ipa
-            sdk/mobile/ios/dist/*.zip
-            sdk/mobile/ios/dist/*.json
-            sdk/mobile/ios/dist/SHA256SUMS.txt
-          fail_on_unmatched_files: false
+      - name: Attach iOS files sequentially
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.prepare-release.outputs.tag }}
+        run: |
+          set -Eeuo pipefail
+          files=(sdk/mobile/ios/dist/*.ipa sdk/mobile/ios/dist/*.zip sdk/mobile/ios/dist/*.json sdk/mobile/ios/dist/SHA256SUMS-ios.txt)
+          bash scripts/release/upload-release-assets.sh "$TAG" "${files[@]}"
       - name: Locate signed IPA
         id: signed-ipa
         shell: bash
@@ -187,7 +200,7 @@ jobs:
       - name: Publish optionally to TestFlight
         if: steps.signed-ipa.outputs.ready == 'true'
         continue-on-error: true
-        uses: apple-actions/upload-testflight-build@v4
+        uses: apple-actions/upload-testflight-build@v5
         with:
           app-path: ${{ steps.signed-ipa.outputs.path }}
           issuer-id: ${{ secrets.TUNNARA_APPSTORE_ISSUER_ID }}

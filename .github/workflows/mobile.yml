@@ -34,4 +34,6 @@ jobs:
           bash -n sdk/mobile/android/scripts/build-artifacts.sh
           bash -n sdk/mobile/ios/scripts/build-artifacts.sh
           bash -n sdk/mobile/ios/scripts/sign-and-export.sh
+          bash -n sdk/mobile/ios/scripts/prepare-wireguard-kit.sh
+          bash -n scripts/ci/base64-decode.sh
           node scripts/ci/validate-mobile-config.mjs

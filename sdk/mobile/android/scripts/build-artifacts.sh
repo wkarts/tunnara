@@ -43,7 +43,7 @@ fi
 
 cp "$RELEASE_AAB" "$OUT_DIR/Tunnara-Android-v${VERSION}-release-${SIGNING_MODE}.aab"
 
-cat > "$OUT_DIR/build-metadata.json" <<JSON
+cat > "$OUT_DIR/build-metadata-android.json" <<JSON
 {
   "product": "Tunnara Mobile Android",
   "version": "$VERSION",
@@ -56,7 +56,7 @@ JSON
 
 (
   cd "$OUT_DIR"
-  sha256sum ./*.apk ./*.aab > SHA256SUMS.txt
+  sha256sum ./*.apk ./*.aab > SHA256SUMS-android.txt
 )
 
 printf 'Artefatos Android gerados em %s (%s).\n' "$OUT_DIR" "$SIGNING_MODE"

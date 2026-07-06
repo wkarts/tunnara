@@ -7,12 +7,39 @@ on:
         description: 'Tag da GitHub Release draft que receberá os instaladores desktop'
         required: true
         type: string
+      release_ref:
+        description: 'Git ref imutável usado no checkout'
+        required: false
+        default: ''
+        type: string
+      release_id:
+        description: 'ID numérico da release draft coordenada'
+        required: true
+        type: string
+      prerelease:
+        description: 'Indica canal de pré-release'
+        required: false
+        default: false
+        type: boolean
   workflow_dispatch:
     inputs:
       release_tag:
         description: 'Tag da GitHub Release existente que receberá os instaladores desktop'
         required: true
         type: string
+      release_ref:
+        description: 'Git ref imutável usado no checkout'
+        required: false
+        default: ''
+        type: string
+      release_id:
+        description: 'ID numérico da release existente'
+        required: true
+        type: string
+      prerelease:
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -39,13 +66,23 @@ jobs:
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.release_ref || inputs.release_tag }}
 
-      - name: Ensure target release exists
+      - name: Verify coordinated draft release
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_ID: ${{ inputs.release_id }}
           TAG: ${{ inputs.release_tag }}
-        run: gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null
+        run: |
+          set -Eeuo pipefail
+          actual_tag="$(gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" --jq .tag_name)"
+          is_draft="$(gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" --jq .draft)"
+          [[ "$actual_tag" == "$TAG" && "$is_draft" == true ]] || {
+            echo "Release coordenada inválida: id=$RELEASE_ID tag=$actual_tag draft=$is_draft" >&2
+            exit 1
+          }
 
       - uses: actions/setup-node@v6
         with:
@@ -64,31 +101,56 @@ jobs:
         shell: bash
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            libwebkit2gtk-4.1-dev \
-            libappindicator3-dev \
-            librsvg2-dev \
-            patchelf
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
       - name: Install console dependencies
         shell: bash
         run: bash scripts/ci/npm-ci.sh apps/console
 
-      - name: Build and upload Tauri bundles
+      - name: Configure optional updater and Apple signing
+        shell: bash
+        env:
+          IN_TAURI_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          IN_TAURI_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          IN_APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          IN_APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          IN_APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          IN_APPLE_ID: ${{ secrets.APPLE_ID }}
+          IN_APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          IN_APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -Eeuo pipefail
+          append_multiline() {
+            local key="$1" value="$2" marker="TUNNARA_$(openssl rand -hex 12)"
+            { echo "$key<<$marker"; printf '%s\n' "$value"; echo "$marker"; } >> "$GITHUB_ENV"
+          }
+          if [[ -n "$IN_TAURI_KEY" && -n "$IN_TAURI_PASSWORD" ]]; then
+            append_multiline TAURI_SIGNING_PRIVATE_KEY "$IN_TAURI_KEY"
+            append_multiline TAURI_SIGNING_PRIVATE_KEY_PASSWORD "$IN_TAURI_PASSWORD"
+          else
+            echo '::notice::Assinatura do updater Tauri não configurada; bundles serão gerados sem assinatura de updater.'
+          fi
+          if [[ "$RUNNER_OS" == macOS && -n "$IN_APPLE_CERTIFICATE" && -n "$IN_APPLE_CERTIFICATE_PASSWORD" && -n "$IN_APPLE_SIGNING_IDENTITY" && -n "$IN_APPLE_ID" && -n "$IN_APPLE_PASSWORD" && -n "$IN_APPLE_TEAM_ID" ]]; then
+            append_multiline APPLE_CERTIFICATE "$IN_APPLE_CERTIFICATE"
+            append_multiline APPLE_CERTIFICATE_PASSWORD "$IN_APPLE_CERTIFICATE_PASSWORD"
+            append_multiline APPLE_SIGNING_IDENTITY "$IN_APPLE_SIGNING_IDENTITY"
+            append_multiline APPLE_ID "$IN_APPLE_ID"
+            append_multiline APPLE_PASSWORD "$IN_APPLE_PASSWORD"
+            append_multiline APPLE_TEAM_ID "$IN_APPLE_TEAM_ID"
+          elif [[ "$RUNNER_OS" == macOS ]]; then
+            echo '::notice::Credenciais Apple incompletas; build macOS seguirá sem notarização/assinatura comercial.'
+          fi
+
+      - name: Build and upload Tauri bundles to coordinated release
         uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         with:
           projectPath: apps/console
+          releaseId: ${{ inputs.release_id }}
           tagName: ${{ inputs.release_tag }}
-          releaseName: Tunnara Platform __VERSION__
           releaseDraft: true
-          prerelease: false
+          prerelease: ${{ inputs.prerelease }}
+          retryAttempts: 3
+          uploadWorkflowArtifacts: false
+          releaseAssetNamePattern: Tunnara-Console-[version]-[platform]-[arch]-[bundle][setup].[ext]

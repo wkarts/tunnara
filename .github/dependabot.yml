@@ -2,38 +2,98 @@ version: 2
 updates:
   - package-ecosystem: npm
     directory: /
-    schedule:
-      interval: weekly
+    schedule: { interval: weekly }
+    open-pull-requests-limit: 3
     groups:
-      root-tooling:
+      root-safe-updates:
         patterns: ['*']
+        update-types: [minor, patch]
+    ignore:
+      - dependency-name: '*'
+        update-types: [version-update:semver-major]
 
   - package-ecosystem: npm
     directory: /apps/console
-    schedule:
-      interval: weekly
+    schedule: { interval: weekly }
+    open-pull-requests-limit: 3
+    groups:
+      console-safe-updates:
+        patterns: ['*']
+        update-types: [minor, patch]
+    ignore:
+      - dependency-name: pinia
+        update-types: [version-update:semver-major]
+      - dependency-name: vue-router
+        update-types: [version-update:semver-major]
+      - dependency-name: typescript
+        update-types: [version-update:semver-major]
+      - dependency-name: vite
+        update-types: [version-update:semver-major]
+      - dependency-name: '@vitejs/plugin-vue'
+        update-types: [version-update:semver-major]
 
   - package-ecosystem: cargo
     directory: /
-    schedule:
-      interval: weekly
+    schedule: { interval: weekly }
+    open-pull-requests-limit: 3
+    groups:
+      rust-safe-updates:
+        patterns: ['*']
+        update-types: [minor, patch]
 
   - package-ecosystem: cargo
     directory: /apps/console/src-tauri
-    schedule:
-      interval: weekly
+    schedule: { interval: weekly }
+    open-pull-requests-limit: 3
+    groups:
+      tauri-rust-safe-updates:
+        patterns: ['*']
+        update-types: [minor, patch]
+    ignore:
+      - dependency-name: hmac
+        update-types: [version-update:semver-major]
+      - dependency-name: axum
+        update-types: [version-update:semver-major]
+      - dependency-name: tower-http
+        update-types: [version-update:semver-major]
+      - dependency-name: reqwest
+        update-types: [version-update:semver-major]
+      - dependency-name: dirs
+        update-types: [version-update:semver-major]
 
   - package-ecosystem: composer
     directory: /apps/control-api
-    schedule:
-      interval: weekly
+    schedule: { interval: weekly }
+    open-pull-requests-limit: 3
+    groups:
+      composer-safe-updates:
+        patterns: ['*']
+        update-types: [minor, patch]
 
   - package-ecosystem: gradle
     directory: /sdk/mobile/android
-    schedule:
-      interval: weekly
+    schedule: { interval: weekly }
+    open-pull-requests-limit: 3
+    groups:
+      android-safe-updates:
+        patterns: ['*']
+        update-types: [minor, patch]
+    ignore:
+      - dependency-name: androidx.core:core
+        versions: ['[1.17.0,)']
+      - dependency-name: androidx.core:core-ktx
+        versions: ['[1.17.0,)']
+      - dependency-name: com.android.tools.build:gradle
+        update-types: [version-update:semver-major]
 
   - package-ecosystem: github-actions
     directory: /
-    schedule:
-      interval: weekly
+    schedule: { interval: weekly }
+    open-pull-requests-limit: 3
+    groups:
+      actions-safe-updates:
+        patterns: ['*']
+        update-types: [minor, patch]
+    ignore:
+      - dependency-name: '*'
+        update-types: [version-update:semver-major]

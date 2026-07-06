@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       force_rebuild:
-        description: 'Regerar e substituir todos os assets da versão atual'
+        description: 'Retomar e substituir assets de uma release ainda em draft'
         required: false
         default: false
         type: boolean
@@ -21,7 +21,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ github.repository }}
   cancel-in-progress: false
 
 env:
@@ -31,20 +31,22 @@ env:
 
 jobs:
   prepare:
-    name: Prepare draft release
+    name: Prepare immutable draft release
     if: github.actor != 'dependabot[bot]'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     outputs:
       version: ${{ steps.release.outputs.version }}
       tag: ${{ steps.release.outputs.tag }}
+      release_id: ${{ steps.release.outputs.release_id }}
+      prerelease: ${{ steps.release.outputs.prerelease }}
       should_build: ${{ steps.release.outputs.should_build }}
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - name: Resolve deterministic release version
+      - name: Resolve deterministic immutable release
         id: release
         shell: bash
         env:
@@ -58,39 +60,41 @@ jobs:
             echo "VERSION inválida: $version" >&2
             exit 1
           }
-
-          should_build=true
+          prerelease=false
+          [[ "$version" == *-* ]] && prerelease=true
           notes_file="docs/releases/v${version}.md"
 
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            is_draft="$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)"
-            if [[ "$is_draft" == 'true' ]]; then
-              echo "::notice::A release $tag está em draft; os builds serão retomados e os assets substituídos."
-              edit_args=(--repo "$GITHUB_REPOSITORY" --title "Tunnara Platform $version" --draft=true --latest=false)
-              if [[ -f "$notes_file" ]]; then edit_args+=(--notes-file "$notes_file"); fi
-              gh release edit "$tag" "${edit_args[@]}"
-            elif [[ "$FORCE_REBUILD" == 'true' ]]; then
-              edit_args=(--repo "$GITHUB_REPOSITORY" --title "Tunnara Platform $version" --draft=true --latest=false)
-              if [[ -f "$notes_file" ]]; then edit_args+=(--notes-file "$notes_file"); fi
-              gh release edit "$tag" "${edit_args[@]}"
-            else
-              should_build=false
-              echo "::notice::A release publicada $tag já existe. Use force_rebuild para reconstruí-la."
+            release_json="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag")"
+            is_draft="$(jq -r .draft <<<"$release_json")"
+            if [[ "$is_draft" != true ]]; then
+              echo "::error::A release publicada $tag é imutável. Incremente VERSION antes do merge; não reabra a release nem mova a tag." >&2
+              exit 1
+            fi
+            git fetch --force --tags origin
+            existing_sha="$(git rev-list -n1 "$tag" 2>/dev/null || true)"
+            if [[ -n "$existing_sha" && "$existing_sha" != "$GITHUB_SHA" ]]; then
+              echo "::error::O draft $tag pertence ao commit $existing_sha, mas o workflow executa $GITHUB_SHA. Use uma nova versão." >&2
+              exit 1
+            fi
+            echo "::notice::Retomando o draft imutável $tag no mesmo commit."
+            if [[ "$FORCE_REBUILD" != true && "${{ github.event_name }}" == workflow_dispatch ]]; then
+              echo "::notice::Execução manual sem force_rebuild: o draft existente será retomado normalmente."
             fi
           else
-            create_args=(--repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Tunnara Platform $version" --draft)
-            if [[ -f "$notes_file" ]]; then
-              create_args+=(--notes-file "$notes_file")
-            else
-              create_args+=(--generate-notes)
-            fi
+            create_args=(--repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Tunnara Platform $version" --draft --latest=false)
+            [[ "$prerelease" == true ]] && create_args+=(--prerelease)
+            if [[ -f "$notes_file" ]]; then create_args+=(--notes-file "$notes_file"); else create_args+=(--generate-notes); fi
             gh release create "$tag" "${create_args[@]}"
           fi
 
+          release_id="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" --jq .id)"
           {
             echo "version=$version"
             echo "tag=$tag"
-            echo "should_build=$should_build"
+            echo "release_id=$release_id"
+            echo "prerelease=$prerelease"
+            echo "should_build=true"
           } >> "$GITHUB_OUTPUT"
 
       - name: Release summary
@@ -100,8 +104,9 @@ jobs:
             echo '## Release Tunnara'
             echo
             echo '- Versão: `${{ steps.release.outputs.version }}`'
-            echo '- Tag: `${{ steps.release.outputs.tag }}`'
-            echo '- Build necessário: `${{ steps.release.outputs.should_build }}`'
+            echo '- Tag imutável: `${{ steps.release.outputs.tag }}`'
+            echo '- Release ID: `${{ steps.release.outputs.release_id }}`'
+            echo '- Pré-release: `${{ steps.release.outputs.prerelease }}`'
             echo '- A release permanece em draft até todos os builds obrigatórios terminarem.'
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -114,6 +119,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          ref: ${{ needs.prepare.outputs.tag }}
           fetch-depth: 0
 
       - uses: actions/setup-node@v6
@@ -139,6 +145,7 @@ jobs:
           npm run validate:storage
           npm run validate:release
           npm run validate:docker
+          npm run validate:mobile
           npm run runtime:test
 
       - name: Build core deliverables
@@ -153,7 +160,7 @@ jobs:
             npm run runtime:test
           npm run artifacts:package
 
-      - name: Upload core assets to draft release
+      - name: Upload core assets sequentially
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -162,7 +169,7 @@ jobs:
           set -Eeuo pipefail
           mapfile -d '' files < <(find artifacts -maxdepth 1 -type f -print0 | sort -z)
           ((${#files[@]} > 0)) || { echo 'Nenhum artefato foi gerado.' >&2; exit 1; }
-          gh release upload "$TAG" "${files[@]}" --repo "$GITHUB_REPOSITORY" --clobber
+          bash scripts/release/upload-release-assets.sh "$TAG" "${files[@]}"
 
   runtime:
     name: Runtime executables
@@ -171,6 +178,7 @@ jobs:
     uses: ./.github/workflows/runtime-release.yml
     with:
       release_tag: ${{ needs.prepare.outputs.tag }}
+      release_ref: ${{ needs.prepare.outputs.tag }}
     secrets: inherit
 
   sdk:
@@ -180,6 +188,7 @@ jobs:
     uses: ./.github/workflows/sdk-build.yml
     with:
       release_tag: ${{ needs.prepare.outputs.tag }}
+      release_ref: ${{ needs.prepare.outputs.tag }}
     secrets: inherit
 
   desktop:
@@ -189,6 +198,9 @@ jobs:
     uses: ./.github/workflows/desktop-release.yml
     with:
       release_tag: ${{ needs.prepare.outputs.tag }}
+      release_ref: ${{ needs.prepare.outputs.tag }}
+      release_id: ${{ needs.prepare.outputs.release_id }}
+      prerelease: ${{ needs.prepare.outputs.prerelease == 'true' }}
     secrets: inherit
 
   mobile:
@@ -198,6 +210,7 @@ jobs:
     uses: ./.github/workflows/mobile-release.yml
     with:
       release_tag: ${{ needs.prepare.outputs.tag }}
+      release_ref: ${{ needs.prepare.outputs.tag }}
       publish_google_play: false
       publish_testflight: false
       ios_export_method: development
@@ -210,6 +223,7 @@ jobs:
     uses: ./.github/workflows/docker-publish.yml
     with:
       release_tag: ${{ needs.prepare.outputs.tag }}
+      release_ref: ${{ needs.prepare.outputs.tag }}
     secrets: inherit
 
   finalize:
@@ -248,11 +262,19 @@ jobs:
             exit 1
           fi
 
-      - name: Publish release
+      - name: Publish release with correct channel
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.prepare.outputs.tag }}
-        run: gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false --latest
+          PRERELEASE: ${{ needs.prepare.outputs.prerelease }}
+        run: |
+          set -Eeuo pipefail
+          if [[ "$PRERELEASE" == true ]]; then
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false --prerelease --latest=false
+          else
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false --prerelease=false --latest
+          fi
 
       - name: Final summary
         shell: bash
@@ -261,7 +283,8 @@ jobs:
             echo '## Release publicada'
             echo
             echo '- Tag: `${{ needs.prepare.outputs.tag }}`'
+            echo '- Pré-release: `${{ needs.prepare.outputs.prerelease }}`'
             echo '- Core, runtimes, SDKs, desktop, mobile e containers concluídos.'
-            echo '- Os binários foram anexados diretamente à GitHub Release.'
-            echo '- As imagens foram publicadas no GHCR.'
+            echo '- Assets possuem nomes exclusivos e uploads idempotentes.'
+            echo '- Imagens publicadas no GHCR com SBOM/provenance.'
           } >> "$GITHUB_STEP_SUMMARY"

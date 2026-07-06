@@ -35,7 +35,7 @@ class DistributedControlPlaneTest extends TestCase
         ],$headers)->assertCreated()->json();
 
         $agent=$this->withHeader('X-Tunnara-Provisioning-Token',$provision['token'])->postJson('/api/v1/agents/register',[
-            'name'=>'agent-01','platform'=>'linux','architecture'=>'x64','version'=>'2.0.0-rc.1','publicKey'=>str_replace('\\n', "\n", '-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAVmQ3VhDzExq5ijILAeaQNXQRpGXDfC2aJALqqNWOFYU=\n-----END PUBLIC KEY-----'),
+            'name'=>'agent-01','platform'=>'linux','architecture'=>'x64','version'=>'2.0.0-rc.2','publicKey'=>str_replace('\\n', "\n", '-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAVmQ3VhDzExq5ijILAeaQNXQRpGXDfC2aJALqqNWOFYU=\n-----END PUBLIC KEY-----'),
         ])->assertCreated()->json();
 
         $tunnel=$this->postJson('/api/v1/tunnels',[

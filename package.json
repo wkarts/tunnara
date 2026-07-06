@@ -1,7 +1,7 @@
 {
   "name": "tunnara-platform",
   "private": true,
-  "version": "2.0.0-rc.1",
+  "version": "2.0.0-rc.2",
   "description": "Plataforma self-hosted de túneis seguros, edge networking e conectividade privada.",
   "license": "AGPL-3.0-or-later",
   "scripts": {
@@ -38,7 +38,8 @@
     "validate:docker": "node scripts/ci/validate-docker-deployment.mjs",
     "runtime:test:policy": "node --test runtime/node/tests/e2e-policy-inspector-ha.mjs",
     "runtime:test:load": "node tests/load/http-tunnel-load.mjs",
-    "runtime:test:security": "node tests/security/policy-fuzz.mjs"
+    "runtime:test:security": "node tests/security/policy-fuzz.mjs",
+    "validate:mobile": "node scripts/ci/validate-mobile-config.mjs && npm run mobile:validate:scripts"
   },
   "devDependencies": {
     "esbuild": "^0.28.1",

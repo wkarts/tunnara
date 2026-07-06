@@ -21,6 +21,7 @@ const required = [
   'deploy/docker/docker-compose.ha.yml',
   'deploy/docker/docker-compose.ha.build.yml',
   'deploy/docker/docker-compose.distributed.yml',
+  'deploy/docker/docker-compose.distributed.quic.yml',
   'deploy/docker/docker-compose.observability.yml',
   'deploy/docker/distributed/Caddyfile',
   'deploy/observability/README.md',
@@ -65,6 +66,8 @@ if (!errors.length) {
     'deploy/docker/docker-compose.quic.yml',
     'deploy/docker/docker-compose.ha.yml',
     'deploy/docker/docker-compose.distributed.yml',
+    'deploy/docker/docker-compose.distributed.quic.yml',
+  'deploy/docker/docker-compose.distributed.quic.yml',
     'deploy/docker/docker-compose.observability.yml',
     'deploy/docker/storage/docker-compose.base.yml',
     'deploy/docker/storage/docker-compose.sqlite.yml',
@@ -93,7 +96,7 @@ if (!errors.length) {
   }
 
   const launcher = read('deploy/docker/tunnara.sh');
-  for (const command of ['quickstart', 'quickstart-build', 'up-production', 'up-distributed', 'bootstrap-distributed', 'up-observability', 'update-production', 'backup', 'restore', 'provision']) {
+  for (const command of ['quickstart', 'quickstart-build', 'up-production', 'up-distributed', 'up-distributed-quic', 'bootstrap-distributed', 'up-observability', 'update-production', 'backup', 'restore', 'provision']) {
     if (!launcher.includes(`${command})`) && !launcher.includes(` ${command}`)) errors.push(`tunnara.sh não expõe o comando ${command}.`);
   }
   if (!launcher.includes('TUNNARA_DEPLOY_MODE')) errors.push('tunnara.sh não diferencia image/build.');

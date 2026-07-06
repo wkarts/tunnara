@@ -3,9 +3,17 @@ import path from 'node:path';
 
 const version = process.argv[2];
 if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(version || '')) throw new Error('Versão SemVer inválida');
-const baseVersion = version.split('-')[0];
+const [baseVersion, prerelease = ''] = version.split('-', 2);
 const numericVersion = baseVersion.split('.').map(Number);
-const buildNumber = numericVersion[0] * 10000 + numericVersion[1] * 100 + numericVersion[2];
+const baseBuildNumber = numericVersion[0] * 10000 + numericVersion[1] * 100 + numericVersion[2];
+function mobileBuildNumber(value) {
+  const suffix = value.toLowerCase();
+  if (!suffix) return baseBuildNumber * 1000 + 999;
+  const numericSuffix = Number(suffix.match(/(?:^|[.-])(\d+)(?:$|[.-])/)?.[1] ?? 0);
+  const stage = suffix.startsWith('alpha') ? 100 : suffix.startsWith('beta') ? 500 : suffix.startsWith('rc') ? 900 : 50;
+  return baseBuildNumber * 1000 + stage + Math.min(numericSuffix, 99);
+}
+const buildNumber = mobileBuildNumber(prerelease);
 
 function updateJson(file) {
   const json = JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -78,6 +86,13 @@ if (fs.existsSync('deploy/helm/tunnara/values.yaml')) {
   let helmValues = fs.readFileSync('deploy/helm/tunnara/values.yaml', 'utf8');
   helmValues = helmValues.replace(/(tag:\s*")[^"]+("\s*)/g, `$1${version}$2`);
   fs.writeFileSync('deploy/helm/tunnara/values.yaml', helmValues);
+}
+
+
+for (const file of ['deploy/docker/.env.example', 'docker.env.example']) {
+  if (!fs.existsSync(file)) continue;
+  const source = fs.readFileSync(file, 'utf8').replace(/^(# Tunnara Platform )\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/m, `$1${version}`);
+  fs.writeFileSync(file, source);
 }
 
 fs.writeFileSync('VERSION', `${version}\n`);

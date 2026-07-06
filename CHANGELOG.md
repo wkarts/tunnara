@@ -1,5 +1,32 @@
 # Changelog
 
+## [2.0.0-rc.2] - 2026-07-06
+
+### Release e supply chain
+
+- Releases e tags publicadas passaram a ser imutáveis; toda correção exige nova versão.
+- Draft único coordenado por release ID para Core, Runtime, SDK, Desktop, Mobile e Containers.
+- Checkout fixado na tag, uploads sequenciais/idempotentes e assets/checksums exclusivos.
+- Pré-releases não são promovidas a `latest`.
+- SEA Windows corrigido sem wrappers `.cmd`; assinatura Tauri/Apple realmente opcional.
+
+### Mobile
+
+- Android alinhado ao Kotlin integrado do AGP 9, JVM 17 e AndroidX Core compatível com compileSdk 35.
+- Build number monotônico para alpha, beta, RC e estável.
+- iOS com Info.plist gerado, parser wg-quick local, Xcode 16/WireGuardKit endurecido e checksums portáveis.
+
+### Operação
+
+- Plano distribuído com fallback TCP explícito e overlay QUIC/TLS 1.3.
+- Backup, restore, update e rollback PostgreSQL integrados ao launcher Docker.
+- Runbooks de produção, upgrade, disaster recovery e incident response.
+- Dependabot agrupado e bloqueado para upgrades major incompatíveis automáticos.
+
+### Classificação
+
+Permanece Release Candidate. Os gates externos de escala, caos, dispositivos físicos, domínio real, pentest e soak continuam obrigatórios para GA.
+
 ## [2.0.0-rc.1] - 2026-07-06
 
 ### Plano de controle distribuído

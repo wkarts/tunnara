@@ -7,11 +7,21 @@ on:
         description: 'Tag SemVer usada nas imagens GHCR'
         required: true
         type: string
+      release_ref:
+        description: 'Git ref imutável usado no checkout; por padrão usa release_tag'
+        required: false
+        default: ''
+        type: string
   workflow_dispatch:
     inputs:
       release_tag:
         description: 'Tag SemVer usada nas imagens GHCR, por exemplo v1.1.0'
         required: true
+        type: string
+      release_ref:
+        description: 'Git ref imutável usado no checkout; por padrão usa release_tag'
+        required: false
+        default: ''
         type: string
 
 permissions:
@@ -52,6 +62,8 @@ jobs:
             file: deploy/docker/cloudflare/Dockerfile
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.release_ref || inputs.release_tag }}
 
       - name: Normalize owner and version
         id: version

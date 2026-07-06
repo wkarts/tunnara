@@ -1,24 +1,24 @@
-# Manifesto de artefatos — Tunnara Platform 2.0.0-rc.1
+# Manifesto de artefatos — Tunnara Platform 2.0.0-rc.2
 
 ## Pacotes centrais
 
-- `Tunnara-Platform-v2.0.0-rc.1-GitHub-Ready.zip`
-- `Tunnara-Platform-v2.0.0-rc.1-Pacote-Completo.zip`
-- `Tunnara-Platform-v2.0.0-rc.1-Codigo-Fonte.zip`
-- `Tunnara-Platform-v2.0.0-rc.1-Codigo-Fonte.tar.gz`
-- `Tunnara-Platform-v2.0.0-rc.1-Git-Repository.bundle`
-- `Tunnara-Platform-v2.0.0-rc.1.patch`
-- `Tunnara-Platform-v2.0.0-rc.1-Arquivos-Alterados.zip`
+- `Tunnara-Platform-v2.0.0-rc.2-GitHub-Ready.zip`
+- `Tunnara-Platform-v2.0.0-rc.2-Pacote-Completo.zip`
+- `Tunnara-Platform-v2.0.0-rc.2-Codigo-Fonte.zip`
+- `Tunnara-Platform-v2.0.0-rc.2-Codigo-Fonte.tar.gz`
+- `Tunnara-Platform-v2.0.0-rc.2-Git-Repository.bundle`
+- `Tunnara-Platform-v2.0.0-rc.2.patch`
+- `Tunnara-Platform-v2.0.0-rc.2-Arquivos-Alterados.zip`
 
 ## Distribuição
 
-- `Tunnara-Console-Web-v2.0.0-rc.1.zip`
-- `Tunnara-Runtime-Linux-x64-v2.0.0-rc.1.zip`
-- `Tunnara-Runtime-Linux-x64-v2.0.0-rc.1.tar.gz`
-- `Tunnara-SDK-C-Linux-x64-v2.0.0-rc.1.zip`
-- `Tunnara-Docker-v2.0.0-rc.1.zip`
-- `Tunnara-Helm-v2.0.0-rc.1.zip`
-- `Tunnara-Platform-v2.0.0-rc.1-SHA256SUMS.txt`
+- `Tunnara-Console-Web-v2.0.0-rc.2.zip`
+- `Tunnara-Runtime-Linux-x64-v2.0.0-rc.2.zip`
+- `Tunnara-Runtime-Linux-x64-v2.0.0-rc.2.tar.gz`
+- `Tunnara-SDK-C-Linux-x64-v2.0.0-rc.2.zip`
+- `Tunnara-Docker-v2.0.0-rc.2.zip`
+- `Tunnara-Helm-v2.0.0-rc.2.zip`
+- `Tunnara-Platform-v2.0.0-rc.2-SHA256SUMS.txt`
 
 ## Conteúdo do pacote completo
 
@@ -26,7 +26,7 @@
 - Console Web compilado;
 - Agent e Server standalone Linux x64;
 - SDK C dinâmico e estático Linux x64;
-- Docker single-node, produção, distribuído e observabilidade;
+- Docker single-node, produção, distribuído TCP/QUIC e observabilidade;
 - Helm Chart;
 - Control API Laravel, runtime, serviços Rust e projetos mobile;
 - documentação, OpenAPI, testes, workflows e scripts de release.
@@ -42,4 +42,4 @@
 
 ## Política
 
-Pull Requests não criam artefatos de distribuição. A release permanece em draft até a conclusão dos workflows obrigatórios e os arquivos finais são anexados diretamente à GitHub Release.
+Pull Requests não criam artefatos de distribuição. A release/tag publicada é imutável e o draft permanece aberto até a conclusão dos workflows obrigatórios e os arquivos finais são anexados diretamente à GitHub Release.

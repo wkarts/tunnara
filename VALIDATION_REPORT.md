@@ -1,4 +1,4 @@
-# Relatório de validação — Tunnara Platform 2.0.0-rc.1
+# Relatório de validação — Tunnara Platform 2.0.0-rc.2
 
 Data: 6 de julho de 2026.
 
@@ -6,13 +6,15 @@ Data: 6 de julho de 2026.
 
 ```text
 REPOSITORY_OK
-VERSION_OK (25 pontos; build mobile 20000)
+VERSION_OK (25 pontos; build mobile 20000902)
 NODE_SYNTAX_OK
 BASH_SYNTAX_OK
-PHP_SYNTAX_OK
+PHP_SYNTAX_OK (49 arquivos)
+YAML_OK (38 arquivos não-template)
 STORAGE_PROFILES_OK
 RELEASE_PIPELINE_OK
 DOCKER_DEPLOYMENT_OK
+MOBILE_CONFIG_OK
 HTTP_WEBSOCKET_OK
 TCP_UDP_OK
 CLOUDFLARE_DNS_OK
@@ -27,7 +29,24 @@ SDK_C_OK
 CONSOLE_TYPECHECK_OK
 CONSOLE_BUILD_OK
 STANDALONE_LINUX_OK
+STANDALONE_E2E_OK
 ```
+
+## Correções de hardening da RC2
+
+- release coordenada, imutável e baseada na tag exata;
+- upload sequencial e idempotente dos assets, sem Actions Artifact Storage;
+- nomes exclusivos de checksums e metadados por plataforma;
+- build SEA multiplataforma usando a API JavaScript do esbuild e postject sem wrappers `.cmd`;
+- Desktop/Tauri associado ao `release_id` existente, sem criação de drafts paralelos;
+- assinatura e notarização macOS realmente opcionais;
+- Android compatível com AGP 9 e Kotlin integrado;
+- iOS compatível com Xcode 16, WireGuardKit público e `Info.plist` gerado;
+- build number mobile monotônico para versões alpha, beta, RC e estáveis;
+- Docker distribuído com fallback TCP/TLS e overlay QUIC explícito;
+- backup/restore PostgreSQL, update e rollback para os perfis distribuídos;
+- runbooks de produção, desastre, incidentes, atualização e rollback;
+- Dependabot agrupado e limitado para evitar atualizações major incompatíveis.
 
 ## Funcionalidades exercitadas
 
@@ -69,21 +88,21 @@ Teste realizado no mesmo host entre Edge, Relay, Agent e upstream local:
   "concurrency": 50,
   "completed": 1000,
   "failures": 0,
-  "durationSeconds": 1.822,
-  "requestsPerSecond": 548.87,
-  "p50Ms": 87.72,
-  "p95Ms": 107.81,
-  "p99Ms": 156.23,
-  "maxMs": 176.55
+  "durationSeconds": 1.837,
+  "requestsPerSecond": 544.39,
+  "p50Ms": 86.78,
+  "p95Ms": 123.74,
+  "p99Ms": 190.62,
+  "maxMs": 212.81
 }
 ```
 
-Esse resultado comprova o teste local, não capacidade global de produção.
+Esse resultado comprova apenas o cenário local executado. Não representa promessa de capacidade global ou substitui os testes quantitativos definidos para GA.
 
 ## Console
 
 - TypeScript/Vue sem erros.
-- Build Vite concluído.
+- Build Vite concluído em 1,61 s.
 - Bundle principal: 86,03 kB.
 - Vendor Vue/Router/Pinia: 95,85 kB.
 - Policies e Request Inspector carregados em chunks independentes.
@@ -92,32 +111,36 @@ Esse resultado comprova o teste local, não capacidade global de produção.
 
 - `tunnara-agent-linux-x64`: criado e executado.
 - `tunnara-server-linux-x64`: criado e executado.
-- E2E HTTP/WebSocket completo aprovado usando os dois binários.
+- ambos reportaram `2.0.0-rc.2`;
+- E2E HTTP/WebSocket completo aprovado usando diretamente os dois executáveis.
 
 ## Validações estáticas do plano distribuído
 
 - sintaxe PHP de migrations, models, middleware, controllers, support e testes;
 - Compose distribuído com PostgreSQL, Redis, dois Controls, dois Edges e dois Relays;
+- overlay QUIC com exportação de certificados e UDP/7443;
 - migrações para provisionamento, sessões, nodes, presença, políticas, targets e inspeções;
-- Helm e YAML parseados;
-- OpenAPI parseada;
-- workflows parseados e sem artifacts em PR.
+- workflows e arquivos Compose parseados;
+- OpenAPI versionada;
+- PRs sem criação de artefatos temporários.
 
-## Validações que dependem de runners/credenciais externos
+## Validações que dependem de runners, infraestrutura ou credenciais externas
 
-Não foram executadas localmente por indisponibilidade das ferramentas ou credenciais no ambiente:
+Não foram executadas localmente por indisponibilidade das ferramentas, plataformas ou credenciais no ambiente:
 
-- `composer install` e PHPUnit do Control API;
+- `composer install` e PHPUnit completo do Control API;
 - compilação completa do workspace Rust/QUIC;
 - execução real do Docker Engine e Helm CLI;
 - imagens OCI amd64/arm64;
-- instaladores Tauri;
+- instaladores Tauri em Windows e macOS;
 - APK/AAB e IPA;
 - Cloudflare e Let’s Encrypt em domínio real;
-- assinatura e notarização.
+- assinatura e notarização;
+- testes físicos em Android/iOS;
+- soak multi-host, caos, pentest e auditoria externa.
 
-Essas etapas estão configuradas nos workflows do GitHub, mas devem ser acompanhadas na primeira execução da RC.
+Essas etapas estão configuradas ou documentadas, mas precisam ser acompanhadas na primeira execução da RC e concluídas antes da promoção para GA.
 
 ## Classificação
 
-A versão está apta para homologação e produção controlada. Não é uma certificação GA de escala global. Os gates restantes estão documentados em `docs/security/MATURITY_GATES.md`.
+A versão está apta para GitHub, homologação e produção controlada. Ela não é uma certificação GA de escala global. Os gates restantes estão documentados em `docs/security/MATURITY_GATES.md` e `docs/operations/PRODUCTION_READINESS.md`.

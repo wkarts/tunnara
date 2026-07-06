@@ -48,8 +48,15 @@ let failed = false;
 for (const [file, value, requiredValue = expected] of values) {
   if (value !== requiredValue) { console.error(`${file}: ${value} != ${requiredValue}`); failed = true; }
 }
-const numericVersion = expected.split('-')[0].split('.').map(Number);
-const expectedBuild = String(numericVersion[0] * 10000 + numericVersion[1] * 100 + numericVersion[2]);
+const [expectedBaseVersion, expectedPrerelease = ''] = expected.split('-', 2);
+const numericVersion = expectedBaseVersion.split('.').map(Number);
+const baseBuildNumber = numericVersion[0] * 10000 + numericVersion[1] * 100 + numericVersion[2];
+const numericSuffix = Number(expectedPrerelease.toLowerCase().match(/(?:^|[.-])(\d+)(?:$|[.-])/)?.[1] ?? 0);
+const stage = !expectedPrerelease ? 999
+  : expectedPrerelease.toLowerCase().startsWith('alpha') ? 100
+    : expectedPrerelease.toLowerCase().startsWith('beta') ? 500
+      : expectedPrerelease.toLowerCase().startsWith('rc') ? 900 : 50;
+const expectedBuild = String(baseBuildNumber * 1000 + stage + Math.min(numericSuffix, 99));
 for (const [label, value] of [
   ['Android versionCode', extract('sdk/mobile/android/app/build.gradle.kts', /versionCode = (\d+)/, 'Android versionCode')],
   ['iOS extension CFBundleVersion', extract('sdk/mobile/ios/Config/PacketTunnel-Info.plist', /<key>CFBundleVersion<\/key><string>([^<]+)<\/string>/, 'iOS build')],

@@ -1,4 +1,4 @@
-# Tunnara Platform 2.0.0-rc.1
+# Tunnara Platform 2.0.0-rc.2
 
 A Tunnara é uma plataforma self-hosted de conectividade segura para publicar aplicações atrás de NAT/CGNAT, operar túneis HTTP/HTTPS/WebSocket/TCP/UDP, criar redes privadas WireGuard e administrar acesso por políticas.
 
@@ -63,8 +63,8 @@ cd deploy/docker
 ./tunnara.sh init
 # configure TUNNARA_BASE_DOMAIN, TUNNARA_PUBLIC_HOST,
 # CLOUDFLARE_API_TOKEN e TUNNARA_ACME_EMAIL
-./tunnara.sh up-distributed
-./tunnara.sh status-distributed
+./tunnara.sh up-distributed-quic
+./tunnara.sh status-distributed-quic
 ```
 
 Detalhes: [`deploy/docker/distributed/README.md`](deploy/docker/distributed/README.md).
@@ -147,16 +147,21 @@ npm run runtime:test:security
 npm run runtime:test:load
 ```
 
-A CI de Pull Request não cria artefatos. Builds completos são executados por tag, release ou workflow manual.
+A CI de Pull Request não cria artefatos. Builds completos são coordenados por uma única release draft, usam a tag imutável como ref e publicam assets com nomes exclusivos.
+
+> O runtime funcional oficial desta RC é o plano de dados Node.js 22. Os serviços Agent/Edge/Relay Rust permanecem em preview até passarem pela mesma matriz E2E, carga e soak; consulte `docs/STATUS.md`.
 
 ## Estado da release
 
-`2.0.0-rc.1` é um candidato de produção controlada. Os recursos funcionais estão integrados e possuem testes locais automatizados, mas a classificação GA exige domínio real, ensaio multi-host prolongado, teste em dispositivos físicos e auditoria de segurança externa. Consulte:
+`2.0.0-rc.2` é um candidato de produção controlada. Os recursos funcionais estão integrados e possuem testes locais automatizados, mas a classificação GA exige domínio real, ensaio multi-host prolongado, teste em dispositivos físicos e auditoria de segurança externa. Consulte:
 
 - [`docs/STATUS.md`](docs/STATUS.md)
 - [`docs/architecture/COMPETITIVE_GAP.md`](docs/architecture/COMPETITIVE_GAP.md)
-- [`docs/releases/v2.0.0-rc.1.md`](docs/releases/v2.0.0-rc.1.md)
+- [`docs/releases/v2.0.0-rc.2.md`](docs/releases/v2.0.0-rc.2.md)
 - [`docs/security/MATURITY_GATES.md`](docs/security/MATURITY_GATES.md)
+- [`docs/operations/PRODUCTION_READINESS.md`](docs/operations/PRODUCTION_READINESS.md)
+- [`docs/operations/UPGRADE_ROLLBACK.md`](docs/operations/UPGRADE_ROLLBACK.md)
+- [`docs/operations/DISASTER_RECOVERY.md`](docs/operations/DISASTER_RECOVERY.md)
 
 ## Estrutura
 
