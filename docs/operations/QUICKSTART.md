@@ -1,4 +1,4 @@
-# Quickstart — Tunnara 2.0.0-rc.5
+# Quickstart — Tunnara 2.0.0-rc.6
 
 ## Docker
 

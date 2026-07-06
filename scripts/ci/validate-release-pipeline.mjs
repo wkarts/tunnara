@@ -73,7 +73,7 @@ for (const expected of [
 }
 
 const uploader = read('scripts/release/upload-release-assets.sh');
-for (const expected of ['--clobber', 'for attempt in 1 2 3', 'LC_ALL=C sort']) {
+for (const expected of ['--clobber', 'for attempt in 1 2 3', 'LC_ALL=C sort', 'delete_existing_asset', 'releases/assets/', '--method DELETE']) {
   if (!uploader.includes(expected)) errors.push(`Uploader de releases não contém: ${expected}`);
 }
 if (/mapfile|sort\s+-z/.test(uploader)) errors.push('Uploader de releases deve funcionar no Bash 3.2/macOS, sem mapfile ou sort -z.');
@@ -100,6 +100,14 @@ for (const expected of ['SHA256SUMS-runtime-', 'upload-release-assets.sh']) {
 }
 for (const expected of ['SHA256SUMS-sdk-', 'upload-release-assets.sh']) {
   if (!sdk.includes(expected)) errors.push(`sdk-build.yml não contém: ${expected}`);
+}
+
+const windowsTauriConfig = JSON.parse(read('apps/console/src-tauri/tauri.windows.conf.json'));
+if (!/^\d+\.\d+\.\d+(?:-\d+)?$/.test(windowsTauriConfig.version)) {
+  errors.push('tauri.windows.conf.json deve usar versão MSI com prerelease exclusivamente numérica.');
+}
+if (windowsTauriConfig.version.includes('-') && Number(windowsTauriConfig.version.split('-')[1]) > 65535) {
+  errors.push('tauri.windows.conf.json excede o limite de prerelease MSI 65535.');
 }
 
 const desktop = read('.github/workflows/desktop-release.yml');

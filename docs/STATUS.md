@@ -1,4 +1,4 @@
-# Estado da implementação — Tunnara 2.0.0-rc.5
+# Estado da implementação — Tunnara 2.0.0-rc.6
 
 ## Integrado e validado localmente
 

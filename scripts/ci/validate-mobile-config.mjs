@@ -13,6 +13,8 @@ const required = [
   'sdk/mobile/android/scripts/build-artifacts.sh',
   'sdk/mobile/ios/project.yml',
   'sdk/mobile/ios/Config/PacketTunnel-Info.plist',
+  'sdk/mobile/ios/TunnaraPacketTunnel/PacketTunnelProvider.swift',
+  'sdk/mobile/ios/TunnaraPacketTunnel/WgQuickConfigParser.swift',
   'sdk/mobile/ios/scripts/build-artifacts.sh',
   'sdk/mobile/ios/scripts/prepare-wireguard-kit.sh',
   'sdk/mobile/ios/scripts/sign-and-export.sh',
@@ -31,6 +33,8 @@ const ios = read('sdk/mobile/ios/project.yml');
 const iosBuild = read('sdk/mobile/ios/scripts/build-artifacts.sh');
 const wireGuardPrepare = read('sdk/mobile/ios/scripts/prepare-wireguard-kit.sh');
 const extensionPlist = read('sdk/mobile/ios/Config/PacketTunnel-Info.plist');
+const packetTunnelProvider = read('sdk/mobile/ios/TunnaraPacketTunnel/PacketTunnelProvider.swift');
+const wgQuickParser = read('sdk/mobile/ios/TunnaraPacketTunnel/WgQuickConfigParser.swift');
 const iosBaseVersion = baseVersion(version);
 const expectedBuild = String(mobileBuildNumber(version));
 
@@ -108,6 +112,20 @@ for (const expected of [
 if (/url:\s*https:\/\/git\.zx2c4\.com\/wireguard-apple/.test(ios)) {
   throw new Error('WireGuardKit deve ser um pacote local preparado antes do XcodeGen.');
 }
+if (!packetTunnelProvider.includes('WgQuickConfigParser.parse(raw, name: "Tunnara")')) {
+  throw new Error('PacketTunnelProvider deve usar o parser wg-quick local compatível com a API pública do WireGuardKit.');
+}
+if (/TunnelConfiguration\s*\(\s*fromWgQuickConfig:/.test(packetTunnelProvider)) {
+  throw new Error('PacketTunnelProvider não pode usar o initializer privado/indisponível fromWgQuickConfig.');
+}
+for (const expected of [
+  'enum WgQuickConfigParser',
+  'static func parse(_ source: String, name: String? = nil) throws -> TunnelConfiguration',
+  'return TunnelConfiguration(',
+]) {
+  if (!wgQuickParser.includes(expected)) throw new Error(`Parser wg-quick local incompleto: ${expected}.`);
+}
+
 const prepareIndex = iosBuild.indexOf('bash "$ROOT/scripts/prepare-wireguard-kit.sh"');
 const xcodegenIndex = iosBuild.indexOf('xcodegen generate');
 if (prepareIndex < 0 || xcodegenIndex < 0 || prepareIndex > xcodegenIndex) {

@@ -1,4 +1,4 @@
-# Implantação de produção — Tunnara 2.0.0-rc.5
+# Implantação de produção — Tunnara 2.0.0-rc.6
 
 ## Perfil recomendado
 
@@ -68,7 +68,7 @@ curl -fsSL \
   https://raw.githubusercontent.com/wkarts/tunnara/main/deploy/docker/install-from-github.sh \
   -o /tmp/tunnara-install.sh
 
-TUNNARA_VERSION=2.0.0-rc.5 \
+TUNNARA_VERSION=2.0.0-rc.6 \
 TUNNARA_START_MODE=none \
   sudo -E bash /tmp/tunnara-install.sh
 

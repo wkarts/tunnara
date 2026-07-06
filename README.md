@@ -1,4 +1,4 @@
-# Tunnara Platform 2.0.0-rc.5
+# Tunnara Platform 2.0.0-rc.6
 
 A Tunnara é uma plataforma self-hosted de conectividade segura para publicar aplicações atrás de NAT/CGNAT, operar túneis HTTP/HTTPS/WebSocket/TCP/UDP, criar redes privadas WireGuard e administrar acesso por políticas.
 
@@ -159,11 +159,11 @@ A CI de Pull Request não cria artefatos. Builds completos são executados por t
 
 ## Estado da release
 
-`2.0.0-rc.5` é um candidato de produção controlada. Os recursos funcionais estão integrados e possuem testes locais automatizados, mas a classificação GA exige domínio real, ensaio multi-host prolongado, teste em dispositivos físicos e auditoria de segurança externa. Consulte:
+`2.0.0-rc.6` é um candidato de produção controlada. Os recursos funcionais estão integrados e possuem testes locais automatizados, mas a classificação GA exige domínio real, ensaio multi-host prolongado, teste em dispositivos físicos e auditoria de segurança externa. Consulte:
 
 - [`docs/STATUS.md`](docs/STATUS.md)
 - [`docs/architecture/COMPETITIVE_GAP.md`](docs/architecture/COMPETITIVE_GAP.md)
-- [`docs/releases/v2.0.0-rc.5.md`](docs/releases/v2.0.0-rc.5.md)
+- [`docs/releases/v2.0.0-rc.6.md`](docs/releases/v2.0.0-rc.6.md)
 - [`docs/security/MATURITY_GATES.md`](docs/security/MATURITY_GATES.md)
 
 ## Estrutura

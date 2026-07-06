@@ -150,6 +150,22 @@ function prereleaseStage(prerelease) {
   return Math.min(offset + ordinal, 9998);
 }
 
+export function windowsBundleVersion(value) {
+  const parsed = typeof value === 'string' ? parseVersion(value) : value;
+  const base = `${parsed.major}.${parsed.minor}.${parsed.patch}`;
+  if (!parsed.prerelease.length) return base;
+
+  // O MSI/WiX aceita somente um identificador de prerelease numérico <= 65535.
+  // Reutilizamos a ordenação de canais do build mobile para evitar colisões
+  // entre alpha, beta, preview e rc sem alterar a versão pública SemVer.
+  const numericPrerelease = prereleaseStage(parsed.prerelease);
+  if (!Number.isInteger(numericPrerelease) || numericPrerelease < 0 || numericPrerelease > 65_535) {
+    throw new Error(`Versão ${formatVersion(parsed)} não pode ser convertida para versão MSI.`);
+  }
+
+  return `${base}-${numericPrerelease}`;
+}
+
 export function mobileBuildNumber(value) {
   const parsed = typeof value === 'string' ? parseVersion(value) : value;
   const number = (

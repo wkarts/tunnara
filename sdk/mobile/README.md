@@ -1,4 +1,4 @@
-# Tunnara Mobile 2.0.0-rc.5
+# Tunnara Mobile 2.0.0-rc.6
 
 Clientes móveis para acesso às redes privadas Tunnara.
 

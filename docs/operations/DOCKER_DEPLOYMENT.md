@@ -119,7 +119,7 @@ curl -fsSL https://raw.githubusercontent.com/wkarts/tunnara/main/deploy/docker/i
 Versão específica e diretório customizado:
 
 ```bash
-TUNNARA_VERSION=2.0.0-rc.5 \
+TUNNARA_VERSION=2.0.0-rc.6 \
 TUNNARA_INSTALL_DIR=/opt/tunnara \
 TUNNARA_START_MODE=image \
   bash install-from-github.sh

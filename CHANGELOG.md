@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.0.0-rc.6 - 2026-07-06
+
+### Corrigido
+
+- Corrige o bundle MSI do Console Tauri com versão Windows derivada e prerelease exclusivamente numérica.
+- Substitui explicitamente assets existentes antes do upload para tornar reexecuções de release realmente idempotentes.
+- Corrige o Packet Tunnel iOS para usar `WgQuickConfigParser.parse`, removendo o initializer indisponível do WireGuardKit.
+- Reforça os validadores de versão, release e mobile para bloquear essas regressões antes do merge.
+
 ## [2.0.0-rc.5] - 2026-07-06
 
 ### Correção da matriz nativa pós-merge
