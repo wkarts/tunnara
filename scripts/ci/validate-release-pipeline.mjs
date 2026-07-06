@@ -29,6 +29,11 @@ for (const expected of [
   'git/refs/tags/$tag',
   'gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false',
   '--json isDraft',
+  "AUTO_REBUILD: ${{ github.event_name == 'push' }}",
+  'rebuild_requested=false',
+  `if [[ "$AUTO_REBUILD" == 'true' || "$FORCE_REBUILD" == 'true' ]]`,
+  `if [[ "$is_draft" == 'true' || "$rebuild_requested" == 'true' ]]`,
+  'rebuild_requested=$rebuild_requested',
   'uses: ./.github/workflows/runtime-release.yml',
   'uses: ./.github/workflows/sdk-build.yml',
   'uses: ./.github/workflows/desktop-release.yml',
@@ -52,6 +57,15 @@ for (const triggerPath of [
 if (!release.includes('--draft')) errors.push('release.yml deve criar a release em draft antes dos builds.');
 if (/semantic-release/.test(release)) errors.push('release.yml não deve depender de semantic-release.');
 if (/gh workflow run/.test(release)) errors.push('release.yml deve usar reusable workflows, não dispatch assíncrono por gh workflow run.');
+if (/elif \[\[ "\$FORCE_REBUILD" == 'true' \]\]/.test(release)) {
+  errors.push('release.yml não deve limitar a reconstrução automática somente ao workflow_dispatch.');
+}
+if (!release.includes('A release publicada $tag será reaberta em draft')) {
+  errors.push('release.yml deve reabrir uma release publicada quando uma correção do pipeline for mesclada.');
+}
+if (!/AUTO_REBUILD:[^\n]*github\.event_name == 'push'/.test(release)) {
+  errors.push('release.yml deve tratar o push automático do pipeline como solicitação de rebuild.');
+}
 
 const reusable = ['runtime-release.yml', 'sdk-build.yml', 'desktop-release.yml', 'mobile-release.yml', 'docker-publish.yml'];
 for (const name of reusable) {

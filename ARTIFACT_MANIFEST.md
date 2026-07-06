@@ -39,3 +39,4 @@
 ## Política de release
 
 A release permanece em draft até que os assets centrais e todos os builds obrigatórios terminem. Os arquivos são anexados diretamente à GitHub Release; o pipeline não utiliza Actions Artifact Storage.
+Correções mescladas nos workflows ou scripts de release reabrem automaticamente a versão corrente em draft, reposicionam a tag para o commit do hotfix e reconstruem todos os assets obrigatórios, mesmo quando a release já havia sido publicada.
