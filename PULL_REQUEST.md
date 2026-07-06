@@ -1,15 +1,36 @@
-# Tunnara Platform 2.0.0-rc.6 — correção final do pipeline pós-merge
+# Tunnara Platform 2.0.0-rc.7 — release draft coordenada por ID
 
-## Causas confirmadas
+## Causa confirmada
 
-- O MSI recusava `2.0.0-rc.5`, pois o identificador de prerelease do instalador deve ser exclusivamente numérico.
-- O uploader dependia apenas de `--clobber`, mas a API retornava HTTP 422 quando o asset já existia.
-- O Packet Tunnel ainda chamava `TunnelConfiguration(fromWgQuickConfig:called:)`, initializer não exportado pelo WireGuardKit usado no build.
+O job `prepare` criou a draft `v2.0.0-rc.6`, mas a URL retornada pelo GitHub era
+`releases/tag/untagged-*`. O uploader tentou resolver essa draft por
+`repos/{repo}/releases/tags/v2.0.0-rc.6` e recebeu HTTP 404.
 
-## Correções
+A falha ocorreu no Core; os demais grupos foram `skipped` por dependência, e não por
+falhas próprias de compilação.
 
-- Adiciona `tauri.windows.conf.json` com versão derivada `2.0.0-7006`.
-- Sincroniza e valida automaticamente a versão MSI em todos os próximos releases.
-- Remove explicitamente assets existentes por ID antes de cada upload e nova tentativa.
-- Usa `WgQuickConfigParser.parse(raw, name:)` no iOS.
-- Reforça validadores de release, versão e mobile.
+## Alterações
+
+- release draft criada/retomada pela API REST;
+- `release_id` numérico usado como identidade canônica da execução;
+- upload direto para `uploads.github.com` por release ID;
+- Runtime, SDK, Desktop e Mobile recebem o mesmo ID;
+- publicação final por ID;
+- fallback manual resolve drafts pela listagem geral de releases;
+- teste funcional bloqueia regressão para o endpoint `/releases/tags/{tag}`.
+
+## Branch
+
+`fix/v2.0.0-rc7-draft-release-id`
+
+## Commit
+
+`fix(release): use release id for draft asset uploads`
+
+## Título
+
+`fix(release): corrigir HTTP 404 e coordenar drafts por release ID na RC.7`
+
+## Squash/Merge
+
+`fix: publish Tunnara 2.0.0-rc.7 with release-id coordinated drafts`

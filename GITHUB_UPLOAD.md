@@ -1,38 +1,29 @@
-# Publicação da correção Tunnara 2.0.0-rc.6 no GitHub
+# Publicação da correção Tunnara 2.0.0-rc.7 no GitHub
 
 ## Branch
 
 ```text
-fix/v2.0.0-rc6-release-portability
+fix/v2.0.0-rc7-draft-release-id
 ```
 
-## Aplicação do patch
+## Aplicação
 
 ```bash
 git switch main
 git pull --rebase origin main
-git switch -c fix/v2.0.0-rc6-release-portability
-git am /caminho/Tunnara-Platform-v2.0.0-rc.6.patch
-git push -u origin fix/v2.0.0-rc6-release-portability
+git switch -c fix/v2.0.0-rc7-draft-release-id
+git am /caminho/Tunnara-Platform-v2.0.0-rc.7.patch
+git push -u origin fix/v2.0.0-rc7-draft-release-id
 ```
 
 ## Commit
 
 ```text
-fix(release): repair MSI versioning, idempotent uploads and iOS parser
+fix(release): use release id for draft asset uploads
 ```
 
 ## Release
 
-O merge deve reservar a nova release `v2.0.0-rc.6`. A draft/tag `v2.0.0-rc.5` não deve ser reutilizada para outro SHA. Após a RC.6 concluir integralmente, a draft RC.5 incompleta pode ser excluída manualmente.
-
-## Imagens esperadas
-
-```text
-ghcr.io/wkarts/tunnara-server:2.0.0-rc.6
-ghcr.io/wkarts/tunnara-agent:2.0.0-rc.6
-ghcr.io/wkarts/tunnara-console:2.0.0-rc.6
-ghcr.io/wkarts/tunnara-control-api:2.0.0-rc.6
-ghcr.io/wkarts/tunnara-quic-bridge:2.0.0-rc.6
-ghcr.io/wkarts/tunnara-caddy-cloudflare:2.0.0-rc.6
-```
+O merge deve criar a nova draft `v2.0.0-rc.7`. Não reexecute o workflow da RC.6,
+pois ele continuará usando o uploader e o SHA anteriores. Após a RC.7 ser publicada,
+a draft incompleta da RC.6 pode ser excluída.

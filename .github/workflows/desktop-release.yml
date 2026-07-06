@@ -64,7 +64,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ inputs.release_tag }}
-        run: gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null
+          RELEASE_ID: ${{ inputs.release_id }}
+        run: bash scripts/release/resolve-release-id.sh "$TAG" "$RELEASE_ID" >/dev/null
 
       - uses: actions/setup-node@v6
         with:

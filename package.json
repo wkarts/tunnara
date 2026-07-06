@@ -1,7 +1,7 @@
 {
   "name": "tunnara-platform",
   "private": true,
-  "version": "2.0.0-rc.6",
+  "version": "2.0.0-rc.7",
   "description": "Plataforma self-hosted de túneis seguros, edge networking e conectividade privada.",
   "license": "AGPL-3.0-or-later",
   "scripts": {
@@ -34,7 +34,7 @@
     "mobile:ios:build": "bash sdk/mobile/ios/scripts/build-artifacts.sh",
     "mobile:validate:scripts": "bash -n sdk/mobile/android/scripts/build-artifacts.sh && bash -n sdk/mobile/ios/scripts/build-artifacts.sh && bash -n sdk/mobile/ios/scripts/sign-and-export.sh",
     "validate:storage": "node scripts/ci/validate-storage-profiles.mjs",
-    "validate:release": "node scripts/ci/validate-release-pipeline.mjs",
+    "validate:release": "node scripts/ci/validate-release-pipeline.mjs && node --test scripts/ci/test-release-uploader.mjs",
     "validate:docker": "node scripts/ci/validate-docker-deployment.mjs",
     "runtime:test:policy": "node --test runtime/node/tests/e2e-policy-inspector-ha.mjs",
     "runtime:test:load": "node tests/load/http-tunnel-load.mjs",

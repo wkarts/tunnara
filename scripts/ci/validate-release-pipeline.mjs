@@ -30,12 +30,14 @@ for (const expected of [
   'npm run sdk:c:build',
   'npm run artifacts:package',
   'scripts/release/upload-release-assets.sh',
-  'gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false',
-  '--json isDraft',
+  'scripts/release/resolve-release-id.sh',
+  'repos/$GITHUB_REPOSITORY/releases?per_page=100',
+  '--method POST',
+  'release_id="$(jq -r .id',
   'A release publicada $tag é imutável',
   'A tag existente $tag aponta para',
-  '--json isDraft,targetCommitish',
   'A draft $tag pertence ao commit',
+  'gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" -F draft=false',
   'uses: ./.github/workflows/runtime-release.yml',
   'uses: ./.github/workflows/sdk-build.yml',
   'uses: ./.github/workflows/desktop-release.yml',
@@ -48,7 +50,7 @@ for (const expected of [
 }
 if (/\n\s{2}push:/m.test(release)) errors.push('release.yml deve ser iniciado por workflow_dispatch coordenado, sem corrida por push em VERSION.');
 if (release.includes('force_rebuild')) errors.push('release.yml não deve reabrir releases publicadas por force_rebuild.');
-if (!release.includes('--prerelease')) errors.push('release.yml deve marcar versões prerelease corretamente.');
+if (!release.includes('-F "prerelease=$prerelease"')) errors.push('release.yml deve marcar versões prerelease corretamente.');
 if (/semantic-release/.test(release)) errors.push('release.yml não deve depender de semantic-release.');
 if (/gh workflow run/.test(release)) errors.push('release.yml deve usar reusable workflows, não dispatch assíncrono interno.');
 
@@ -73,10 +75,27 @@ for (const expected of [
 }
 
 const uploader = read('scripts/release/upload-release-assets.sh');
-for (const expected of ['--clobber', 'for attempt in 1 2 3', 'LC_ALL=C sort', 'delete_existing_asset', 'releases/assets/', '--method DELETE']) {
+for (const expected of [
+  'resolve-release-id.sh',
+  'uploads.github.com',
+  'Content-Type: application/octet-stream',
+  'for attempt in 1 2 3',
+  'LC_ALL=C sort',
+  'delete_existing_asset',
+  'releases/assets/',
+  '--method DELETE',
+]) {
   if (!uploader.includes(expected)) errors.push(`Uploader de releases não contém: ${expected}`);
 }
+if (/releases\/tags\//.test(uploader)) errors.push('Uploader não pode resolver draft pelo endpoint /releases/tags/{tag}, que retorna 404 para drafts.');
+if (/gh release upload/.test(uploader)) errors.push('Uploader deve publicar pelo release_id no endpoint uploads.github.com, sem resolver a draft novamente por tag.');
 if (/mapfile|sort\s+-z/.test(uploader)) errors.push('Uploader de releases deve funcionar no Bash 3.2/macOS, sem mapfile ou sort -z.');
+
+const releaseResolver = read('scripts/release/resolve-release-id.sh');
+for (const expected of ['releases?per_page=100', '.tag_name == $tag', 'releases/$PREFERRED_ID', 'Mais de uma release encontrada']) {
+  if (!releaseResolver.includes(expected)) errors.push(`Resolver de release_id não contém: ${expected}`);
+}
+if (/releases\/tags\//.test(releaseResolver)) errors.push('Resolver de release_id não pode usar /releases/tags/{tag} para drafts.');
 
 const reusable = ['runtime-release.yml', 'sdk-build.yml', 'desktop-release.yml', 'mobile-release.yml', 'docker-publish.yml'];
 for (const name of reusable) {
@@ -85,6 +104,7 @@ for (const name of reusable) {
   if (!content.includes('release_tag:')) errors.push(`${name}: input release_tag ausente.`);
   if (!content.includes('source_sha:')) errors.push(`${name}: input source_sha ausente.`);
   if (!content.includes('ref: ${{ inputs.source_sha || github.sha }}')) errors.push(`${name}: checkout não está fixado no source_sha.`);
+  if (name !== 'docker-publish.yml' && !content.includes('release_id:')) errors.push(`${name}: input release_id ausente.`);
   if (!/upload-release-assets\.sh|tauri-apps\/tauri-action@v1/.test(content) && name !== 'docker-publish.yml') {
     errors.push(`${name}: não anexa arquivos diretamente e de forma idempotente à GitHub Release.`);
   }
@@ -92,6 +112,18 @@ for (const name of reusable) {
 
 const runtime = read('.github/workflows/runtime-release.yml');
 const sdk = read('.github/workflows/sdk-build.yml');
+for (const [name, content] of [
+  ['runtime-release.yml', runtime],
+  ['sdk-build.yml', sdk],
+  ['mobile-release.yml', read('.github/workflows/mobile-release.yml')],
+]) {
+  if (!content.includes('RELEASE_ID: ${{ inputs.release_id }}') && name !== 'mobile-release.yml') {
+    errors.push(`${name}: release_id coordenado não é propagado ao uploader.`);
+  }
+  if (!content.includes('upload-release-assets.sh "$TAG"') || !content.includes('"$RELEASE_ID"')) {
+    errors.push(`${name}: uploader não recebe release_id explícito.`);
+  }
+}
 if (/softprops\/action-gh-release/.test(`${runtime}\n${sdk}`)) {
   errors.push('Runtime/SDK devem usar o uploader sequencial e idempotente, não uploads concorrentes por action.');
 }
@@ -118,6 +150,10 @@ for (const expected of ['releaseId: ${{ inputs.release_id }}', 'releaseDraft: tr
 const mobileRelease = read('.github/workflows/mobile-release.yml');
 if (/gh release create/.test(mobileRelease)) errors.push('mobile-release.yml não deve criar release paralela; somente validar a draft coordenada.');
 if (!mobileRelease.includes('upload-release-assets.sh')) errors.push('mobile-release.yml deve usar uploader idempotente.');
+if (!mobileRelease.includes('release_id: ${{ steps.release.outputs.value }}')) errors.push('mobile-release.yml deve propagar o release_id coordenado aos jobs Android/iOS.');
+if ((mobileRelease.match(/RELEASE_ID: \$\{\{ needs\.prepare-release\.outputs\.release_id \}\}/g) ?? []).length !== 2) {
+  errors.push('mobile-release.yml deve fornecer release_id exatamente aos dois uploads mobile.');
+}
 
 const docker = read('.github/workflows/docker-publish.yml');
 for (const image of ['server', 'agent', 'console', 'control-api', 'quic-bridge', 'caddy-cloudflare']) {
@@ -170,6 +206,10 @@ if (!consoleLock.packages?.['node_modules/esbuild']) errors.push('Console: pacot
 if (!/^4\./.test(packageDeps['vue-router'] ?? '')) errors.push('Console: vue-router deve permanecer em 4.x.');
 if (!/^2\./.test(packageDeps.pinia ?? '')) errors.push('Console: pinia deve permanecer em 2.x.');
 
+
+if (!fs.existsSync(path.join(root, 'scripts/ci/test-release-uploader.mjs'))) {
+  errors.push('Teste funcional do uploader por release_id ausente.');
+}
 const seaBuilder = read('scripts/release/build-sea.mjs');
 if (!/from ['"]esbuild['"]/.test(seaBuilder)
     || !/await esbuildBuild\(/.test(seaBuilder)
