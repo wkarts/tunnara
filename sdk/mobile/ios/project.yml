@@ -21,6 +21,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: br.com.wwsoftwares.tunnara.mobile
         PRODUCT_NAME: TunnaraMobile
+        GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: Tunnara
         INFOPLIST_KEY_CFBundleShortVersionString: 1.1.2
         INFOPLIST_KEY_CFBundleVersion: 10102

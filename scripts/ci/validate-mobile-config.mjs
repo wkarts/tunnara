@@ -4,6 +4,13 @@ import process from 'node:process';
 
 const root = process.cwd();
 const version = fs.readFileSync(path.join(root, 'VERSION'), 'utf8').trim();
+const numericVersion = version.split('-')[0].split('.').map(Number);
+if (numericVersion.length !== 3 || numericVersion.some((part) => !Number.isInteger(part))) {
+  throw new Error(`Versão SemVer inválida para validação mobile: ${version}`);
+}
+const mobileBuildNumber = String(
+  numericVersion[0] * 10000 + numericVersion[1] * 100 + numericVersion[2]
+);
 const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8');
 const required = [
   'sdk/mobile/android/build.gradle.kts',
@@ -101,6 +108,28 @@ for (const expected of [
   }
 }
 
+const iosAppTarget = iosProject.match(
+  /\n  TunnaraMobile:\n([\s\S]*?)(?=\n  TunnaraPacketTunnel:\n)/
+)?.[1];
+if (!iosAppTarget) {
+  throw new Error('Não foi possível localizar o target TunnaraMobile no project.yml.');
+}
+if (!/GENERATE_INFOPLIST_FILE:\s*(?:YES|true)/.test(iosAppTarget)) {
+  throw new Error(
+    'O target TunnaraMobile deve gerar o Info.plist do bundle principal ' +
+    '(GENERATE_INFOPLIST_FILE: YES).'
+  );
+}
+for (const expected of [
+  'INFOPLIST_KEY_CFBundleDisplayName: Tunnara',
+  `INFOPLIST_KEY_CFBundleShortVersionString: ${version}`,
+  `INFOPLIST_KEY_CFBundleVersion: ${mobileBuildNumber}`,
+]) {
+  if (!iosAppTarget.includes(expected)) {
+    throw new Error(`Configuração do Info.plist gerado do aplicativo ausente: ${expected}`);
+  }
+}
+
 if (!iosProject.includes('path: .wireguard-apple')) {
   throw new Error('WireGuardKit deve usar o checkout local determinístico .wireguard-apple.');
 }
@@ -155,6 +184,8 @@ for (const expected of [
   'xcodebuild -resolvePackageDependencies',
   "go-version: '1.19.x'",
   'Compile iOS simulator application',
+  'Validate generated iOS application Info.plist settings',
+  'GENERATE_INFOPLIST_FILE = YES',
   'prepare-wireguard-kit.sh',
 ]) {
   if (!mobileChecks.includes(expected)) {

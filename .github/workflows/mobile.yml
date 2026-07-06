@@ -76,6 +76,22 @@ jobs:
           xcodebuild -resolvePackageDependencies \
             -project TunnaraMobile.xcodeproj \
             -scheme TunnaraMobile
+      - name: Validate generated iOS application Info.plist settings
+        shell: bash
+        run: |
+          cd sdk/mobile/ios
+          SETTINGS_FILE="$RUNNER_TEMP/tunnara-mobile-build-settings.txt"
+          xcodebuild \
+            -project TunnaraMobile.xcodeproj \
+            -target TunnaraMobile \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -showBuildSettings > "$SETTINGS_FILE"
+          if ! grep -Eq '^[[:space:]]*GENERATE_INFOPLIST_FILE = YES[[:space:]]*$' "$SETTINGS_FILE"; then
+            echo 'O target TunnaraMobile não está configurado para gerar Info.plist.' >&2
+            cat "$SETTINGS_FILE" >&2
+            exit 1
+          fi
       - name: Compile iOS simulator application
         shell: bash
         run: |
