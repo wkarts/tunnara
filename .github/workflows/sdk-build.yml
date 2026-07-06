@@ -89,8 +89,8 @@ jobs:
           } | Set-Content "dist/SHA256SUMS-${{ matrix.suffix }}.txt"
 
       - name: Attach SDK to GitHub Release
-        uses: softprops/action-gh-release@v3
-        with:
-          tag_name: ${{ inputs.release_tag }}
-          files: dist/*
-          fail_on_unmatched_files: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.release_tag }}
+        run: bash scripts/release/upload-release-assets.sh "$TAG" dist

@@ -678,6 +678,7 @@ scripts/maintenance/clean-generated-files.sh
 scripts/release
 scripts/release/build-sea.mjs
 scripts/release/package-artifacts.sh
+scripts/release/upload-release-assets.sh
 scripts/version
 scripts/version/check-version.mjs
 scripts/version/set-version.mjs

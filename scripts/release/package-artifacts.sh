@@ -158,6 +158,6 @@ fs.writeFileSync(path.join(dir, 'release-manifest.json'), JSON.stringify({
 NODE
 (
   cd "$ARTIFACTS"
-  sha256sum *.zip *.tar.gz *.bundle release-manifest.json > SHA256SUMS.txt
+  sha256sum *.zip *.tar.gz *.bundle release-manifest.json > SHA256SUMS-core.txt
 )
 printf 'Artefatos gerados em %s\n' "$ARTIFACTS"

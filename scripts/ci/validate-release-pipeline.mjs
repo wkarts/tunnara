@@ -25,7 +25,8 @@ const release = read('.github/workflows/release.yml');
 for (const expected of [
   'npm run sdk:c:build',
   'npm run artifacts:package',
-  'gh release upload',
+  'scripts/release/upload-release-assets.sh',
+  'git/refs/tags/$tag',
   'gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false',
   '--json isDraft',
   'uses: ./.github/workflows/runtime-release.yml',
@@ -36,7 +37,18 @@ for (const expected of [
 ]) {
   if (!release.includes(expected)) errors.push(`release.yml não contém: ${expected}`);
 }
-if (!release.includes('paths:\n      - VERSION')) errors.push('release.yml deve automatizar a publicação somente quando VERSION mudar em main.');
+for (const triggerPath of [
+  '- VERSION',
+  '- .github/workflows/release.yml',
+  '- .github/workflows/runtime-release.yml',
+  '- .github/workflows/sdk-build.yml',
+  '- .github/workflows/desktop-release.yml',
+  '- .github/workflows/mobile-release.yml',
+  '- scripts/release/**',
+  '- sdk/mobile/ios/scripts/**',
+]) {
+  if (!release.includes(triggerPath)) errors.push(`release.yml não observa alteração em ${triggerPath.slice(2)}.`);
+}
 if (!release.includes('--draft')) errors.push('release.yml deve criar a release em draft antes dos builds.');
 if (/semantic-release/.test(release)) errors.push('release.yml não deve depender de semantic-release.');
 if (/gh workflow run/.test(release)) errors.push('release.yml deve usar reusable workflows, não dispatch assíncrono por gh workflow run.');
@@ -46,13 +58,84 @@ for (const name of reusable) {
   const content = read(`.github/workflows/${name}`);
   if (!/workflow_call:/.test(content)) errors.push(`${name}: workflow_call ausente.`);
   if (!content.includes('release_tag:')) errors.push(`${name}: input release_tag ausente.`);
-  if (!/softprops\/action-gh-release@v3|gh release upload|tauri-apps\/tauri-action@v1/.test(content) && name !== 'docker-publish.yml') {
+  if (!/upload-release-assets\.sh|tauri-apps\/tauri-action@v1/.test(content) && name !== 'docker-publish.yml') {
     errors.push(`${name}: não anexa arquivos diretamente à GitHub Release.`);
   }
 }
 
 const desktop = read('.github/workflows/desktop-release.yml');
 if (!desktop.includes('releaseDraft: true')) errors.push('desktop-release.yml deve anexar instaladores à release draft existente.');
+for (const expected of [
+  'Configure optional updater signing',
+  'Configure optional macOS signing and notarization',
+  'TUNNARA_APPLE_CERTIFICATE:',
+  'uploadUpdaterJson:',
+  'uploadUpdaterSignatures:',
+]) {
+  if (!desktop.includes(expected)) errors.push(`desktop-release.yml não contém: ${expected}`);
+}
+const tauriActionBlock = desktop.split('- name: Build and upload Tauri bundles')[1] ?? '';
+if (/APPLE_CERTIFICATE:\s*\$\{\{\s*secrets\./.test(tauriActionBlock)) {
+  errors.push('desktop-release.yml não deve passar APPLE_CERTIFICATE vazio diretamente ao tauri-action.');
+}
+
+const runtimeRelease = read('.github/workflows/runtime-release.yml');
+const sdkRelease = read('.github/workflows/sdk-build.yml');
+const mobileRelease = read('.github/workflows/mobile-release.yml');
+for (const [name, content] of [
+  ['runtime-release.yml', runtimeRelease],
+  ['sdk-build.yml', sdkRelease],
+  ['mobile-release.yml', mobileRelease],
+]) {
+  if (!content.includes('scripts/release/upload-release-assets.sh')) {
+    errors.push(`${name}: upload idempotente com --clobber centralizado está ausente.`);
+  }
+  if (/softprops\/action-gh-release@/.test(content)) {
+    errors.push(`${name}: não use upload concorrente por softprops para matrizes de release.`);
+  }
+}
+
+const releaseUploader = read('scripts/release/upload-release-assets.sh');
+for (const expected of ['gh release upload', '--clobber', 'MAX_ATTEMPTS', 'shopt -s nullglob']) {
+  if (!releaseUploader.includes(expected)) errors.push(`upload-release-assets.sh não contém: ${expected}`);
+}
+
+const seaBuilder = read('scripts/release/build-sea.mjs');
+for (const expected of ['esbuild/bin/esbuild', 'postject/dist/cli.js', 'run(process.execPath', 'result.error']) {
+  if (!seaBuilder.includes(expected)) errors.push(`build-sea.mjs não contém proteção multiplataforma: ${expected}`);
+}
+if (seaBuilder.includes("node_modules', '.bin'")) {
+  errors.push('build-sea.mjs não deve executar wrappers .cmd de node_modules/.bin no Windows.');
+}
+
+const corePackager = read('scripts/release/package-artifacts.sh');
+const androidArtifacts = read('sdk/mobile/android/scripts/build-artifacts.sh');
+const iosArtifacts = read('sdk/mobile/ios/scripts/build-artifacts.sh');
+for (const [name, content, expected] of [
+  ['package-artifacts.sh', corePackager, ['SHA256SUMS-core.txt']],
+  ['build-artifacts.sh Android', androidArtifacts, ['SHA256SUMS-android.txt', 'build-metadata-android.json']],
+  ['build-artifacts.sh iOS', iosArtifacts, ['SHA256SUMS-ios.txt', 'build-metadata-ios.json']],
+]) {
+  for (const item of expected) {
+    if (!content.includes(item)) errors.push(`${name} não contém asset com nome exclusivo: ${item}`);
+  }
+}
+for (const expected of [
+  'bash "$ROOT/scripts/prepare-wireguard-kit.sh"',
+  'bash "$ROOT/scripts/sign-and-export.sh"',
+  'shasum -a 256',
+]) {
+  if (!iosArtifacts.includes(expected)) errors.push(`build-artifacts.sh iOS não contém: ${expected}`);
+}
+if (/sort -z|sha256sum/.test(iosArtifacts)) {
+  errors.push('build-artifacts.sh iOS deve usar ferramentas de checksum compatíveis com macOS BSD.');
+}
+if (!mobileRelease.includes('base64 -D')) {
+  errors.push('mobile-release.yml deve decodificar secrets iOS com a opção BSD/macOS base64 -D.');
+}
+if (!release.includes('SHA256SUMS.txt build-metadata.json')) {
+  errors.push('release.yml deve remover assets legados com nomes genéricos da release draft.');
+}
 
 const docker = read('.github/workflows/docker-publish.yml');
 for (const image of ['server', 'agent', 'console', 'control-api', 'quic-bridge', 'caddy-cloudflare']) {

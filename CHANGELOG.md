@@ -18,6 +18,12 @@
 
 ### Correções pós-merge e release
 
+- Corrigida a execução dos CLIs `esbuild` e `postject` no Windows sem depender de wrappers `.cmd`, eliminando o `spawnSync` com status nulo no build SEA.
+- Tornado o upload de assets da GitHub Release sequencial, idempotente e com `--clobber`, evitando falhas `ReleaseAsset already_exists` em reexecuções.
+- Corrigido o build iOS para invocar scripts auxiliares via `bash`, independentemente do bit executável preservado pelo checkout.
+- Tornada a assinatura desktop macOS realmente opcional: secrets vazios não são mais encaminhados ao Tauri como certificado Apple.
+- A release draft agora pode ser retomada por correções do próprio pipeline e sua tag é reposicionada para o commit corrigido antes da reconstrução.
+- Separados checksums e metadados de Core, Android e iOS por nomes exclusivos, evitando sobrescritas e corridas entre jobs na mesma release.
 - Corrigida a feature TLS do `reqwest 0.13` no workspace Rust (`rustls`) e alinhado o MSRV/imagem QUIC para Rust 1.85, eliminando a falha de resolução e a incompatibilidade posterior de toolchain.
 - Restauradas versões compatíveis de `rand`, `sha1` e `sha2` no Console Tauri, eliminando conflitos de API e de versões do crate `digest`.
 - Alinhado Android Gradle Plugin 9.2.1 com Gradle 9.4.1 e incluído smoke build Android em Pull Requests.
