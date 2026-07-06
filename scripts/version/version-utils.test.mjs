@@ -5,6 +5,7 @@ import {
   maxVersion,
   mobileBuildNumber,
   nextVersion,
+  windowsBundleVersion,
 } from './version-utils.mjs';
 
 test('ordena prereleases segundo SemVer e considera stable superior', () => {
@@ -38,4 +39,13 @@ test('gera build mobile monotônico para prerelease e stable', () => {
   assert.ok(rc1 < rc2);
   assert.ok(rc2 < stable);
   assert.ok(stable < nextPatch);
+});
+
+
+test('gera versão Tauri Windows compatível com MSI/WiX', () => {
+  assert.equal(windowsBundleVersion('2.0.0-rc.6'), '2.0.0-7006');
+  assert.equal(windowsBundleVersion('2.0.0-beta.2'), '2.0.0-3002');
+  assert.equal(windowsBundleVersion('2.0.0'), '2.0.0');
+  assert.match(windowsBundleVersion('2.0.0-preview.999999'), /^2\.0\.0-\d+$/);
+  assert.ok(Number(windowsBundleVersion('2.0.0-preview.999999').split('-')[1]) <= 65535);
 });

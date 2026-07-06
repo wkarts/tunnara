@@ -26,8 +26,8 @@ android {
         applicationId = "br.com.wwsoftwares.tunnara.mobile"
         minSdk = 26
         targetSdk = 35
-        versionCode = 200007005
-        versionName = "2.0.0-rc.5"
+        versionCode = 200007006
+        versionName = "2.0.0-rc.6"
     }
 
     signingConfigs {

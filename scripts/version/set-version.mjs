@@ -1,11 +1,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { baseVersion as getBaseVersion, mobileBuildNumber } from './version-utils.mjs';
+import { baseVersion as getBaseVersion, mobileBuildNumber, windowsBundleVersion } from './version-utils.mjs';
 
 const version = process.argv[2];
 if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(version || '')) throw new Error('Versão SemVer inválida');
 const baseVersion = getBaseVersion(version);
 const buildNumber = mobileBuildNumber(version);
+const windowsVersion = windowsBundleVersion(version);
 
 function updateJson(file) {
   const json = JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -30,6 +31,11 @@ for (const file of [
   'apps/console/package.json', 'apps/console/package-lock.json',
   'apps/console/src-tauri/tauri.conf.json', 'apps/console/src/assets/branding/brand.json',
 ]) updateJson(file);
+
+const windowsConfigFile = 'apps/console/src-tauri/tauri.windows.conf.json';
+const windowsConfig = JSON.parse(fs.readFileSync(windowsConfigFile, 'utf8'));
+windowsConfig.version = windowsVersion;
+fs.writeFileSync(windowsConfigFile, `${JSON.stringify(windowsConfig, null, 2)}\n`);
 
 replaceRequired('Cargo.toml', /(\[workspace\.package\][\s\S]*?\nversion\s*=\s*")[^"]+("\s*)/, `$1${version}$2`, 'workspace.package.version');
 replaceRequired('apps/console/src-tauri/Cargo.toml', /(\[package\][\s\S]*?\nversion\s*=\s*")[^"]+("\s*)/, `$1${version}$2`, 'package.version');
@@ -91,4 +97,4 @@ if (fs.existsSync('deploy/helm/tunnara/values.yaml')) {
 
 fs.writeFileSync('VERSION', `${version}\n`);
 fs.writeFileSync('apps/console/VERSION', `${version}\n`);
-console.log(`Versão atualizada para ${version}; build mobile ${buildNumber}.`);
+console.log(`Versão atualizada para ${version}; build mobile ${buildNumber}; bundle Windows ${windowsVersion}.`);

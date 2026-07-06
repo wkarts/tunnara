@@ -1,83 +1,33 @@
-# Relatório de validação — Tunnara Platform 2.0.0-rc.5
+# Tunnara Platform 2.0.0-rc.6 — relatório de validação
 
-## Correção complementar do Rust workspace
+## Falhas confirmadas no run pós-merge
 
-O `cargo check --workspace --all-targets` falhava no `tunnara-quic-bridge` com `E0308`, porque o braço `Ok` do `match` devolvia `JoinHandle<()>` e o braço `Err` devolvia `()`. O `tokio::spawn` agora é executado dentro de um bloco, descartando explicitamente o handle e fazendo ambos os braços retornarem `()`.
+- Windows/Tauri: `2.0.0-rc.5` foi recusada pelo bundle MSI porque o identificador de prerelease do instalador precisa ser exclusivamente numérico.
+- Runtime Linux: o envio falhou com HTTP 422 porque o asset de mesmo nome já existia na draft.
+- iOS: `PacketTunnelProvider.swift` ainda chamava `TunnelConfiguration(fromWgQuickConfig:called:)`, initializer não exportado pelo WireGuardKit empacotado.
 
-Também foi removido o import não utilizado `SinkExt` do Coordinator.
-
-Validações locais executadas após a correção:
-
-- `git diff --check`;
-- `npm run version:check`;
-- `npm run repository:check`;
-- `npm run validate:native-deps`;
-- `npm run validate:node`;
-- `npm run validate:shell`.
-
-O ambiente local não possui a toolchain Cargo/Rust e não tem acesso externo para instalá-la. A confirmação compilada ocorre no mesmo job `Rust workspace check` que identificou a falha. A alteração corrige diretamente a incompatibilidade de tipos apontada pelo compilador.
-
-## Diagnóstico do workflow pós-merge
-
-### Runtime executables — todos os sistemas
-
-O workspace usava `reqwest 0.13` com a feature `rustls-tls`. Essa feature não existe na série 0.13, impedindo a resolução do grafo Cargo antes da compilação.
-
-### Desktop applications — todos os sistemas
-
-O Console Tauri havia recebido upgrades maiores/pre-1.0 incompatíveis com o código existente:
-
-- `rand 0.10` removeu/alterou APIs importadas pelo projeto;
-- `sha2 0.11` alterou o tipo retornado e a formatação usada;
-- `sha1 0.11` e `hmac 0.12` ficaram em gerações incompatíveis de traits `digest`.
-
-### Android
-
-O projeto usava AGP 9.2.1, mas o workflow instalava Gradle 8.10.2. O plugin recusou iniciar e informou mínimo 9.4.1.
-
-### iOS
-
-O Xcode resolvia o pacote remoto WireGuardKit antes da preparação local. O manifesto remoto declarava `swift-tools-version:5.3` enquanto usava APIs de PackageDescription mais recentes. O bridge Go externo também não estava integrado ao projeto gerado.
-
-### Containers
-
-Somente `quic-bridge` falhou. Ele compila o workspace Rust e herdou a mesma configuração inválida de `reqwest`. As demais imagens progrediram normalmente.
+Os demais jobs do run anexado concluíram: Android, containers, SDK C, Runtime Windows/macOS, Desktop Linux/macOS e core.
 
 ## Correções
 
-- `reqwest 0.13`: feature alterada para `rustls`;
-- Tauri: `rand 0.8.5`, `sha2 0.10.9`, `sha1 0.10.6` e `hmac 0.12.1` fixados;
-- Android: Gradle 9.4.1 alinhado ao AGP 9.2.1;
-- iOS: WireGuardKit clonado e corrigido antes do XcodeGen/SwiftPM;
-- iOS: Package.swift atualizado idempotentemente para tools 5.9;
-- iOS: target externo WireGuardGoBridgeiOS e toolchain Go integrados;
-- Docker Actions atualizadas para buildx v4, metadata v6 e build-push v7;
-- adicionado `validate:native-deps`;
-- Pull Request passa a executar `cargo check` do workspace e do Console Tauri.
+- `tauri.windows.conf.json` usa a versão derivada `2.0.0-7006`, mantendo a versão pública `2.0.0-rc.6` nos demais pontos.
+- O sincronizador atualiza automaticamente a versão MSI nas próximas releases.
+- O uploader resolve o ID da release, remove assets existentes por nome/ID e repete a remoção antes de cada retry.
+- O Packet Tunnel usa `WgQuickConfigParser.parse(raw, name:)`.
+- Os validadores rejeitam o initializer antigo, versão MSI inválida e uploader sem exclusão explícita.
 
-## Validações aprovadas localmente
+## Validações executadas neste ambiente
 
-- `npm ci` na raiz e no Console;
-- `npm run repository:check`;
-- `npm run version:check` e `version:test`;
-- `npm run validate:node`, `validate:shell`, `validate:php`;
-- `npm run validate:storage`, `validate:release`, `validate:native-deps`;
-- `npm run validate:sea`, `validate:docker`, `validate:mobile`;
-- HTTP, WebSocket, TCP, UDP, Cloudflare, HA, WireGuard e redes privadas;
-- Policy Engine e Request Inspector;
-- SDK C compartilhado e estático;
-- Console Vue/TypeScript e build Vite;
-- Agent e Server SEA Linux x64;
-- E2E executado com os binários standalone;
-- preparação WireGuardKit executada duas vezes para confirmar idempotência.
+- versão sincronizada em 26 pontos;
+- testes SemVer, build mobile e versão Windows/MSI: 6/6 aprovados;
+- repository, Node, Shell, PHP, storage, Docker, release, mobile e dependências nativas;
+- mock funcional do GitHub CLI comprovando exclusão e substituição do asset existente;
+- teste negativo comprovando rejeição do initializer iOS antigo;
+- Console Vue: typecheck e build Vite aprovados;
+- SEA Agent e Server Linux x64 gerados e executados com versão `2.0.0-rc.6`;
+- runtime E2E: HTTP/WebSocket, TCP/UDP, Cloudflare, HA, WireGuard, redes privadas, produção e Policy Engine;
+- SDK C compartilhado/estático e exemplo de versão.
 
 ## Limites do ambiente
 
-O ambiente local não possuía Cargo/Rust, Docker Engine, Android SDK ou Xcode. Consequentemente, não são apresentados como executados localmente:
-
-- os quatro builds Rust/Tauri nativos;
-- a imagem Docker multi-arquitetura;
-- APK/AAB;
-- IPA e aplicativo de simulador.
-
-As causas exatas que bloqueavam esses runners foram corrigidas e agora possuem preflights no Pull Request. A confirmação final ocorre em uma nova execução do GitHub Actions sobre a RC.5.
+A compilação final MSI/WiX e Xcode/iOS deve ser confirmada nos runners nativos do GitHub Actions. A correção está aplicada exatamente nos pontos que os respectivos compiladores rejeitaram.

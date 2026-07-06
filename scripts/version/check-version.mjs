@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { baseVersion, mobileBuildNumber } from './version-utils.mjs';
+import { baseVersion, mobileBuildNumber, windowsBundleVersion } from './version-utils.mjs';
 
 const expected = fs.readFileSync('VERSION', 'utf8').trim();
 const expectedBase = baseVersion(expected);
@@ -25,6 +25,7 @@ const values = [
   ['apps/console/package.json', readJson('apps/console/package.json').version],
   ['apps/console/package-lock.json', readJson('apps/console/package-lock.json').version],
   ['apps/console/src-tauri/tauri.conf.json', readJson('apps/console/src-tauri/tauri.conf.json').version],
+  ['apps/console/src-tauri/tauri.windows.conf.json', readJson('apps/console/src-tauri/tauri.windows.conf.json').version, windowsBundleVersion(expected)],
   ['apps/console/src/assets/branding/brand.json', readJson('apps/console/src/assets/branding/brand.json').version],
   ['Cargo.toml', extract('Cargo.toml', /\[workspace\.package\][\s\S]*?\nversion\s*=\s*"([^"]+)"/, 'workspace.package.version')],
   ['apps/console/src-tauri/Cargo.toml', extract('apps/console/src-tauri/Cargo.toml', /\[package\][\s\S]*?\nversion\s*=\s*"([^"]+)"/, 'package.version')],
