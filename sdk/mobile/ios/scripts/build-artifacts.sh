@@ -13,9 +13,27 @@ SIMULATOR_BUILD="$OUT_DIR/simulator"
 command -v xcodebuild >/dev/null 2>&1 || { echo "xcodebuild não encontrado; execute em macOS com Xcode." >&2; exit 1; }
 command -v xcodegen >/dev/null 2>&1 || { echo "xcodegen não encontrado; instale com brew install xcodegen." >&2; exit 1; }
 command -v python3 >/dev/null 2>&1 || { echo "python3 não encontrado." >&2; exit 1; }
+command -v git >/dev/null 2>&1 || { echo "git não encontrado." >&2; exit 1; }
+command -v make >/dev/null 2>&1 || { echo "make não encontrado." >&2; exit 1; }
+command -v go >/dev/null 2>&1 || { echo "Go não encontrado; WireGuardGoBridgeiOS exige Go." >&2; exit 1; }
 
 rm -rf "$OUT_DIR"
 mkdir -p "$OUT_DIR" "$UNSIGNED_BUILD" "$SIMULATOR_BUILD" "$SOURCE_PACKAGES"
+
+# O pacote remoto 1.0.16-27 declara swift-tools-version 5.3, mas usa APIs de
+# PackageDescription 5.5. Ele precisa ser preparado antes de o XcodeGen gerar
+# o projeto e antes de o SwiftPM tentar interpretar o manifesto.
+bash "$ROOT/scripts/prepare-wireguard-kit.sh"
+WIREGUARD_CHECKOUT="$ROOT/.wireguard-apple"
+[[ -f "$WIREGUARD_CHECKOUT/Package.swift" ]] || {
+  echo "Checkout WireGuardKit local não foi preparado em $WIREGUARD_CHECKOUT." >&2
+  exit 1
+}
+
+grep -Eq '^//[[:space:]]*swift-tools-version:5\.(9|[1-9][0-9])' "$WIREGUARD_CHECKOUT/Package.swift" || {
+  echo "Package.swift do WireGuardKit não foi atualizado para Swift Tools 5.9+." >&2
+  exit 1
+}
 
 (
   cd "$ROOT"
@@ -26,13 +44,6 @@ xcodebuild -resolvePackageDependencies \
   -project "$ROOT/TunnaraMobile.xcodeproj" \
   -scheme TunnaraMobile \
   -clonedSourcePackagesDirPath "$SOURCE_PACKAGES"
-
-WIREGUARD_CHECKOUT="$SOURCE_PACKAGES/checkouts/wireguard-apple"
-[[ -d "$WIREGUARD_CHECKOUT" ]] || {
-  echo "Checkout WireGuardKit não foi localizado em $WIREGUARD_CHECKOUT." >&2
-  exit 1
-}
-bash "$ROOT/scripts/prepare-wireguard-kit.sh" "$WIREGUARD_CHECKOUT"
 
 BUILD_SETTINGS="$(xcodebuild \
   -project "$ROOT/TunnaraMobile.xcodeproj" \

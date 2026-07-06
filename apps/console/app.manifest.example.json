@@ -4,7 +4,7 @@
   "productName": "Minha Aplicação Desktop Web",
   "identifier": "br.com.minhaempresa.minhaapp",
   "packageName": "minha-app-desktop-web",
-  "version": "2.0.0-rc.4",
+  "version": "2.0.0-rc.5",
   "developer": "Minha Empresa",
   "localDataDir": "minha_app",
   "storagePrefix": "minha-app",

@@ -1,6 +1,6 @@
 # Roadmap Tunnara
 
-## Entregue até 2.0.0-rc.4
+## Entregue até 2.0.0-rc.5
 
 - HTTP/HTTPS/WebSocket/TCP/UDP.
 - Cloudflare DNS, ACME DNS-01 e QUIC Bridge.

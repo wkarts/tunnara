@@ -169,6 +169,7 @@ jobs:
           npm run validate:php
           npm run validate:storage
           npm run validate:release
+          npm run validate:native-deps
           npm run validate:sea
           npm run validate:docker
           npm run validate:mobile

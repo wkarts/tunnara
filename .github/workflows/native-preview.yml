@@ -9,8 +9,15 @@ on:
       - 'services/**'
       - 'Cargo.toml'
       - 'Cargo.lock'
+      - 'apps/console/src-tauri/**'
+      - 'apps/console/package.json'
+      - 'apps/console/package-lock.json'
+      - 'apps/console/src/**'
       - 'apps/control-api/**'
+      - 'scripts/ci/validate-native-dependencies.mjs'
       - '.github/workflows/native-preview.yml'
+      - '.github/workflows/mobile-release.yml'
+      - 'sdk/mobile/**'
 
 permissions:
   contents: read
@@ -19,17 +26,65 @@ concurrency:
   group: native-fast-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+env:
+  CARGO_TERM_COLOR: always
+  NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
+  NPM_CONFIG_AUDIT: 'false'
+  NPM_CONFIG_FUND: 'false'
+
 jobs:
-  rust-format:
-    name: Rust format
+  rust-workspace:
+    name: Rust workspace check
     runs-on: ubuntu-24.04
-    timeout-minutes: 8
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: package-lock.json
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
-      - run: cargo fmt --all --check
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: native-fast-workspace
+      - name: Install root validation dependencies
+        run: bash scripts/ci/npm-ci.sh .
+      - name: Validate native dependency contracts
+        run: npm run validate:native-deps
+      - name: Format and compile workspace
+        run: |
+          cargo fmt --all --check
+          cargo check --workspace --all-targets
+
+  tauri-rust:
+    name: Tauri Rust check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: apps/console/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/console/src-tauri -> target
+          shared-key: native-fast-tauri
+      - name: Install Linux desktop dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends             libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev             librsvg2-dev patchelf
+      - name: Install and prepare Console resources
+        run: |
+          bash scripts/ci/npm-ci.sh apps/console
+          npm --prefix apps/console run build:web:tauri
+      - name: Compile Tauri backend
+        run: cargo check --manifest-path apps/console/src-tauri/Cargo.toml --all-targets
 
   laravel-static:
     name: Laravel static validation

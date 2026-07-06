@@ -116,6 +116,13 @@ for (const image of ['server', 'agent', 'console', 'control-api', 'quic-bridge',
   if (!docker.includes(`image: ${image}`)) errors.push(`docker-publish.yml não publica a imagem ${image}.`);
 }
 if (!docker.includes('linux/amd64,linux/arm64')) errors.push('docker-publish.yml não é multi-arquitetura.');
+for (const expected of [
+  'docker/setup-buildx-action@v4',
+  'docker/metadata-action@v6',
+  'docker/build-push-action@v7',
+]) {
+  if (!docker.includes(expected)) errors.push(`docker-publish.yml não contém a action atual: ${expected}`);
+}
 if (!docker.includes("value=latest,enable=${{ steps.version.outputs.is_prerelease == 'false' }}")) {
   errors.push('docker-publish.yml não protege a tag latest contra prereleases.');
 }
@@ -174,6 +181,16 @@ if (!release.includes('npm run validate:sea')) {
 const fastCi = read('.github/workflows/ci.yml');
 if (!fastCi.includes('npm run validate:sea')) {
   errors.push('ci.yml deve executar o preflight SEA em Pull Requests.');
+}
+
+
+const nativeValidator = read('scripts/ci/validate-native-dependencies.mjs');
+if (!nativeValidator.includes('NATIVE_DEPENDENCIES_OK')) errors.push('Validador de dependências nativas ausente ou inválido.');
+if (!release.includes('npm run validate:native-deps')) errors.push('release.yml deve validar dependências nativas antes dos builds.');
+if (!fastCi.includes('npm run validate:native-deps')) errors.push('ci.yml deve validar dependências nativas no Pull Request.');
+const nativePreview = read('.github/workflows/native-preview.yml');
+for (const expected of ['cargo check --workspace --all-targets', 'cargo check --manifest-path apps/console/src-tauri/Cargo.toml --all-targets', "apps/console/src-tauri/**"]) {
+  if (!nativePreview.includes(expected)) errors.push(`native-preview.yml não contém: ${expected}`);
 }
 
 for (const file of [

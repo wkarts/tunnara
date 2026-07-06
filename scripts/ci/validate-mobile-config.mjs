@@ -26,6 +26,7 @@ for (const relative of required) {
 const androidRoot = read('sdk/mobile/android/build.gradle.kts');
 const android = read('sdk/mobile/android/app/build.gradle.kts');
 const androidBuild = read('sdk/mobile/android/scripts/build-artifacts.sh');
+const mobileRelease = read('.github/workflows/mobile-release.yml');
 const ios = read('sdk/mobile/ios/project.yml');
 const iosBuild = read('sdk/mobile/ios/scripts/build-artifacts.sh');
 const wireGuardPrepare = read('sdk/mobile/ios/scripts/prepare-wireguard-kit.sh');
@@ -53,6 +54,12 @@ if (!androidRoot.includes('id("com.android.application") version "9.2.1" apply f
 if (!androidBuild.includes('build-metadata-android.json') || !androidBuild.includes('SHA256SUMS-android.txt')) {
   throw new Error('Artefatos Android devem usar metadados e checksums exclusivos.');
 }
+if (!mobileRelease.includes("gradle-version: '9.4.1'")) {
+  throw new Error('AGP 9.2.1 exige Gradle 9.4.1 no workflow mobile.');
+}
+if (!androidBuild.includes('Gradle 9.4.1+')) {
+  throw new Error('Mensagem de preflight Android deve indicar Gradle 9.4.1+.');
+}
 
 for (const expected of [
   `MARKETING_VERSION: ${iosBaseVersion}`,
@@ -72,7 +79,8 @@ if (!extensionPlist.includes(`<key>CFBundleVersion</key><string>${expectedBuild}
   throw new Error(`CFBundleVersion da extensão iOS não está sincronizado com ${expectedBuild}.`);
 }
 for (const expected of [
-  'bash "$ROOT/scripts/prepare-wireguard-kit.sh" "$WIREGUARD_CHECKOUT"',
+  'bash "$ROOT/scripts/prepare-wireguard-kit.sh"',
+  'WIREGUARD_CHECKOUT="$ROOT/.wireguard-apple"',
   'GENERATE_INFOPLIST_FILE = YES',
   'ARCHS=arm64',
   'ONLY_ACTIVE_ARCH=YES',
@@ -85,8 +93,25 @@ for (const expected of [
 if (/sort\s+-z|xargs\s+-0/.test(iosBuild)) {
   throw new Error('Build iOS não pode depender de opções GNU indisponíveis no macOS padrão.');
 }
-for (const expected of ['#include <stdint.h>', "'u_int32_t': 'uint32_t'", "'u_char': 'uint8_t'"]) {
+for (const expected of ['#include <stdint.h>', "'u_int32_t': 'uint32_t'", "'u_char': 'uint8_t'", "'// swift-tools-version:5.9'"]) {
   if (!wireGuardPrepare.includes(expected)) throw new Error(`Preparação WireGuardKit incompleta: ${expected}.`);
+}
+for (const expected of [
+  'path: .wireguard-apple',
+  'WireGuardGoBridgeiOS:',
+  'toolPath: /usr/bin/make',
+  'workingDirectory: $(PROJECT_DIR)/.wireguard-apple/Sources/WireGuardKitGo',
+  '- target: WireGuardGoBridgeiOS',
+]) {
+  if (!ios.includes(expected)) throw new Error(`Projeto iOS não contém a integração local obrigatória: ${expected}.`);
+}
+if (/url:\s*https:\/\/git\.zx2c4\.com\/wireguard-apple/.test(ios)) {
+  throw new Error('WireGuardKit deve ser um pacote local preparado antes do XcodeGen.');
+}
+const prepareIndex = iosBuild.indexOf('bash "$ROOT/scripts/prepare-wireguard-kit.sh"');
+const xcodegenIndex = iosBuild.indexOf('xcodegen generate');
+if (prepareIndex < 0 || xcodegenIndex < 0 || prepareIndex > xcodegenIndex) {
+  throw new Error('WireGuardKit deve ser preparado antes do xcodegen.');
 }
 
 console.log(

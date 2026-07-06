@@ -370,7 +370,6 @@ tunnara-platform/
 │   │   │   └── tauri.conf.json
 │   │   ├── .editorconfig
 │   │   ├── .env.example
-│   │   ├── .env.model
 │   │   ├── .npmrc
 │   │   ├── app.manifest.example.json
 │   │   ├── build-windows.bat
@@ -637,7 +636,8 @@ tunnara-platform/
 │   │   ├── openapi-v2.0.0-rc1.yaml
 │   │   ├── openapi-v2.0.0-rc2.yaml
 │   │   ├── openapi-v2.0.0-rc3.yaml
-│   │   └── openapi-v2.0.0-rc4.yaml
+│   │   ├── openapi-v2.0.0-rc4.yaml
+│   │   └── openapi-v2.0.0-rc5.yaml
 │   ├── architecture/
 │   │   ├── ARCHITECTURE.md
 │   │   └── COMPETITIVE_GAP.md
@@ -681,13 +681,15 @@ tunnara-platform/
 │   │   ├── PULL_REQUEST_v2.0.0-rc.2.md
 │   │   ├── PULL_REQUEST_v2.0.0-rc.3.md
 │   │   ├── PULL_REQUEST_v2.0.0-rc.4.md
+│   │   ├── PULL_REQUEST_v2.0.0-rc.5.md
 │   │   ├── v1.1.0.md
 │   │   ├── v1.1.2.md
 │   │   ├── v1.1.3.md
 │   │   ├── v2.0.0-rc.1.md
 │   │   ├── v2.0.0-rc.2.md
 │   │   ├── v2.0.0-rc.3.md
-│   │   └── v2.0.0-rc.4.md
+│   │   ├── v2.0.0-rc.4.md
+│   │   └── v2.0.0-rc.5.md
 │   ├── security/
 │   │   ├── MATURITY_GATES.md
 │   │   ├── POLICY_ENGINE.md
@@ -733,6 +735,7 @@ tunnara-platform/
 │   │   ├── npm-ci.sh
 │   │   ├── validate-docker-deployment.mjs
 │   │   ├── validate-mobile-config.mjs
+│   │   ├── validate-native-dependencies.mjs
 │   │   ├── validate-release-pipeline.mjs
 │   │   ├── validate-sea-builder.mjs
 │   │   └── validate-storage-profiles.mjs

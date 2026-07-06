@@ -12,7 +12,7 @@
 npm ci
 npm --prefix apps/console ci
 npm run validate
-npm run version:set -- 2.0.0-rc.4
+npm run version:set -- 2.0.0-rc.5
 npm run version:check
 ```
 

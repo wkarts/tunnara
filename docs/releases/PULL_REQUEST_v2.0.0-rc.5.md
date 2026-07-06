@@ -14,8 +14,6 @@ Após o merge da RC.4, a release coordenada iniciou corretamente, mas falhou em 
 
 ## Alterações
 
-- Corrige o `E0308` do `tunnara-quic-bridge`, uniformizando o retorno dos braços do `match` no loop de aceitação QUIC.
-- Remove o import Rust não utilizado observado no Coordinator.
 - Corrige o workspace Rust para `reqwest 0.13` com feature `rustls`.
 - Fixa as bibliotecas criptográficas do Console nas versões compatíveis com o código atual.
 - Atualiza o workflow Android para Gradle 9.4.1.

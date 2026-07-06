@@ -17,7 +17,7 @@ A versão e a release são coordenadas automaticamente após o merge na `main`.
 Enquanto `VERSION` possuir sufixo `-rc.N`, merges sem label avançam automaticamente:
 
 ```text
-2.0.0-rc.4 → 2.0.0-rc.5 → 2.0.0-rc.6
+2.0.0-rc.5 → 2.0.0-rc.6 → 2.0.0-rc.7
 ```
 
 Para promover a RC:

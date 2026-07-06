@@ -1,104 +1,83 @@
-# Relatório de validação — Tunnara Platform 2.0.0-rc.4
+# Relatório de validação — Tunnara Platform 2.0.0-rc.5
 
-## Diagnóstico dos logs
+## Correção complementar do Rust workspace
 
-O pacote `logs_77802296964.zip` contém quatro jobs de Pull Request:
+O `cargo check --workspace --all-targets` falhava no `tunnara-quic-bridge` com `E0308`, porque o braço `Ok` do `match` devolvia `JoinHandle<()>` e o braço `Err` devolvia `()`. O `tokio::spawn` agora é executado dentro de um bloco, descartando explicitamente o handle e fazendo ambos os braços retornarem `()`.
 
-- Core and runtime;
-- Distributed Control API;
-- Docker configuration;
-- Console Vue.
+Também foi removido o import não utilizado `SinkExt` do Coordinator.
 
-Somente `Core and runtime` falhou. A interrupção ocorreu antes dos testes de
-runtime, em `npm run version:check`, por uma tag antiga no overlay distribuído
-QUIC:
+Validações locais executadas após a correção:
 
-```text
-deploy/docker/docker-compose.distributed.quic.yml: imagem 2.0.0-rc.2 != 2.0.0-rc.3
-```
+- `git diff --check`;
+- `npm run version:check`;
+- `npm run repository:check`;
+- `npm run validate:native-deps`;
+- `npm run validate:node`;
+- `npm run validate:shell`.
 
-Os demais jobs não apresentaram erro de build no log anexado.
+O ambiente local não possui a toolchain Cargo/Rust e não tem acesso externo para instalá-la. A confirmação compilada ocorre no mesmo job `Rust workspace check` que identificou a falha. A alteração corrige diretamente a incompatibilidade de tipos apontada pelo compilador.
 
-## Auditoria da cópia local
+## Diagnóstico do workflow pós-merge
 
-A comparação com o pacote oficial RC.3 confirmou:
+### Runtime executables — todos os sistemas
 
-- os 14 workflows atuais eram equivalentes aos do pacote oficial;
-- não havia workflow legado adicional em `.github/workflows`;
-- havia um Compose distribuído QUIC extra e não integrado;
-- havia backups `.bak` de versões antigas;
-- havia um helper Base64 sem uso;
-- havia um Compose `infrastructure` antigo sem referência;
-- exemplos Docker ainda possuíam fallback de imagem `1.1.1`;
-- scripts Windows divergiam apenas em LF/CRLF.
+O workspace usava `reqwest 0.13` com a feature `rustls-tls`. Essa feature não existe na série 0.13, impedindo a resolução do grafo Cargo antes da compilação.
+
+### Desktop applications — todos os sistemas
+
+O Console Tauri havia recebido upgrades maiores/pre-1.0 incompatíveis com o código existente:
+
+- `rand 0.10` removeu/alterou APIs importadas pelo projeto;
+- `sha2 0.11` alterou o tipo retornado e a formatação usada;
+- `sha1 0.11` e `hmac 0.12` ficaram em gerações incompatíveis de traits `digest`.
+
+### Android
+
+O projeto usava AGP 9.2.1, mas o workflow instalava Gradle 8.10.2. O plugin recusou iniciar e informou mínimo 9.4.1.
+
+### iOS
+
+O Xcode resolvia o pacote remoto WireGuardKit antes da preparação local. O manifesto remoto declarava `swift-tools-version:5.3` enquanto usava APIs de PackageDescription mais recentes. O bridge Go externo também não estava integrado ao projeto gerado.
+
+### Containers
+
+Somente `quic-bridge` falhou. Ele compila o workspace Rust e herdou a mesma configuração inválida de `reqwest`. As demais imagens progrediram normalmente.
 
 ## Correções
 
-- versão elevada para `2.0.0-rc.4`;
-- build mobile sincronizado em `200007004`;
-- overlay distribuído QUIC integrado ao `tunnara.sh`;
-- perfil distribuído padrão corrigido para anunciar Relay TCP;
-- perfil QUIC sobrescreve a descoberta para `quic://`;
-- composição combinada incluída no CI;
-- backup, restore, update e rollback distribuídos adicionados;
-- Compose `infrastructure` antigo removido;
-- arquivos `.bak` e helper órfão removidos;
-- exemplos Docker sincronizados com a versão atual;
-- `set-version.mjs`, `check-version.mjs` e o validador Docker reforçados para
-  interpolação `${TUNNARA_VERSION:-...}`;
-- validador do repositório reforçado contra arquivos legados e Compose órfão;
-- scripts Windows normalizados para CRLF.
+- `reqwest 0.13`: feature alterada para `rustls`;
+- Tauri: `rand 0.8.5`, `sha2 0.10.9`, `sha1 0.10.6` e `hmac 0.12.1` fixados;
+- Android: Gradle 9.4.1 alinhado ao AGP 9.2.1;
+- iOS: WireGuardKit clonado e corrigido antes do XcodeGen/SwiftPM;
+- iOS: Package.swift atualizado idempotentemente para tools 5.9;
+- iOS: target externo WireGuardGoBridgeiOS e toolchain Go integrados;
+- Docker Actions atualizadas para buildx v4, metadata v6 e build-push v7;
+- adicionado `validate:native-deps`;
+- Pull Request passa a executar `cargo check` do workspace e do Console Tauri.
 
-## Validações aprovadas
+## Validações aprovadas localmente
 
-- `npm run version:check`;
-- `npm run version:test`;
+- `npm ci` na raiz e no Console;
 - `npm run repository:check`;
-- `npm run validate:node`;
-- `npm run validate:shell`;
-- `npm run validate:php`;
-- `npm run validate:storage`;
-- `npm run validate:release`;
-- `npm run validate:sea`;
-- `npm run validate:docker`;
-- `npm run validate:mobile`;
-- `npm run mobile:validate:scripts`;
-- `npm run runtime:test`;
-- `npm run sdk:c:test`;
-- `npm run console:typecheck`;
-- `npm run console:build`.
-
-Resultados funcionais aprovados:
-
-- HTTP e WebSocket;
-- TCP e UDP;
-- Cloudflare DNS;
-- failover distribuído;
-- WireGuard e redes privadas;
+- `npm run version:check` e `version:test`;
+- `npm run validate:node`, `validate:shell`, `validate:php`;
+- `npm run validate:storage`, `validate:release`, `validate:native-deps`;
+- `npm run validate:sea`, `validate:docker`, `validate:mobile`;
+- HTTP, WebSocket, TCP, UDP, Cloudflare, HA, WireGuard e redes privadas;
 - Policy Engine e Request Inspector;
-- SQLite, memory, PostgreSQL, MySQL e Redis;
 - SDK C compartilhado e estático;
-- build Vue/Vite.
-
-## Testes negativos
-
-A validação foi deliberadamente executada com regressões temporárias:
-
-1. arquivo `.bak` — rejeitado;
-2. `docker-compose.orphan-test.yml` — rejeitado;
-3. fallback `${TUNNARA_VERSION:-2.0.0-rc.2}` — rejeitado.
-
-Após cada teste, os arquivos temporários foram removidos e os validadores
-voltaram a concluir com sucesso.
+- Console Vue/TypeScript e build Vite;
+- Agent e Server SEA Linux x64;
+- E2E executado com os binários standalone;
+- preparação WireGuardKit executada duas vezes para confirmar idempotência.
 
 ## Limites do ambiente
 
-Não havia Docker Engine, Cargo/Rust, Composer ou Xcode instalados no ambiente
-local. Portanto:
+O ambiente local não possuía Cargo/Rust, Docker Engine, Android SDK ou Xcode. Consequentemente, não são apresentados como executados localmente:
 
-- `docker compose config` real será confirmado pelo runner Ubuntu do GitHub;
-- builds Rust/Tauri serão confirmados pelos runners nativos;
-- testes Laravel completos continuarão no job `Distributed Control API`;
-- Android e iOS continuarão nos respectivos runners.
+- os quatro builds Rust/Tauri nativos;
+- a imagem Docker multi-arquitetura;
+- APK/AAB;
+- IPA e aplicativo de simulador.
 
-Esses jobs não foram apresentados como executados localmente.
+As causas exatas que bloqueavam esses runners foram corrigidas e agora possuem preflights no Pull Request. A confirmação final ocorre em uma nova execução do GitHub Actions sobre a RC.5.
