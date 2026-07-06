@@ -1,0 +1,157 @@
+name: Version and release after merge
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Tipo de incremento SemVer'
+        required: false
+        default: patch
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      release:
+        description: 'Criar release após sincronizar a versão'
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  actions: write
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: version-and-release-main
+  cancel-in-progress: false
+
+env:
+  NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
+  NPM_CONFIG_AUDIT: 'false'
+  NPM_CONFIG_FUND: 'false'
+
+jobs:
+  version:
+    name: Increment version and dispatch release
+    if: github.event_name == 'workflow_dispatch' || github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      version: ${{ steps.resolve.outputs.version }}
+      should_release: ${{ steps.resolve.outputs.should_release }}
+      release_sha: ${{ steps.commit.outputs.release_sha }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+
+      - name: Resolve next release version
+        id: resolve
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          MANUAL_BUMP: ${{ inputs.bump || 'patch' }}
+          MANUAL_RELEASE: ${{ github.event_name != 'workflow_dispatch' || inputs.release }}
+        run: |
+          set -Eeuo pipefail
+
+          bump="$MANUAL_BUMP"
+          should_release=true
+          pr_labels=''
+
+          if [[ "$EVENT_NAME" == 'push' ]]; then
+            pr_labels="$(
+              gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" \
+                --jq '.[0].labels | map(.name) | join(",")' 2>/dev/null || true
+            )"
+            case ",${pr_labels}," in
+              *,release:none,*)  should_release=false ;;
+              *,release:major,*) bump=major ;;
+              *,release:minor,*) bump=minor ;;
+              *,release:patch,*) bump=patch ;;
+              *)                 bump=patch ;;
+            esac
+          elif [[ "$MANUAL_RELEASE" != 'true' ]]; then
+            should_release=false
+          fi
+
+          current_version="$(tr -d '[:space:]' < VERSION)"
+          latest_version="$(
+            gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+              --jq '.[] | select(.draft == false and .prerelease == false) | .tag_name' \
+              | sed -nE 's/^v([0-9]+\.[0-9]+\.[0-9]+)$/\1/p' \
+              | sort -V \
+              | tail -n 1
+          )"
+          latest_version="${latest_version:-0.0.0}"
+
+          version="$(node scripts/version/next-version.mjs "$current_version" "$latest_version" "$bump")"
+
+          {
+            echo "version=$version"
+            echo "should_release=$should_release"
+            echo "bump=$bump"
+            echo "current_version=$current_version"
+            echo "latest_version=$latest_version"
+            echo "pr_labels=$pr_labels"
+          } >> "$GITHUB_OUTPUT"
+
+          {
+            echo '## Versionamento após merge'
+            echo
+            echo "- Versão do repositório antes do job: \`$current_version\`"
+            echo "- Última versão publicada: \`$latest_version\`"
+            echo "- Labels do Pull Request: \`${pr_labels:-nenhuma}\`"
+            echo "- Incremento selecionado: \`$bump\`"
+            echo "- Próxima versão: \`$version\`"
+            echo "- Criar release: \`$should_release\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Synchronize version files
+        if: steps.resolve.outputs.should_release == 'true'
+        run: npm run version:set -- "${{ steps.resolve.outputs.version }}"
+
+      - name: Commit synchronized version
+        id: commit
+        if: steps.resolve.outputs.should_release == 'true'
+        shell: bash
+        env:
+          VERSION: ${{ steps.resolve.outputs.version }}
+        run: |
+          set -Eeuo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+
+          if git diff --cached --quiet; then
+            echo "::notice::A versão $VERSION já estava sincronizada no merge atual."
+          else
+            git commit -m "chore(release): prepare v${VERSION} [skip ci]"
+            git push origin HEAD:main
+          fi
+
+          echo "release_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Dispatch coordinated release
+        if: steps.resolve.outputs.should_release == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.resolve.outputs.version }}
+        run: |
+          set -Eeuo pipefail
+          gh workflow run release.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref main \
+            -f release_version="$VERSION"
+          echo "::notice::Release v$VERSION solicitada após sincronização da main."

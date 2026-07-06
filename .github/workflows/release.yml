@@ -1,21 +1,14 @@
 name: Release after merge
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - VERSION
-      - .github/workflows/release.yml
-      - .github/workflows/runtime-release.yml
-      - .github/workflows/sdk-build.yml
-      - .github/workflows/desktop-release.yml
-      - .github/workflows/mobile-release.yml
-      - scripts/release/**
-      - sdk/mobile/ios/scripts/**
   workflow_dispatch:
     inputs:
+      release_version:
+        description: 'Versão SemVer já sincronizada na branch main'
+        required: true
+        type: string
       force_rebuild:
-        description: 'Regerar e substituir todos os assets da versão atual'
+        description: 'Regerar e substituir assets de uma release que ainda esteja em draft'
         required: false
         default: false
         type: boolean
@@ -28,7 +21,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ inputs.release_version }}
   cancel-in-progress: false
 
 env:
@@ -45,87 +38,108 @@ jobs:
     outputs:
       version: ${{ steps.release.outputs.version }}
       tag: ${{ steps.release.outputs.tag }}
+      release_id: ${{ steps.release.outputs.release_id }}
       should_build: ${{ steps.release.outputs.should_build }}
       rebuild_requested: ${{ steps.release.outputs.rebuild_requested }}
     steps:
       - uses: actions/checkout@v7
         with:
+          ref: main
           fetch-depth: 0
 
-      - name: Resolve deterministic release version
+      - name: Resolve immutable release version
         id: release
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          AUTO_REBUILD: ${{ github.event_name == 'push' }}
-          FORCE_REBUILD: ${{ github.event_name == 'workflow_dispatch' && inputs.force_rebuild || false }}
+          REQUESTED_VERSION: ${{ inputs.release_version }}
+          FORCE_REBUILD: ${{ inputs.force_rebuild }}
         run: |
           set -Eeuo pipefail
+
           version="$(tr -d '[:space:]' < VERSION)"
-          tag="v${version}"
-          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?$ ]] || {
+          requested_version="$(printf '%s' "$REQUESTED_VERSION" | tr -d '[:space:]')"
+
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
             echo "VERSION inválida: $version" >&2
             exit 1
           }
+          [[ "$requested_version" == "$version" ]] || {
+            echo "A versão solicitada ($requested_version) difere da VERSION da main ($version)." >&2
+            exit 1
+          }
 
-          should_build=true
+          tag="v${version}"
           notes_file="docs/releases/v${version}.md"
-          rebuild_requested=false
-          if [[ "$AUTO_REBUILD" == 'true' || "$FORCE_REBUILD" == 'true' ]]; then
-            rebuild_requested=true
+          rebuild_requested="${FORCE_REBUILD:-false}"
+          should_build=true
+
+          mapfile -t matching_releases < <(
+            gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+              --jq ".[] | select(.tag_name == \"$tag\") | [.id, .draft, .html_url] | @tsv"
+          )
+
+          if (( ${#matching_releases[@]} > 1 )); then
+            echo "Existem múltiplas releases associadas a $tag. Remova os drafts duplicados antes de prosseguir." >&2
+            printf 'release conflitante: %s\n' "${matching_releases[@]}" >&2
+            exit 1
           fi
 
-          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            is_draft="$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)"
-            if [[ "$is_draft" == 'true' || "$rebuild_requested" == 'true' ]]; then
-              if [[ "$is_draft" == 'true' ]]; then
-                echo "::notice::A release $tag está em draft; os builds serão retomados e os assets substituídos."
-              else
-                echo "::notice::A release publicada $tag será reaberta em draft para reconstruir os assets do commit $GITHUB_SHA."
-              fi
-
-              current_ref_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" --jq '.object.sha' 2>/dev/null || true)"
-              if [[ -n "$current_ref_sha" && "$current_ref_sha" != "$GITHUB_SHA" ]]; then
-                echo "::notice::Atualizando a tag $tag de $current_ref_sha para $GITHUB_SHA."
-                gh api --method PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/$tag" \
-                  -f sha="$GITHUB_SHA" \
-                  -F force=true >/dev/null
-              fi
-
-              edit_args=(--repo "$GITHUB_REPOSITORY" --title "Tunnara Platform $version" --draft=true --latest=false)
-              if [[ -f "$notes_file" ]]; then edit_args+=(--notes-file "$notes_file"); fi
-              gh release edit "$tag" "${edit_args[@]}"
-            else
-              should_build=false
-              echo "::notice::A release publicada $tag já existe e esta execução não solicitou reconstrução."
+          if (( ${#matching_releases[@]} == 1 )); then
+            IFS=$'\t' read -r release_id is_draft release_url <<< "${matching_releases[0]}"
+            if [[ "$is_draft" != 'true' ]]; then
+              echo "A release $tag já está publicada e é imutável. Incremente VERSION antes de criar outra release." >&2
+              exit 1
             fi
-          else
-            create_args=(--repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Tunnara Platform $version" --draft)
+
+            echo "::notice::Retomando a release draft $tag (id=$release_id)."
+            api_args=(
+              --method PATCH
+              "repos/$GITHUB_REPOSITORY/releases/$release_id"
+              -f tag_name="$tag"
+              -f target_commitish="$GITHUB_SHA"
+              -f name="Tunnara Platform $version"
+              -F draft=true
+              -F prerelease=false
+            )
             if [[ -f "$notes_file" ]]; then
-              create_args+=(--notes-file "$notes_file")
-            else
-              create_args+=(--generate-notes)
+              api_args+=(-f body="$(cat "$notes_file")")
             fi
-            gh release create "$tag" "${create_args[@]}"
+            gh api "${api_args[@]}" >/dev/null
+          else
+            create_args=(
+              --method POST
+              "repos/$GITHUB_REPOSITORY/releases"
+              -f tag_name="$tag"
+              -f target_commitish="$GITHUB_SHA"
+              -f name="Tunnara Platform $version"
+              -F draft=true
+              -F prerelease=false
+            )
+            if [[ -f "$notes_file" ]]; then
+              create_args+=(-f body="$(cat "$notes_file")")
+            else
+              create_args+=(-F generate_release_notes=true)
+            fi
+            release_id="$(gh api "${create_args[@]}" --jq '.id')"
+            echo "::notice::Release draft $tag criada com id=$release_id."
           fi
 
-          if [[ "$should_build" == 'true' ]]; then
-            release_id="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" --jq '.id')"
-            for legacy_name in SHA256SUMS.txt build-metadata.json; do
-              while IFS= read -r asset_id; do
-                [[ -n "$asset_id" ]] || continue
-                echo "::notice::Removendo asset legado conflitante $legacy_name (id=$asset_id)."
-                gh api --method DELETE "repos/$GITHUB_REPOSITORY/releases/assets/$asset_id" >/dev/null
-              done < <(
-                gh api --paginate "repos/$GITHUB_REPOSITORY/releases/$release_id/assets" \
-                  --jq ".[] | select(.name == \"$legacy_name\") | .id"
-              )
-            done
-          fi
+          for legacy_name in SHA256SUMS.txt build-metadata.json; do
+            while IFS= read -r asset_id; do
+              [[ -n "$asset_id" ]] || continue
+              echo "::notice::Removendo asset legado conflitante $legacy_name (id=$asset_id)."
+              gh api --method DELETE "repos/$GITHUB_REPOSITORY/releases/assets/$asset_id" >/dev/null
+            done < <(
+              gh api --paginate "repos/$GITHUB_REPOSITORY/releases/$release_id/assets?per_page=100" \
+                --jq ".[] | select(.name == \"$legacy_name\") | .id"
+            )
+          done
 
           {
             echo "version=$version"
             echo "tag=$tag"
+            echo "release_id=$release_id"
             echo "should_build=$should_build"
             echo "rebuild_requested=$rebuild_requested"
           } >> "$GITHUB_OUTPUT"
@@ -138,10 +152,11 @@ jobs:
             echo
             echo '- Versão: `${{ steps.release.outputs.version }}`'
             echo '- Tag: `${{ steps.release.outputs.tag }}`'
+            echo '- Release ID: `${{ steps.release.outputs.release_id }}`'
             echo '- Build necessário: `${{ steps.release.outputs.should_build }}`'
-            echo '- Reconstrução solicitada: `${{ steps.release.outputs.rebuild_requested }}`'
-            echo '- Evento: `${{ github.event_name }}`'
-            echo '- A release permanece em draft até todos os builds obrigatórios terminarem.'
+            echo '- Reconstrução de draft solicitada: `${{ steps.release.outputs.rebuild_requested }}`'
+            echo '- Releases já publicadas nunca são reabertas, sobrescritas ou reposicionadas.'
+            echo '- A release atual permanece em draft até todos os builds obrigatórios terminarem.'
           } >> "$GITHUB_STEP_SUMMARY"
 
   core:
@@ -225,6 +240,7 @@ jobs:
     uses: ./.github/workflows/desktop-release.yml
     with:
       release_tag: ${{ needs.prepare.outputs.tag }}
+      release_id: ${{ needs.prepare.outputs.release_id }}
     secrets: inherit
 
   mobile:
@@ -287,8 +303,12 @@ jobs:
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ needs.prepare.outputs.tag }}
-        run: gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false --latest
+          RELEASE_ID: ${{ needs.prepare.outputs.release_id }}
+        run: |
+          gh api --method PATCH \
+            "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" \
+            -F draft=false \
+            -f make_latest=true >/dev/null
 
       - name: Final summary
         shell: bash

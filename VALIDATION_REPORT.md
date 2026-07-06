@@ -1,54 +1,45 @@
-# Relatório de validação — Tunnara Platform 1.1.2
+# Relatório de validação — Tunnara Platform 1.1.3
 
 Data: 6 de julho de 2026.
 
 ## Incidente analisado
 
-O release pós-merge falhou em múltiplas matrizes após atualizações major abertas pelo Dependabot. O CI anterior validava principalmente sintaxe/configuração e não compilava o workspace Rust, o backend Tauri nem os aplicativos mobile nos Pull Requests correspondentes.
+Múltiplos merges continuaram usando `VERSION=1.1.2`. O workflow tentou converter a release publicada `v1.1.2` em draft, reposicionou a tag para um novo commit e depois consultou a release pelo endpoint de tag. A conversão produziu drafts duplicados/sem associação estável à tag e a consulta seguinte retornou `HTTP 404`.
 
 ## Causas corrigidas
 
-- `reqwest 0.13` não oferece a feature antiga `rustls-tls`; o workspace passou a usar `rustls`.
-- `reqwest 0.13.4` exige Rust 1.85; o MSRV e a imagem builder do QUIC Bridge foram alinhados para 1.85.
-- O Console utilizava APIs de `rand 0.8`, `sha1/sha2 0.10` e `digest 0.10`, mas os manifests haviam sido elevados para versões incompatíveis.
-- Android Gradle Plugin 9.2.1 estava sendo executado com Gradle 8.10.2; o workflow agora usa Gradle 9.4.1.
-- O tag fixado do WireGuardKit declara Swift Tools 5.3, embora use plataformas introduzidas no PackageDescription 5.5. O checkout local é corrigido de forma determinística.
-- O bridge `wireguard-go` não pode ser construído automaticamente pelo Swift Package Manager; foi incluído um target legado Xcode que executa `/usr/bin/make` com os build settings da arquitetura/SDK e Go 1.19.
-- O cache Docker da matriz usava escopo compartilhado; agora cada imagem possui escopo próprio.
+- ausência de incremento SemVer antes da execução da release;
+- uso da mesma versão para commits diferentes;
+- reabertura de releases já publicadas;
+- movimentação forçada de tags já publicadas;
+- descoberta de drafts somente pela tag;
+- `tauri-action` sem `releaseId`, permitindo criação de um draft desktop separado;
+- ausência de bloqueio para releases e drafts duplicados.
 
-## Endurecimento do CI
+## Nova política
 
-- `cargo check --workspace --all-targets` em alterações Rust.
-- `cargo check` do backend Tauri com todas as features de storage.
-- build Android `:app:assembleDebug` em alterações mobile.
-- resolução do WireGuardKit e build real do aplicativo iOS Simulator.
-- validação mobile também no CI central e antes da criação dos artefatos de release.
-- Dependabot agrupado para minor/patch, com limite de PRs e majors bloqueados até migração dedicada.
+- `Version and release after merge` calcula a próxima versão após merge em `main`;
+- o incremento padrão é `patch`; labels permitem `major`, `minor`, `patch` ou `none`;
+- um bump explícito já presente no Pull Request é preservado;
+- `npm run version:set` sincroniza os 24 pontos de versão e os builds mobile;
+- a alteração sincronizada é gravada na `main` antes do dispatch da release;
+- releases publicadas e tags são imutáveis;
+- somente drafts da mesma versão podem ser retomados;
+- o workflow desktop recebe o `releaseId` exato do draft coordenado.
 
-## Validações concluídas localmente
+## Validações concluídas
 
-- instalação limpa npm: 4 pacotes na raiz e 59 no Console;
-- integridade do repositório e SemVer `1.1.2` sincronizado;
-- sintaxe Node.js, Bash e PHP;
-- parse YAML dos workflows e do Dependabot;
-- storage, release, Docker e configuração mobile;
-- runtime HTTP/WebSocket, TCP/UDP, Cloudflare, HA/failover, WireGuard, rede privada e configuração de produção;
-- SDK C dinâmico/estático e smoke test;
-- Vue/TypeScript typecheck;
-- build Vite de produção.
-
-## Validações delegadas ao GitHub Actions
-
-Este ambiente local não possui Cargo/Rust, Docker Engine, Gradle/Android SDK ou macOS/Xcode. Portanto, não foi possível executar localmente:
-
-- compilação nativa Rust/QUIC Bridge;
-- imagens OCI multi-arquitetura;
-- APK/AAB Android;
-- aplicativo/IPA iOS e bridge WireGuardGo;
-- instaladores Tauri.
-
-Essas lacunas deixaram de ser apenas validações estáticas: os workflows de Pull Request agora executam compilação Rust, Android e iOS antes do merge. O resultado definitivo desses targets deve ser confirmado pelo GitHub Actions da branch de correção.
+- `npm ci --ignore-scripts`;
+- `npm run version:check`;
+- `npm run validate:release`;
+- `npm run repository:check`;
+- `npm run validate:node`;
+- `npm run validate:shell`;
+- parse YAML de todos os workflows;
+- `bash -n` dos blocos Bash incorporados aos workflows;
+- cenários de incremento explícito, patch, minor e major;
+- aplicação limpa do patch sobre o pacote v7.
 
 ## Resultado
 
-A base foi elevada para `1.1.2`, as causas observadas no log foram corrigidas e o pipeline passou a impedir que atualizações incompatíveis sejam consideradas verdes sem compilar os módulos afetados.
+A base foi elevada para `1.1.3`. Novos merges elegíveis não reutilizam `1.1.2`: o versionamento ocorre antes da release, e o pipeline rejeita qualquer tentativa de sobrescrever uma versão já publicada.
