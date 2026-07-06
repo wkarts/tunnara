@@ -1,47 +1,52 @@
-# Publicação da Tunnara 2.0.0-rc.1 no GitHub
+# Publicação da correção Tunnara 2.0.0-rc.2 no GitHub
 
 ## Branch do Pull Request
 
 ```bash
 git switch main
 git pull --rebase origin main
-git switch -c release/v2.0.0-rc1-platform-hardening
+git switch -c fix/v2.0.0-rc2-validation-autoversion
 ```
 
-Aplique o patch ou copie o conteúdo GitHub Ready, depois:
+Copie o conteúdo do pacote corrigido e execute:
 
 ```bash
 git add --all
-git commit -m "feat: deliver Tunnara 2.0.0 RC platform hardening"
-git push -u origin release/v2.0.0-rc1-platform-hardening
+git commit -m "fix(release): correct validation and add immutable version automation"
+git push -u origin fix/v2.0.0-rc2-validation-autoversion
 ```
 
-## Release
+## Comportamento após o merge
 
-O arquivo `VERSION` está em `2.0.0-rc.1`. Após o merge, o workflow de release deve:
+O arquivo `VERSION` deste pacote está em `2.0.0-rc.2`.
 
-1. criar `v2.0.0-rc.1` como draft;
-2. gerar os assets centrais;
-3. executar Runtime, SDK, Desktop, Mobile e Containers;
-4. anexar os artefatos diretamente à release;
-5. publicar a release somente se os jobs obrigatórios terminarem com sucesso.
+- Se não existir release igual ou superior, o workflow preserva `2.0.0-rc.2`.
+- Se `2.0.0-rc.2` já existir, o workflow avança automaticamente para `2.0.0-rc.3`.
+- Releases draft também entram no cálculo para impedir colisão de versão.
+- Releases publicadas não são reabertas e tags publicadas não são movidas.
 
-Para reconstrução manual:
+A release coordenada recebe a versão e o SHA exato do commit de preparação. Core, Runtime, SDK, Desktop, Mobile e Containers compilam esse mesmo SHA.
+
+## Reexecutar uma draft interrompida
+
+Abra `Actions → Release after merge → Run workflow` e informe exatamente:
 
 ```text
-Actions → Release after merge → Run workflow
-force_rebuild: true
+release_version: versão da draft
+release_sha: SHA original da draft
 ```
 
-## Imagens GHCR esperadas
+Não use outro SHA para a mesma versão. Uma release já publicada exige uma nova versão.
+
+## Imagens GHCR esperadas para esta revisão
 
 ```text
-ghcr.io/wkarts/tunnara-server:2.0.0-rc.1
-ghcr.io/wkarts/tunnara-agent:2.0.0-rc.1
-ghcr.io/wkarts/tunnara-console:2.0.0-rc.1
-ghcr.io/wkarts/tunnara-control-api:2.0.0-rc.1
-ghcr.io/wkarts/tunnara-quic-bridge:2.0.0-rc.1
-ghcr.io/wkarts/tunnara-caddy-cloudflare:2.0.0-rc.1
+ghcr.io/wkarts/tunnara-server:2.0.0-rc.2
+ghcr.io/wkarts/tunnara-agent:2.0.0-rc.2
+ghcr.io/wkarts/tunnara-console:2.0.0-rc.2
+ghcr.io/wkarts/tunnara-control-api:2.0.0-rc.2
+ghcr.io/wkarts/tunnara-quic-bridge:2.0.0-rc.2
+ghcr.io/wkarts/tunnara-caddy-cloudflare:2.0.0-rc.2
 ```
 
 ## Ambiente distribuído
@@ -71,7 +76,3 @@ helm upgrade --install tunnara deploy/helm/tunnara \
   --set-string server.masterKey='...' \
   --set-string server.clusterToken='tnr_cluster_...'
 ```
-
-## Gates de promoção para GA
-
-A tag RC deve ser promovida para `2.0.0` somente após os testes descritos em `docs/security/MATURITY_GATES.md`.

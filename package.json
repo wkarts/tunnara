@@ -1,7 +1,7 @@
 {
   "name": "tunnara-platform",
   "private": true,
-  "version": "2.0.0-rc.1",
+  "version": "2.0.0-rc.2",
   "description": "Plataforma self-hosted de túneis seguros, edge networking e conectividade privada.",
   "license": "AGPL-3.0-or-later",
   "scripts": {
@@ -11,7 +11,7 @@
     "console:typecheck": "npm --prefix apps/console run typecheck",
     "version:check": "node scripts/version/check-version.mjs",
     "version:set": "node scripts/version/set-version.mjs",
-    "validate": "npm run repository:check && npm run version:check && npm run validate:node && npm run validate:shell && npm run validate:php && npm run validate:storage && npm run validate:release && npm run validate:docker && npm run runtime:test && npm run sdk:c:test && npm run console:typecheck && npm run console:build",
+    "validate": "npm run repository:check && npm run version:check && npm run version:test && npm run validate:node && npm run validate:shell && npm run validate:php && npm run validate:storage && npm run validate:release && npm run validate:docker && npm run validate:mobile && npm run runtime:test && npm run sdk:c:test && npm run console:typecheck && npm run console:build",
     "artifacts:package": "bash scripts/release/package-artifacts.sh",
     "validate:php": "find apps/control-api -type f -name '*.php' -print0 | xargs -0 -n1 php -l",
     "runtime:server": "node runtime/node/bin/tunnara-server.mjs serve-all",
@@ -38,7 +38,9 @@
     "validate:docker": "node scripts/ci/validate-docker-deployment.mjs",
     "runtime:test:policy": "node --test runtime/node/tests/e2e-policy-inspector-ha.mjs",
     "runtime:test:load": "node tests/load/http-tunnel-load.mjs",
-    "runtime:test:security": "node tests/security/policy-fuzz.mjs"
+    "runtime:test:security": "node tests/security/policy-fuzz.mjs",
+    "version:test": "node --test scripts/version/version-utils.test.mjs",
+    "validate:mobile": "node scripts/ci/validate-mobile-config.mjs"
   },
   "devDependencies": {
     "esbuild": "^0.28.1",

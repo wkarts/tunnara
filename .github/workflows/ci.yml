@@ -34,7 +34,9 @@ jobs:
       - name: Repository integrity
         run: npm run repository:check
       - name: Version synchronization
-        run: npm run version:check
+        run: |
+          npm run version:check
+          npm run version:test
       - name: Static syntax checks
         run: |
           npm run validate:node
@@ -96,12 +98,6 @@ jobs:
           extensions: mbstring, intl, pdo_sqlite, openssl, sodium
           coverage: none
           tools: composer:v2
-      - name: Cache Composer downloads
-        uses: actions/cache@v4
-        with:
-          path: ~/.composer/cache/files
-          key: composer-${{ runner.os }}-${{ hashFiles('apps/control-api/composer.json') }}
-          restore-keys: composer-${{ runner.os }}-
       - name: Install dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
       - name: Validate and test distributed control plane

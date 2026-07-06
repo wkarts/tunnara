@@ -16,11 +16,12 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: br.com.wwsoftwares.tunnara.mobile
         PRODUCT_NAME: TunnaraMobile
+        GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: Tunnara
         INFOPLIST_KEY_CFBundleShortVersionString: 2.0.0
-        INFOPLIST_KEY_CFBundleVersion: 20000
+        INFOPLIST_KEY_CFBundleVersion: 200007002
         MARKETING_VERSION: 2.0.0
-        CURRENT_PROJECT_VERSION: 20000
+        CURRENT_PROJECT_VERSION: 200007002
         CODE_SIGN_ENTITLEMENTS: Config/TunnaraMobile.entitlements
         CODE_SIGN_STYLE: Manual
         DEVELOPMENT_TEAM: $(TUNNARA_APPLE_TEAM_ID)
@@ -40,7 +41,7 @@ targets:
         PRODUCT_NAME: TunnaraPacketTunnel
         INFOPLIST_FILE: Config/PacketTunnel-Info.plist
         MARKETING_VERSION: 2.0.0
-        CURRENT_PROJECT_VERSION: 20000
+        CURRENT_PROJECT_VERSION: 200007002
         CODE_SIGN_ENTITLEMENTS: Config/TunnaraPacketTunnel.entitlements
         CODE_SIGN_STYLE: Manual
         DEVELOPMENT_TEAM: $(TUNNARA_APPLE_TEAM_ID)

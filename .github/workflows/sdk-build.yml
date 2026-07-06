@@ -7,11 +7,20 @@ on:
         description: 'Tag da GitHub Release draft que receberá os SDKs'
         required: true
         type: string
+      source_sha:
+        description: 'Commit imutável a ser compilado'
+        required: true
+        type: string
   workflow_dispatch:
     inputs:
       release_tag:
         description: 'Tag da GitHub Release existente que receberá os SDKs'
         required: true
+        type: string
+      source_sha:
+        description: 'Commit a ser compilado; vazio usa o commit do workflow'
+        required: false
+        default: ''
         type: string
 
 permissions:
@@ -40,6 +49,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.source_sha || github.sha }}
 
       - name: Ensure target release exists
         shell: bash
@@ -76,7 +87,7 @@ jobs:
         run: |
           mkdir -p dist
           tar -C sdk/c/stage -czf "dist/Tunnara-SDK-C-${{ matrix.suffix }}-${{ inputs.release_tag }}.tar.gz" .
-          (cd dist && shasum -a 256 * > "SHA256SUMS-${{ matrix.suffix }}.txt")
+          (cd dist && shasum -a 256 * > "SHA256SUMS-sdk-${{ matrix.suffix }}.txt")
 
       - name: Package Windows
         if: runner.os == 'Windows'
@@ -86,11 +97,11 @@ jobs:
           Compress-Archive -Path sdk/c/stage/* -DestinationPath "dist/Tunnara-SDK-C-${{ matrix.suffix }}-${{ inputs.release_tag }}.zip" -Force
           Get-FileHash dist/*.zip -Algorithm SHA256 | ForEach-Object {
             "$($_.Hash.ToLower())  $([IO.Path]::GetFileName($_.Path))"
-          } | Set-Content "dist/SHA256SUMS-${{ matrix.suffix }}.txt"
+          } | Set-Content "dist/SHA256SUMS-sdk-${{ matrix.suffix }}.txt"
 
       - name: Attach SDK to GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ inputs.release_tag }}
-          files: dist/*
-          fail_on_unmatched_files: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.release_tag }}
+        run: bash scripts/release/upload-release-assets.sh "$TAG" dist

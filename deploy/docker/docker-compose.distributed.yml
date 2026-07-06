@@ -5,7 +5,7 @@ x-control-env: &control-env
   APP_ENV: production
   APP_DEBUG: "false"
   APP_KEY: ${APP_KEY:?Execute ./tunnara.sh init}
-  APP_VERSION: 2.0.0-rc.1
+  APP_VERSION: 2.0.0-rc.2
   APP_URL: https://control.${TUNNARA_BASE_DOMAIN}
   LOG_CHANNEL: stderr
   LOG_LEVEL: ${LOG_LEVEL:-info}
@@ -69,7 +69,7 @@ services:
     networks: [control]
 
   control-a:
-    image: ${TUNNARA_CONTROL_IMAGE:-ghcr.io/wkarts/tunnara-control-api:2.0.0-rc.1}
+    image: ${TUNNARA_CONTROL_IMAGE:-ghcr.io/wkarts/tunnara-control-api:2.0.0-rc.2}
     restart: unless-stopped
     environment:
       <<: *control-env
@@ -85,7 +85,7 @@ services:
       retries: 20
 
   control-b:
-    image: ${TUNNARA_CONTROL_IMAGE:-ghcr.io/wkarts/tunnara-control-api:2.0.0-rc.1}
+    image: ${TUNNARA_CONTROL_IMAGE:-ghcr.io/wkarts/tunnara-control-api:2.0.0-rc.2}
     restart: unless-stopped
     environment:
       <<: *control-env
@@ -100,7 +100,7 @@ services:
       retries: 20
 
   relay-a:
-    image: ${TUNNARA_SERVER_IMAGE:-ghcr.io/wkarts/tunnara-server:2.0.0-rc.1}
+    image: ${TUNNARA_SERVER_IMAGE:-ghcr.io/wkarts/tunnara-server:2.0.0-rc.2}
     command: ["relay"]
     restart: unless-stopped
     environment:
@@ -117,7 +117,7 @@ services:
     networks: [control, public]
 
   relay-b:
-    image: ${TUNNARA_SERVER_IMAGE:-ghcr.io/wkarts/tunnara-server:2.0.0-rc.1}
+    image: ${TUNNARA_SERVER_IMAGE:-ghcr.io/wkarts/tunnara-server:2.0.0-rc.2}
     command: ["relay"]
     restart: unless-stopped
     environment:
@@ -134,7 +134,7 @@ services:
     networks: [control, public]
 
   edge-a:
-    image: ${TUNNARA_SERVER_IMAGE:-ghcr.io/wkarts/tunnara-server:2.0.0-rc.1}
+    image: ${TUNNARA_SERVER_IMAGE:-ghcr.io/wkarts/tunnara-server:2.0.0-rc.2}
     command: ["edge"]
     restart: unless-stopped
     environment:
@@ -147,7 +147,7 @@ services:
     networks: [control, public]
 
   edge-b:
-    image: ${TUNNARA_SERVER_IMAGE:-ghcr.io/wkarts/tunnara-server:2.0.0-rc.1}
+    image: ${TUNNARA_SERVER_IMAGE:-ghcr.io/wkarts/tunnara-server:2.0.0-rc.2}
     command: ["edge"]
     restart: unless-stopped
     environment:
@@ -160,12 +160,12 @@ services:
     networks: [control, public]
 
   console:
-    image: ${TUNNARA_CONSOLE_IMAGE:-ghcr.io/wkarts/tunnara-console:2.0.0-rc.1}
+    image: ${TUNNARA_CONSOLE_IMAGE:-ghcr.io/wkarts/tunnara-console:2.0.0-rc.2}
     restart: unless-stopped
     networks: [public]
 
   caddy:
-    image: ${TUNNARA_CADDY_IMAGE:-ghcr.io/wkarts/tunnara-caddy-cloudflare:2.0.0-rc.1}
+    image: ${TUNNARA_CADDY_IMAGE:-ghcr.io/wkarts/tunnara-caddy-cloudflare:2.0.0-rc.2}
     restart: unless-stopped
     environment:
       TUNNARA_BASE_DOMAIN: ${TUNNARA_BASE_DOMAIN}

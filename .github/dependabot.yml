@@ -2,38 +2,75 @@ version: 2
 updates:
   - package-ecosystem: npm
     directory: /
-    schedule:
-      interval: weekly
+    schedule: { interval: weekly }
+    open-pull-requests-limit: 2
     groups:
       root-tooling:
         patterns: ['*']
+        update-types: ['minor', 'patch']
 
   - package-ecosystem: npm
     directory: /apps/console
-    schedule:
-      interval: weekly
+    schedule: { interval: weekly }
+    open-pull-requests-limit: 2
+    groups:
+      console-compatible-updates:
+        patterns: ['*']
+        update-types: ['minor', 'patch']
+    ignore:
+      - dependency-name: pinia
+        update-types: ['version-update:semver-major']
+      - dependency-name: vue-router
+        update-types: ['version-update:semver-major']
+      - dependency-name: typescript
+        update-types: ['version-update:semver-major']
 
   - package-ecosystem: cargo
     directory: /
-    schedule:
-      interval: weekly
+    schedule: { interval: weekly }
+    open-pull-requests-limit: 2
+    groups:
+      rust-workspace-compatible-updates:
+        patterns: ['*']
+        update-types: ['minor', 'patch']
 
   - package-ecosystem: cargo
     directory: /apps/console/src-tauri
-    schedule:
-      interval: weekly
+    schedule: { interval: weekly }
+    open-pull-requests-limit: 2
+    groups:
+      tauri-rust-compatible-updates:
+        patterns: ['*']
+        update-types: ['minor', 'patch']
 
   - package-ecosystem: composer
     directory: /apps/control-api
-    schedule:
-      interval: weekly
+    schedule: { interval: weekly }
+    open-pull-requests-limit: 2
+    groups:
+      control-api-compatible-updates:
+        patterns: ['*']
+        update-types: ['minor', 'patch']
 
   - package-ecosystem: gradle
     directory: /sdk/mobile/android
-    schedule:
-      interval: weekly
+    schedule: { interval: weekly }
+    open-pull-requests-limit: 2
+    groups:
+      android-compatible-updates:
+        patterns: ['*']
+        update-types: ['minor', 'patch']
+    ignore:
+      - dependency-name: androidx.core:core-ktx
+        versions: ['[1.17.0,)']
+      - dependency-name: androidx.lifecycle:lifecycle-runtime-ktx
+        versions: ['[2.10.0,)']
 
   - package-ecosystem: github-actions
     directory: /
-    schedule:
-      interval: weekly
+    schedule: { interval: weekly }
+    open-pull-requests-limit: 2
+    groups:
+      github-actions-compatible-updates:
+        patterns: ['*']
+        update-types: ['minor', 'patch']

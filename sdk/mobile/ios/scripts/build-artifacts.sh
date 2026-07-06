@@ -6,14 +6,16 @@ REPO_ROOT="$(cd "$ROOT/../../.." && pwd)"
 VERSION="$(tr -d '\r\n' < "$REPO_ROOT/VERSION")"
 OUT_DIR="${TUNNARA_IOS_OUTPUT_DIR:-$ROOT/dist}"
 DERIVED_DATA="$OUT_DIR/DerivedData"
+SOURCE_PACKAGES="$OUT_DIR/SourcePackages"
 UNSIGNED_BUILD="$OUT_DIR/device-unsigned"
 SIMULATOR_BUILD="$OUT_DIR/simulator"
 
 command -v xcodebuild >/dev/null 2>&1 || { echo "xcodebuild não encontrado; execute em macOS com Xcode." >&2; exit 1; }
 command -v xcodegen >/dev/null 2>&1 || { echo "xcodegen não encontrado; instale com brew install xcodegen." >&2; exit 1; }
+command -v python3 >/dev/null 2>&1 || { echo "python3 não encontrado." >&2; exit 1; }
 
 rm -rf "$OUT_DIR"
-mkdir -p "$OUT_DIR" "$UNSIGNED_BUILD" "$SIMULATOR_BUILD"
+mkdir -p "$OUT_DIR" "$UNSIGNED_BUILD" "$SIMULATOR_BUILD" "$SOURCE_PACKAGES"
 
 (
   cd "$ROOT"
@@ -22,7 +24,27 @@ mkdir -p "$OUT_DIR" "$UNSIGNED_BUILD" "$SIMULATOR_BUILD"
 
 xcodebuild -resolvePackageDependencies \
   -project "$ROOT/TunnaraMobile.xcodeproj" \
-  -scheme TunnaraMobile
+  -scheme TunnaraMobile \
+  -clonedSourcePackagesDirPath "$SOURCE_PACKAGES"
+
+WIREGUARD_CHECKOUT="$SOURCE_PACKAGES/checkouts/wireguard-apple"
+[[ -d "$WIREGUARD_CHECKOUT" ]] || {
+  echo "Checkout WireGuardKit não foi localizado em $WIREGUARD_CHECKOUT." >&2
+  exit 1
+}
+bash "$ROOT/scripts/prepare-wireguard-kit.sh" "$WIREGUARD_CHECKOUT"
+
+BUILD_SETTINGS="$(xcodebuild \
+  -project "$ROOT/TunnaraMobile.xcodeproj" \
+  -target TunnaraMobile \
+  -configuration Debug \
+  -sdk iphonesimulator \
+  -clonedSourcePackagesDirPath "$SOURCE_PACKAGES" \
+  -showBuildSettings)"
+grep -Eq 'GENERATE_INFOPLIST_FILE = YES' <<<"$BUILD_SETTINGS" || {
+  echo 'TunnaraMobile deve usar GENERATE_INFOPLIST_FILE = YES.' >&2
+  exit 1
+}
 
 xcodebuild \
   -project "$ROOT/TunnaraMobile.xcodeproj" \
@@ -31,7 +53,10 @@ xcodebuild \
   -sdk iphonesimulator \
   -destination 'generic/platform=iOS Simulator' \
   -derivedDataPath "$DERIVED_DATA/simulator" \
+  -clonedSourcePackagesDirPath "$SOURCE_PACKAGES" \
   CONFIGURATION_BUILD_DIR="$SIMULATOR_BUILD" \
+  ARCHS=arm64 \
+  ONLY_ACTIVE_ARCH=YES \
   CODE_SIGNING_ALLOWED=NO \
   CODE_SIGNING_REQUIRED=NO \
   CODE_SIGN_IDENTITY='' \
@@ -48,6 +73,7 @@ xcodebuild \
   -sdk iphoneos \
   -destination 'generic/platform=iOS' \
   -derivedDataPath "$DERIVED_DATA/device" \
+  -clonedSourcePackagesDirPath "$SOURCE_PACKAGES" \
   CONFIGURATION_BUILD_DIR="$UNSIGNED_BUILD" \
   CODE_SIGNING_ALLOWED=NO \
   CODE_SIGNING_REQUIRED=NO \
@@ -56,6 +82,7 @@ xcodebuild \
 
 UNSIGNED_APP="$(find "$UNSIGNED_BUILD" -maxdepth 2 -type d -name 'TunnaraMobile.app' -print -quit)"
 [[ -n "$UNSIGNED_APP" ]] || { echo "Aplicativo iOS device sem assinatura não foi gerado." >&2; exit 1; }
+[[ -f "$UNSIGNED_APP/Info.plist" ]] || { echo "TunnaraMobile.app foi gerado sem Info.plist." >&2; exit 1; }
 
 PAYLOAD_ROOT="$(mktemp -d)"
 mkdir -p "$PAYLOAD_ROOT/Payload"
@@ -81,12 +108,12 @@ for name in \
 done
 
 if [[ "$SIGNING_READY" == true ]]; then
-  TUNNARA_IOS_OUTPUT_DIR="$OUT_DIR" "$ROOT/scripts/sign-and-export.sh"
+  TUNNARA_IOS_OUTPUT_DIR="$OUT_DIR" bash "$ROOT/scripts/sign-and-export.sh"
 else
   echo "Credenciais Apple ausentes ou incompletas: IPA assinado será ignorado, sem falhar o build."
 fi
 
-cat > "$OUT_DIR/build-metadata.json" <<JSON
+cat > "$OUT_DIR/build-metadata-ios.json" <<JSON
 {
   "product": "Tunnara Mobile iOS",
   "version": "$VERSION",
@@ -100,7 +127,10 @@ JSON
 
 (
   cd "$OUT_DIR"
-  find . -maxdepth 1 -type f \( -name '*.ipa' -o -name '*.zip' \) -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS.txt
+  : > SHA256SUMS-ios.txt
+  while IFS= read -r artifact; do
+    shasum -a 256 "$artifact" >> SHA256SUMS-ios.txt
+  done < <(find . -maxdepth 1 -type f \( -name '*.ipa' -o -name '*.zip' \) -print | LC_ALL=C sort)
 )
 
 echo "Artefatos iOS gerados em $OUT_DIR."

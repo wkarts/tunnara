@@ -1,5 +1,44 @@
 # Changelog
 
+## [2.0.0-rc.2] - 2026-07-06
+
+### Correções de validação
+
+- Adicionado `esbuild` como dependência explícita do Console Vue, eliminando a falha do Vite 8 em instalações limpas.
+- Corrigida a validação iOS para usar `MARKETING_VERSION` numérica (`2.0.0`) enquanto a versão distribuída permanece `2.0.0-rc.2`.
+- Adicionada validação consistente de `versionCode`, `CURRENT_PROJECT_VERSION` e `CFBundleVersion`.
+- Removido o cache Composer apontando para um diretório inexistente no GitHub Actions.
+
+### Autoincremento e releases imutáveis
+
+- Implementado versionamento SemVer com suporte a prereleases (`rc.1` → `rc.2` → `rc.3`).
+- Adicionados modos `auto`, `prerelease`, `stable`, `patch`, `minor` e `major`.
+- Incluídos labels `release:prerelease`, `release:stable` e `release:none`.
+- Corrigido o dispatch entre os workflows de versionamento e release.
+- Cada release passa a compilar um commit imutável informado por SHA.
+- Releases publicadas não são reabertas e tags publicadas não são movimentadas.
+- Drafts interrompidas podem ser retomadas de modo idempotente.
+
+### Mobile
+
+- Novo build number monotônico por canal: prereleases, versão estável e patch seguinte preservam ordem crescente para Android e iOS.
+- Android migrado para o Kotlin integrado do AGP 9.2.1, sem o plugin legado `org.jetbrains.kotlin.android`.
+- `androidx.core:core-ktx` fixado em `1.16.0` para permanecer compatível com `compileSdk 35`.
+- iOS passa a gerar explicitamente o `Info.plist` do aplicativo principal e valida o bundle antes de empacotar a extensão.
+- Preparação idempotente do WireGuardKit para Xcode 16, simulador arm64 e tipos C padronizados.
+- Metadados e checksums Android/iOS agora possuem nomes exclusivos para impedir colisões na mesma release.
+- Build mobile desta versão: `200007002`.
+
+### Pipeline multiplataforma
+
+- O build SEA executa `esbuild` e `postject` pelos CLIs JavaScript via Node, incluindo Windows sem dependência de wrappers `.cmd`.
+- Uploads de Runtime, SDK, Android, iOS e Core usam um uploader sequencial, idempotente, com `--clobber` e tentativas controladas.
+- O uploader é compatível com o Bash 3.2 do macOS e não depende de `mapfile`, `sort -z` ou GNU coreutils.
+- O Tauri recebe o `releaseId` da única draft coordenada e não cria releases paralelas.
+- Tags existentes também participam do cálculo da próxima versão, impedindo colisões mesmo quando uma tag não possui release publicada.
+- Imagens prerelease publicam o canal `rc` sem sobrescrever `latest` ou a tag estável de série.
+- Dependabot foi agrupado e limitado para reduzir PRs incompatíveis e evitar majors automáticos no Console e mobile.
+
 ## [2.0.0-rc.1] - 2026-07-06
 
 ### Plano de controle distribuído

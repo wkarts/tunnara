@@ -7,6 +7,10 @@ on:
         description: 'Tag da GitHub Release draft que receberá APK/AAB/IPA'
         required: true
         type: string
+      source_sha:
+        description: 'Commit imutável a ser compilado'
+        required: true
+        type: string
       publish_google_play:
         required: false
         default: false
@@ -24,6 +28,11 @@ on:
       release_tag:
         description: 'Tag da GitHub Release existente que receberá APK/AAB/IPA'
         required: true
+        type: string
+      source_sha:
+        description: 'Commit a ser compilado; vazio usa o commit do workflow'
+        required: false
+        default: ''
         type: string
       publish_google_play:
         description: 'Publicar o AAB assinado no Google Play'
@@ -63,16 +72,12 @@ jobs:
           tag="${{ inputs.release_tag }}"
           [[ -n "$tag" ]] || { echo "release_tag é obrigatório." >&2; exit 1; }
           echo "value=$tag" >> "$GITHUB_OUTPUT"
-      - name: Create release when missing
+      - name: Ensure coordinated draft release exists
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.tag.outputs.value }}
         shell: bash
-        run: |
-          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            exit 0
-          fi
-          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Tunnara $TAG" --notes "Artefatos mobile gerados automaticamente." --draft
+        run: gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null
 
   build-android:
     name: Build Android APK/AAB
@@ -87,6 +92,8 @@ jobs:
       WANT_PUBLISH: ${{ inputs.publish_google_play || vars.TUNNARA_ENABLE_GOOGLE_PLAY_PUBLISH == 'true' }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.source_sha || github.sha }}
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
@@ -106,11 +113,11 @@ jobs:
       - name: Build APK and AAB
         run: bash sdk/mobile/android/scripts/build-artifacts.sh
       - name: Attach Android files directly to GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ needs.prepare-release.outputs.tag }}
-          files: sdk/mobile/android/dist/*
-          fail_on_unmatched_files: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.prepare-release.outputs.tag }}
+        run: bash scripts/release/upload-release-assets.sh "$TAG" sdk/mobile/android/dist
       - name: Locate signed AAB
         id: signed-aab
         shell: bash
@@ -146,15 +153,17 @@ jobs:
       WANT_PUBLISH: ${{ inputs.publish_testflight || vars.TUNNARA_ENABLE_APPSTORE_PUBLISH == 'true' }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.source_sha || github.sha }}
       - name: Install XcodeGen
         run: brew install xcodegen
       - name: Prepare optional Apple signing
         shell: bash
         run: |
           if [[ -n "$APPLE_CERTIFICATE_BASE64" && -n "$APPLE_APP_PROFILE_BASE64" && -n "$APPLE_PACKET_PROFILE_BASE64" && -n "$TUNNARA_APPLE_CERTIFICATE_PASSWORD" && -n "$TUNNARA_APPLE_TEAM_ID" ]]; then
-            echo "$APPLE_CERTIFICATE_BASE64" | base64 --decode > "$RUNNER_TEMP/tunnara-distribution.p12"
-            echo "$APPLE_APP_PROFILE_BASE64" | base64 --decode > "$RUNNER_TEMP/tunnara-app.mobileprovision"
-            echo "$APPLE_PACKET_PROFILE_BASE64" | base64 --decode > "$RUNNER_TEMP/tunnara-packet.mobileprovision"
+            printf '%s' "$APPLE_CERTIFICATE_BASE64" | openssl base64 -d -A > "$RUNNER_TEMP/tunnara-distribution.p12"
+            printf '%s' "$APPLE_APP_PROFILE_BASE64" | openssl base64 -d -A > "$RUNNER_TEMP/tunnara-app.mobileprovision"
+            printf '%s' "$APPLE_PACKET_PROFILE_BASE64" | openssl base64 -d -A > "$RUNNER_TEMP/tunnara-packet.mobileprovision"
             {
               echo "TUNNARA_APPLE_CERTIFICATE_P12=$RUNNER_TEMP/tunnara-distribution.p12"
               echo "TUNNARA_APPLE_APP_PROFILE=$RUNNER_TEMP/tunnara-app.mobileprovision"
@@ -166,15 +175,11 @@ jobs:
       - name: Build simulator app and IPA files
         run: bash sdk/mobile/ios/scripts/build-artifacts.sh
       - name: Attach iOS files directly to GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ needs.prepare-release.outputs.tag }}
-          files: |
-            sdk/mobile/ios/dist/*.ipa
-            sdk/mobile/ios/dist/*.zip
-            sdk/mobile/ios/dist/*.json
-            sdk/mobile/ios/dist/SHA256SUMS.txt
-          fail_on_unmatched_files: false
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.prepare-release.outputs.tag }}
+        run: bash scripts/release/upload-release-assets.sh "$TAG" sdk/mobile/ios/dist
       - name: Locate signed IPA
         id: signed-ipa
         shell: bash

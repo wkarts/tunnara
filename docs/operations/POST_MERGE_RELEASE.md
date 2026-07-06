@@ -1,23 +1,37 @@
 # Release após merge
 
-A release não é criada em cada merge. O evento automático observa mudanças no arquivo `VERSION`.
+A versão e a release são coordenadas automaticamente após o merge na `main`.
 
-## Processo
+## Fluxo padrão
 
-```bash
-git switch -c release/v1.1.1
-npm run version:set -- 1.1.1
-npm run version:check
-git add --all
-git commit -m "chore: prepare Tunnara v1.1.1"
-git push -u origin release/v1.1.1
+1. O merge chega à `main`.
+2. O workflow lê todas as releases publicadas, incluindo prereleases.
+3. Calcula a próxima versão SemVer.
+4. Sincroniza os manifestos e builds mobile.
+5. Cria o commit `chore(release): prepare vX.Y.Z`.
+6. Dispara a release com a versão e o SHA imutável.
+7. A release permanece draft até todos os builds terminarem.
+
+## Release Candidate
+
+Enquanto `VERSION` possuir sufixo `-rc.N`, merges sem label avançam automaticamente:
+
+```text
+2.0.0-rc.2 → 2.0.0-rc.3 → 2.0.0-rc.4
 ```
 
-Depois do merge:
+Para promover a RC:
 
-- a release é criada como draft;
-- os assets centrais são enviados;
-- Runtime, SDK, Desktop, Mobile e Docker executam como workflows reutilizáveis;
-- a release só é publicada após sucesso completo.
+```text
+release:stable
+```
 
-Se um build falhar, a release permanece em draft e pode ser reconstruída com `force_rebuild=true`.
+Resultado:
+
+```text
+2.0.0-rc.N → 2.0.0
+```
+
+## Falha de build
+
+A release permanece draft. Reexecute o workflow `Release after merge` usando a mesma `release_version` e o mesmo `release_sha`. Releases já publicadas não podem ser reconstruídas; uma correção posterior deve receber nova versão.

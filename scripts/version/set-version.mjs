@@ -1,11 +1,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { baseVersion as getBaseVersion, mobileBuildNumber } from './version-utils.mjs';
 
 const version = process.argv[2];
 if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(version || '')) throw new Error('Versão SemVer inválida');
-const baseVersion = version.split('-')[0];
-const numericVersion = baseVersion.split('.').map(Number);
-const buildNumber = numericVersion[0] * 10000 + numericVersion[1] * 100 + numericVersion[2];
+const baseVersion = getBaseVersion(version);
+const buildNumber = mobileBuildNumber(version);
 
 function updateJson(file) {
   const json = JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -67,6 +67,14 @@ for (const file of ['docker.env.example', 'docker-compose.example.yml']) {
   let source = fs.readFileSync(file, 'utf8');
   source = source.replace(/(TUNNARA_VERSION=)\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?/g, `$1${version}`);
   source = source.replace(/(tunnara-(?:server|agent|console|control-api|caddy-cloudflare|quic-bridge):\$\{TUNNARA_VERSION:-)\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(\})/g, `$1${version}$2`);
+  fs.writeFileSync(file, source);
+}
+
+
+for (const file of ['.env.example', 'docker.env.example', 'deploy/docker/.env.example']) {
+  if (!fs.existsSync(file)) continue;
+  let source = fs.readFileSync(file, 'utf8');
+  source = source.replace(/(Tunnara Platform )\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?/g, `$1${version}`);
   fs.writeFileSync(file, source);
 }
 

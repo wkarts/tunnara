@@ -7,11 +7,20 @@ on:
         description: 'Tag da GitHub Release draft que receberá os executáveis'
         required: true
         type: string
+      source_sha:
+        description: 'Commit imutável a ser compilado'
+        required: true
+        type: string
   workflow_dispatch:
     inputs:
       release_tag:
         description: 'Tag da GitHub Release existente que receberá os executáveis'
         required: true
+        type: string
+      source_sha:
+        description: 'Commit a ser compilado; vazio usa o commit do workflow'
+        required: false
+        default: ''
         type: string
 
 permissions:
@@ -43,6 +52,8 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.source_sha || github.sha }}
 
       - name: Ensure target release exists
         shell: bash
@@ -99,7 +110,7 @@ jobs:
           mkdir -p release-assets
           version="${{ inputs.release_tag }}"
           tar -C dist -czf "release-assets/Tunnara-Runtime-${{ matrix.suffix }}-${version}.tar.gz" .
-          (cd release-assets && shasum -a 256 * > "SHA256SUMS-${{ matrix.suffix }}.txt")
+          (cd release-assets && shasum -a 256 * > "SHA256SUMS-runtime-${{ matrix.suffix }}.txt")
 
       - name: Package Windows
         if: runner.os == 'Windows'
@@ -110,11 +121,11 @@ jobs:
           Compress-Archive -Path dist/* -DestinationPath "release-assets/Tunnara-Runtime-${{ matrix.suffix }}-$tag.zip" -Force
           Get-FileHash release-assets/* -Algorithm SHA256 | ForEach-Object {
             "$($_.Hash.ToLower())  $([IO.Path]::GetFileName($_.Path))"
-          } | Set-Content "release-assets/SHA256SUMS-${{ matrix.suffix }}.txt"
+          } | Set-Content "release-assets/SHA256SUMS-runtime-${{ matrix.suffix }}.txt"
 
       - name: Attach directly to GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ inputs.release_tag }}
-          files: release-assets/*
-          fail_on_unmatched_files: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.release_tag }}
+        run: bash scripts/release/upload-release-assets.sh "$TAG" release-assets

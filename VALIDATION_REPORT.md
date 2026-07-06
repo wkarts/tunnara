@@ -1,123 +1,49 @@
-# Relatório de validação — Tunnara Platform 2.0.0-rc.1
+# Relatório de validação — Tunnara Platform 2.0.0-rc.2
 
-Data: 6 de julho de 2026.
+Data: 2026-07-06
 
-## Resultado resumido
+## Falhas reproduzidas dos logs
 
-```text
-REPOSITORY_OK
-VERSION_OK (25 pontos; build mobile 20000)
-NODE_SYNTAX_OK
-BASH_SYNTAX_OK
-PHP_SYNTAX_OK
-STORAGE_PROFILES_OK
-RELEASE_PIPELINE_OK
-DOCKER_DEPLOYMENT_OK
-HTTP_WEBSOCKET_OK
-TCP_UDP_OK
-CLOUDFLARE_DNS_OK
-DISTRIBUTED_FAILOVER_OK
-WIREGUARD_OK
-PRIVATE_NETWORK_OK
-PRODUCTION_CONFIG_OK
-POLICY_INSPECTOR_HA_OK
-SECURITY_FUZZ_OK
-LOAD_OK
-SDK_C_OK
-CONSOLE_TYPECHECK_OK
-CONSOLE_BUILD_OK
-STANDALONE_LINUX_OK
-```
+- Console Vue: `Cannot find package 'esbuild'` durante o Vite 8.1.3.
+- Mobile: versão SemVer prerelease comparada diretamente ao campo numérico do iOS.
+- Android: configurações legadas de Kotlin incompatíveis com AGP 9 e dependências acima do `compileSdk` adotado.
+- iOS: incompatibilidades do WireGuardKit/Xcode, parser wg-quick, `Info.plist` ausente e diferenças entre GNU/Linux e macOS.
+- Runtime Windows: execução de wrappers `.cmd` do `esbuild`/`postject` pelo `spawnSync`.
+- Release: colisões entre assets concorrentes, drafts paralelas e jobs ignorados pela reutilização de uma versão publicada.
+- Versionamento: cálculo anterior ignorava prereleases ou tags sem release e permitia tentativa de reutilização de tag.
 
-## Funcionalidades exercitadas
+## Correções aplicadas
 
-- provisionamento descartável e sessão de Agent;
-- prova Ed25519, nonce, timestamp, replay e revogação;
-- isolamento por organização e tokens com abilities;
-- HTTP, POST, query string, headers, body e WebSocket;
-- TCP e UDP ponta a ponta;
-- Cloudflare DNS por API simulada compatível;
-- multi-edge/multi-relay e failover;
-- WireGuard e redes privadas;
-- Policy Engine com deny/allow, Basic Auth, rate limit e transformações;
-- Request Inspector, redação, retenção e replay;
-- múltiplos targets, prioridade, peso, health checks e failover;
-- métricas Prometheus;
-- backup, restore e diagnóstico SQLite;
-- SDK C dinâmico/estático;
-- Console Vue/TypeScript;
-- executáveis standalone Linux.
+- `esbuild` explícito no Console e lockfile público sincronizado.
+- SemVer completo com incremento automático `rc.N`, promoção estável e bumps patch/minor/major.
+- Cálculo da próxima versão considera releases, drafts e tags existentes.
+- Build mobile monotônico: `200007002` para `2.0.0-rc.2`.
+- iOS usa versão base `2.0.0`, gera `Info.plist`, compila simulador arm64 e prepara WireGuardKit de forma idempotente.
+- Android usa Kotlin integrado do AGP 9.2.1 e dependências compatíveis com API 35.
+- Executáveis SEA usam os CLIs JavaScript via Node, inclusive no Windows.
+- Uploader sequencial e idempotente com nomes exclusivos de checksums/metadados.
+- Uma única release draft recebe Core, Runtime, SDK, Desktop e Mobile pelo mesmo SHA e `releaseId`.
+- Releases publicadas e tags são imutáveis; apenas drafts do mesmo SHA podem ser retomadas.
+- Containers prerelease não sobrescrevem `latest`.
+- PRs e validações comuns não criam artefatos de distribuição.
 
-## Fuzzing
+## Validações executadas localmente
 
-O Policy Engine recebeu 3.000 documentos gerados com formatos, tipos e estruturas variados. O parser permaneceu controlado e não houve exceções não tratadas.
+- `npm ci` da raiz e do Console: aprovado.
+- `npm run repository:check`: aprovado.
+- `npm run version:check`: 25 pontos sincronizados.
+- `npm run version:test`: 5 testes aprovados.
+- `npm run validate:mobile`: aprovado sem gerar APK/IPA.
+- `npm run validate:release`: aprovado.
+- Sintaxe Node.js, Bash e PHP: aprovada.
+- Providers SQLite, Memory, PostgreSQL, MySQL e Redis: validados.
+- Modelos Docker e versionamento de imagens: validados.
+- Console Vue/TypeScript e build Vite: aprovados.
+- Runtime E2E HTTP, WebSocket, TCP, UDP, Cloudflare, HA, WireGuard, rede privada, produção e Policy Engine: aprovados.
+- SDK C compartilhado/estático e smoke test: aprovados.
+- Agent e Server SEA Linux x64 gerados e executados: aprovados.
+- Workflows YAML analisados e scripts de release verificados.
 
-```json
-{
-  "iterations": 3000,
-  "rejected": 0
-}
-```
+## Limitações do ambiente de validação
 
-## Benchmark local
-
-Teste realizado no mesmo host entre Edge, Relay, Agent e upstream local:
-
-```json
-{
-  "requests": 1000,
-  "concurrency": 50,
-  "completed": 1000,
-  "failures": 0,
-  "durationSeconds": 1.822,
-  "requestsPerSecond": 548.87,
-  "p50Ms": 87.72,
-  "p95Ms": 107.81,
-  "p99Ms": 156.23,
-  "maxMs": 176.55
-}
-```
-
-Esse resultado comprova o teste local, não capacidade global de produção.
-
-## Console
-
-- TypeScript/Vue sem erros.
-- Build Vite concluído.
-- Bundle principal: 86,03 kB.
-- Vendor Vue/Router/Pinia: 95,85 kB.
-- Policies e Request Inspector carregados em chunks independentes.
-
-## Executáveis standalone
-
-- `tunnara-agent-linux-x64`: criado e executado.
-- `tunnara-server-linux-x64`: criado e executado.
-- E2E HTTP/WebSocket completo aprovado usando os dois binários.
-
-## Validações estáticas do plano distribuído
-
-- sintaxe PHP de migrations, models, middleware, controllers, support e testes;
-- Compose distribuído com PostgreSQL, Redis, dois Controls, dois Edges e dois Relays;
-- migrações para provisionamento, sessões, nodes, presença, políticas, targets e inspeções;
-- Helm e YAML parseados;
-- OpenAPI parseada;
-- workflows parseados e sem artifacts em PR.
-
-## Validações que dependem de runners/credenciais externos
-
-Não foram executadas localmente por indisponibilidade das ferramentas ou credenciais no ambiente:
-
-- `composer install` e PHPUnit do Control API;
-- compilação completa do workspace Rust/QUIC;
-- execução real do Docker Engine e Helm CLI;
-- imagens OCI amd64/arm64;
-- instaladores Tauri;
-- APK/AAB e IPA;
-- Cloudflare e Let’s Encrypt em domínio real;
-- assinatura e notarização.
-
-Essas etapas estão configuradas nos workflows do GitHub, mas devem ser acompanhadas na primeira execução da RC.
-
-## Classificação
-
-A versão está apta para homologação e produção controlada. Não é uma certificação GA de escala global. Os gates restantes estão documentados em `docs/security/MATURITY_GATES.md`.
+Docker Engine, Cargo/Rust toolchain, Composer e Xcode não estavam instalados neste ambiente. Por isso, a compilação final do QUIC Bridge, Tauri, Android, iOS e containers permanece destinada aos runners nativos do GitHub Actions. Não é correto afirmar que esses binários nativos foram executados localmente; o que foi concluído aqui é a correção de código, configuração, sintaxe, contratos de workflow e validações disponíveis.

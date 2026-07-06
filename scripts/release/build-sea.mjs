@@ -25,9 +25,9 @@ function run(command, args, options = {}) {
   if (result.status !== 0) throw new Error(`${command} encerrou com código ${result.status}`);
 }
 
-const esbuild = process.env.ESBUILD_BIN || path.join(root, 'node_modules', '.bin', process.platform === 'win32' ? 'esbuild.cmd' : 'esbuild');
-if (!fs.existsSync(esbuild)) throw new Error(`esbuild não encontrado em ${esbuild}. Execute npm ci na raiz.`);
-run(esbuild, [entry, '--bundle', '--platform=node', '--target=node22', '--format=cjs', `--outfile=${bundle}`, '--banner:js=globalThis.__TUNNARA_SEA__=true;']);
+const esbuild = process.env.ESBUILD_CLI || path.join(root, 'node_modules', 'esbuild', 'bin', 'esbuild');
+if (!fs.existsSync(esbuild)) throw new Error(`CLI JavaScript do esbuild não encontrado em ${esbuild}. Execute npm ci na raiz.`);
+run(process.execPath, [esbuild, entry, '--bundle', '--platform=node', '--target=node22', '--format=cjs', `--outfile=${bundle}`, '--banner:js=globalThis.__TUNNARA_SEA__=true;']);
 
 fs.writeFileSync(config, JSON.stringify({
   main: bundle,
@@ -40,11 +40,11 @@ run(process.execPath, ['--experimental-sea-config', config]);
 fs.mkdirSync(path.dirname(output), { recursive: true });
 fs.copyFileSync(process.execPath, output);
 
-const postject = process.env.POSTJECT_BIN || path.join(root, 'node_modules', '.bin', process.platform === 'win32' ? 'postject.cmd' : 'postject');
-if (!fs.existsSync(postject)) throw new Error(`postject não encontrado em ${postject}. Execute npm install --no-save postject.`);
+const postject = process.env.POSTJECT_CLI || path.join(root, 'node_modules', 'postject', 'dist', 'cli.js');
+if (!fs.existsSync(postject)) throw new Error(`CLI JavaScript do postject não encontrado em ${postject}. Execute npm ci na raiz.`);
 const injectArgs = [output, 'NODE_SEA_BLOB', blob, '--sentinel-fuse', 'NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2'];
 if (process.platform === 'darwin') injectArgs.push('--macho-segment-name', 'NODE_SEA');
-run(postject, injectArgs);
+run(process.execPath, [postject, ...injectArgs]);
 if (process.platform !== 'win32') fs.chmodSync(output, 0o755);
 if (process.platform === 'darwin') run('codesign', ['--sign', '-', '--force', output]);
 console.log(`Executável SEA criado: ${output}`);

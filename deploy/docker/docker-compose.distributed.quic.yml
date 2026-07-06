@@ -1,5 +1,9 @@
 services:
-  tunnara-server:
+  control-a:
+    environment:
+      TUNNARA_PUBLIC_RELAY_URL: quic://${TUNNARA_QUIC_PUBLIC_HOST:-relay.${TUNNARA_BASE_DOMAIN}}:${TUNNARA_QUIC_PORT:-7443}
+
+  control-b:
     environment:
       TUNNARA_PUBLIC_RELAY_URL: quic://${TUNNARA_QUIC_PUBLIC_HOST:-relay.${TUNNARA_BASE_DOMAIN}}:${TUNNARA_QUIC_PORT:-7443}
 
@@ -11,22 +15,23 @@ services:
       CADDY_DATA_DIR: /caddy-data/caddy/certificates
       TARGET_DIR: /certs
     volumes:
-      - caddy_data:/caddy-data:ro
-      - quic_certs:/certs
+      - tunnara_caddy_data:/caddy-data:ro
+      - tunnara_distributed_quic_certs:/certs
       - ./quic/export-caddy-cert.sh:/opt/tunnara/export-caddy-cert.sh:ro
-    depends_on: [caddy]
-    networks: [tunnara]
+    depends_on:
+      caddy:
+        condition: service_started
+    networks: [control]
 
   quic-bridge:
     image: ${TUNNARA_QUIC_IMAGE:-ghcr.io/wkarts/tunnara-quic-bridge:2.0.0-rc.2}
-    pull_policy: ${TUNNARA_PULL_POLICY:-missing}
     restart: unless-stopped
     command:
       - server
       - --listen
       - 0.0.0.0:7443
       - --upstream
-      - tunnara-server:7300
+      - relay-a:7300
       - --cert
       - /certs/fullchain.pem
       - --key
@@ -35,15 +40,15 @@ services:
       TUNNARA_QUIC_CERT_WAIT_SECONDS: ${TUNNARA_QUIC_CERT_WAIT_SECONDS:-300}
       RUST_LOG: ${TUNNARA_QUIC_LOG:-info}
     volumes:
-      - quic_certs:/certs:ro
+      - tunnara_distributed_quic_certs:/certs:ro
     ports:
       - "${TUNNARA_QUIC_PORT:-7443}:7443/udp"
     depends_on:
-      tunnara-server:
-        condition: service_healthy
+      relay-a:
+        condition: service_started
       quic-cert-exporter:
         condition: service_started
-    networks: [tunnara]
+    networks: [control, public]
 
 volumes:
-  quic_certs:
+  tunnara_distributed_quic_certs:

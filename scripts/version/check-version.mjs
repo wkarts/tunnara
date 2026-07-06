@@ -1,8 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { baseVersion, mobileBuildNumber } from './version-utils.mjs';
 
 const expected = fs.readFileSync('VERSION', 'utf8').trim();
-const expectedBase = expected.split('-')[0];
+const expectedBase = baseVersion(expected);
 const readJson = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
 function extract(file, pattern, label) {
   const match = fs.readFileSync(file, 'utf8').match(pattern);
@@ -48,8 +49,7 @@ let failed = false;
 for (const [file, value, requiredValue = expected] of values) {
   if (value !== requiredValue) { console.error(`${file}: ${value} != ${requiredValue}`); failed = true; }
 }
-const numericVersion = expected.split('-')[0].split('.').map(Number);
-const expectedBuild = String(numericVersion[0] * 10000 + numericVersion[1] * 100 + numericVersion[2]);
+const expectedBuild = String(mobileBuildNumber(expected));
 for (const [label, value] of [
   ['Android versionCode', extract('sdk/mobile/android/app/build.gradle.kts', /versionCode = (\d+)/, 'Android versionCode')],
   ['iOS extension CFBundleVersion', extract('sdk/mobile/ios/Config/PacketTunnel-Info.plist', /<key>CFBundleVersion<\/key><string>([^<]+)<\/string>/, 'iOS build')],

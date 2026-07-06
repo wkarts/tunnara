@@ -2,47 +2,32 @@
 set -Eeuo pipefail
 
 TAG="${1:-}"
-ASSET_DIR="${2:-}"
-REPOSITORY="${GITHUB_REPOSITORY:-}"
-MAX_ATTEMPTS="${TUNNARA_RELEASE_UPLOAD_ATTEMPTS:-3}"
+DIRECTORY="${2:-}"
+[[ -n "$TAG" && -n "$DIRECTORY" ]] || {
+  echo "Uso: $0 <tag> <diretório>" >&2
+  exit 2
+}
+[[ -d "$DIRECTORY" ]] || { echo "Diretório de artefatos inexistente: $DIRECTORY" >&2; exit 1; }
+command -v gh >/dev/null 2>&1 || { echo "GitHub CLI (gh) não encontrado." >&2; exit 1; }
+: "${GITHUB_REPOSITORY:?GITHUB_REPOSITORY não configurado}"
+: "${GH_TOKEN:?GH_TOKEN não configurado}"
 
-[[ -n "$TAG" ]] || { echo "Uso: $0 <tag> <diretorio-de-assets>" >&2; exit 2; }
-[[ -n "$ASSET_DIR" ]] || { echo "Uso: $0 <tag> <diretorio-de-assets>" >&2; exit 2; }
-[[ -n "$REPOSITORY" ]] || { echo "GITHUB_REPOSITORY não configurado." >&2; exit 2; }
-[[ -d "$ASSET_DIR" ]] || { echo "Diretório de assets não encontrado: $ASSET_DIR" >&2; exit 2; }
-command -v gh >/dev/null 2>&1 || { echo "GitHub CLI (gh) não encontrado." >&2; exit 2; }
+files=()
+while IFS= read -r file; do
+  files+=("$file")
+done < <(find "$DIRECTORY" -maxdepth 1 -type f -print | LC_ALL=C sort)
 
-assets=()
-shopt -s nullglob
-for asset in "$ASSET_DIR"/*; do
-  [[ -f "$asset" ]] && assets+=("$asset")
-done
-shopt -u nullglob
+((${#files[@]} > 0)) || { echo "Nenhum arquivo para enviar em $DIRECTORY." >&2; exit 1; }
 
-((${#assets[@]} > 0)) || { echo "Nenhum asset encontrado em $ASSET_DIR." >&2; exit 1; }
-
-gh release view "$TAG" --repo "$REPOSITORY" >/dev/null
-
-for asset in "${assets[@]}"; do
-  name="$(basename "$asset")"
+for file in "${files[@]}"; do
   uploaded=false
-
-  for ((attempt = 1; attempt <= MAX_ATTEMPTS; attempt++)); do
-    echo "Enviando $name para $TAG (tentativa $attempt/$MAX_ATTEMPTS)..."
-    if gh release upload "$TAG" "$asset" --repo "$REPOSITORY" --clobber; then
+  for attempt in 1 2 3; do
+    if gh release upload "$TAG" "$file" --repo "$GITHUB_REPOSITORY" --clobber; then
       uploaded=true
       break
     fi
-
-    if ((attempt < MAX_ATTEMPTS)); then
-      sleep $((attempt * 2))
-    fi
+    echo "Tentativa $attempt falhou ao enviar $(basename "$file")." >&2
+    sleep $((attempt * 3))
   done
-
-  [[ "$uploaded" == true ]] || {
-    echo "Falha ao enviar $name após $MAX_ATTEMPTS tentativas." >&2
-    exit 1
-  }
+  [[ "$uploaded" == true ]] || { echo "Falha definitiva ao enviar $file." >&2; exit 1; }
 done
-
-echo "${#assets[@]} asset(s) enviados para $TAG com substituição idempotente."
