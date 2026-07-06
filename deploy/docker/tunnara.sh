@@ -74,9 +74,9 @@ init() {
   master="$(get_env TUNNARA_MASTER_KEY_BASE64)"
   cluster="$(get_env TUNNARA_CLUSTER_TOKEN)"
 
-  [[ "$token" == tnr_admin_* ]] || token="$(random_admin_token)"
+  [[ "$token" == tnr_admin_* && "$token" != "tnr_admin_change_me" ]] || token="$(random_admin_token)"
   [[ -n "$master" && "$master" != change-me ]] || master="$(random_master_key)"
-  [[ "$cluster" == tnr_cluster_* ]] || cluster="$(random_cluster_token)"
+  [[ "$cluster" == tnr_cluster_* && "$cluster" != "tnr_cluster_change_me" ]] || cluster="$(random_cluster_token)"
 
   set_env TUNNARA_BOOTSTRAP_ADMIN_TOKEN "$token"
   set_env TUNNARA_MASTER_KEY_BASE64 "$master"
