@@ -1,27 +1,27 @@
-# Publicação da correção Tunnara 2.0.0-rc.2 no GitHub
+# Publicação da correção Tunnara 2.0.0-rc.3 no GitHub
 
 ## Branch do Pull Request
 
 ```bash
 git switch main
 git pull --rebase origin main
-git switch -c fix/v2.0.0-rc2-validation-autoversion
+git switch -c fix/v2.0.0-rc3-sea-build
 ```
 
 Copie o conteúdo do pacote corrigido e execute:
 
 ```bash
 git add --all
-git commit -m "fix(release): correct validation and add immutable version automation"
-git push -u origin fix/v2.0.0-rc2-validation-autoversion
+git commit -m "fix(release): use the esbuild API for SEA packaging"
+git push -u origin fix/v2.0.0-rc3-sea-build
 ```
 
 ## Comportamento após o merge
 
-O arquivo `VERSION` deste pacote está em `2.0.0-rc.2`.
+O arquivo `VERSION` deste pacote está em `2.0.0-rc.3`.
 
-- Se não existir release igual ou superior, o workflow preserva `2.0.0-rc.2`.
-- Se `2.0.0-rc.2` já existir, o workflow avança automaticamente para `2.0.0-rc.3`.
+- Se não existir release igual ou superior, o workflow preserva `2.0.0-rc.3`.
+- Se `2.0.0-rc.3` já existir, o workflow avança automaticamente para `2.0.0-rc.4`.
 - Releases draft também entram no cálculo para impedir colisão de versão.
 - Releases publicadas não são reabertas e tags publicadas não são movidas.
 
@@ -41,12 +41,12 @@ Não use outro SHA para a mesma versão. Uma release já publicada exige uma nov
 ## Imagens GHCR esperadas para esta revisão
 
 ```text
-ghcr.io/wkarts/tunnara-server:2.0.0-rc.2
-ghcr.io/wkarts/tunnara-agent:2.0.0-rc.2
-ghcr.io/wkarts/tunnara-console:2.0.0-rc.2
-ghcr.io/wkarts/tunnara-control-api:2.0.0-rc.2
-ghcr.io/wkarts/tunnara-quic-bridge:2.0.0-rc.2
-ghcr.io/wkarts/tunnara-caddy-cloudflare:2.0.0-rc.2
+ghcr.io/wkarts/tunnara-server:2.0.0-rc.3
+ghcr.io/wkarts/tunnara-agent:2.0.0-rc.3
+ghcr.io/wkarts/tunnara-console:2.0.0-rc.3
+ghcr.io/wkarts/tunnara-control-api:2.0.0-rc.3
+ghcr.io/wkarts/tunnara-quic-bridge:2.0.0-rc.3
+ghcr.io/wkarts/tunnara-caddy-cloudflare:2.0.0-rc.3
 ```
 
 ## Ambiente distribuído

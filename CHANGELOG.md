@@ -1,5 +1,29 @@
 # Changelog
 
+## [2.0.0-rc.3] - 2026-07-06
+
+### Correção do build pós-merge
+
+- Corrigido o empacotamento SEA de Agent e Server no job `Build and upload core assets`.
+- O `esbuild` deixou de ser executado como se o binário ELF/PE fosse um arquivo JavaScript.
+- O bundler agora utiliza diretamente a API JavaScript oficial `esbuild.build()`, de forma portável em Linux, Windows e macOS.
+- A execução do `postject` permanece pelo CLI JavaScript via Node, que é o caminho correto para a injeção do blob SEA.
+- Adicionado tratamento explícito para falhas de inicialização de processos e códigos de saída desconhecidos.
+
+### Proteção contra regressão
+
+- Adicionado `npm run validate:sea`, que compila em memória as entradas do Agent e Server sem persistir artefatos.
+- O CI rápido de Pull Request agora executa o preflight do bundler SEA.
+- O validador de release rejeita novamente qualquer tentativa de executar `node_modules/esbuild/bin/esbuild` por `node`.
+- A versão foi elevada para `2.0.0-rc.3`, preservando a imutabilidade da release e da tag `v2.0.0-rc.2`.
+- Build mobile sincronizado: `200007003`.
+
+### Validação
+
+- Executáveis SEA Linux x64 de Agent e Server gerados com sucesso.
+- Smoke test de versão aprovado nos dois executáveis.
+- Suite funcional, SDK C, Console Vue/TypeScript, SemVer, storage, Docker, mobile e pipeline de release aprovados.
+
 ## [2.0.0-rc.2] - 2026-07-06
 
 ### Correções de validação

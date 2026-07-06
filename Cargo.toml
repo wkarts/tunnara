@@ -17,7 +17,7 @@ members = [
 exclude = ["apps/console/src-tauri"]
 
 [workspace.package]
-version = "2.0.0-rc.2"
+version = "2.0.0-rc.3"
 edition = "2021"
 authors = ["WWSoftware's Sistemas"]
 license = "AGPL-3.0-or-later"

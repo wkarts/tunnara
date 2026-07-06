@@ -26,7 +26,7 @@ x-node-env: &node-env
 
 services:
   control:
-    image: ${TUNNARA_SERVER_IMAGE:-ghcr.io/wkarts/tunnara-server:2.0.0-rc.2}
+    image: ${TUNNARA_SERVER_IMAGE:-ghcr.io/wkarts/tunnara-server:2.0.0-rc.3}
     pull_policy: ${TUNNARA_PULL_POLICY:-missing}
     command: ["control"]
     environment:
@@ -38,7 +38,7 @@ services:
     networks: [tunnara]
 
   relay-a:
-    image: ${TUNNARA_SERVER_IMAGE:-ghcr.io/wkarts/tunnara-server:2.0.0-rc.2}
+    image: ${TUNNARA_SERVER_IMAGE:-ghcr.io/wkarts/tunnara-server:2.0.0-rc.3}
     pull_policy: ${TUNNARA_PULL_POLICY:-missing}
     command: ["relay"]
     environment:
@@ -56,7 +56,7 @@ services:
     networks: [tunnara]
 
   relay-b:
-    image: ${TUNNARA_SERVER_IMAGE:-ghcr.io/wkarts/tunnara-server:2.0.0-rc.2}
+    image: ${TUNNARA_SERVER_IMAGE:-ghcr.io/wkarts/tunnara-server:2.0.0-rc.3}
     pull_policy: ${TUNNARA_PULL_POLICY:-missing}
     command: ["relay"]
     environment:
@@ -74,7 +74,7 @@ services:
     networks: [tunnara]
 
   edge-a:
-    image: ${TUNNARA_SERVER_IMAGE:-ghcr.io/wkarts/tunnara-server:2.0.0-rc.2}
+    image: ${TUNNARA_SERVER_IMAGE:-ghcr.io/wkarts/tunnara-server:2.0.0-rc.3}
     pull_policy: ${TUNNARA_PULL_POLICY:-missing}
     command: ["edge"]
     environment:
@@ -88,7 +88,7 @@ services:
     networks: [tunnara]
 
   edge-b:
-    image: ${TUNNARA_SERVER_IMAGE:-ghcr.io/wkarts/tunnara-server:2.0.0-rc.2}
+    image: ${TUNNARA_SERVER_IMAGE:-ghcr.io/wkarts/tunnara-server:2.0.0-rc.3}
     pull_policy: ${TUNNARA_PULL_POLICY:-missing}
     command: ["edge"]
     environment:
@@ -102,13 +102,13 @@ services:
     networks: [tunnara]
 
   console:
-    image: ${TUNNARA_CONSOLE_IMAGE:-ghcr.io/wkarts/tunnara-console:2.0.0-rc.2}
+    image: ${TUNNARA_CONSOLE_IMAGE:-ghcr.io/wkarts/tunnara-console:2.0.0-rc.3}
     pull_policy: ${TUNNARA_PULL_POLICY:-missing}
     restart: unless-stopped
     networks: [tunnara]
 
   caddy:
-    image: ${TUNNARA_CADDY_IMAGE:-ghcr.io/wkarts/tunnara-caddy-cloudflare:2.0.0-rc.2}
+    image: ${TUNNARA_CADDY_IMAGE:-ghcr.io/wkarts/tunnara-caddy-cloudflare:2.0.0-rc.3}
     pull_policy: ${TUNNARA_PULL_POLICY:-missing}
     environment:
       TUNNARA_BASE_DOMAIN: ${TUNNARA_BASE_DOMAIN}
