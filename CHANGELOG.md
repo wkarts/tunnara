@@ -2,6 +2,15 @@
 
 ## 1.1.2
 
+### Correções adicionais de validação (CI)
+
+- Corrige os braços incompatíveis do `match` no QUIC Bridge.
+- Migra o Android AGP 9 para Kotlin integrado e `compilerOptions` JVM 17.
+- Define explicitamente a plataforma do target legado WireGuardGoBridge no XcodeGen.
+- Prepara o frontend e os recursos Tauri antes do `cargo check` do Console.
+- Reforça a validação estática mobile para impedir regressões equivalentes.
+
+
 ### Correções pós-merge e release
 
 - Corrigida a feature TLS do `reqwest 0.13` no workspace Rust (`rustls`) e alinhado o MSRV/imagem QUIC para Rust 1.85, eliminando a falha de resolução e a incompatibilidade posterior de toolchain.

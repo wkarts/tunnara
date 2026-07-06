@@ -8,6 +8,7 @@ packages:
     path: .wireguard-apple
 targets:
   WireGuardGoBridgeiOS:
+    platform: iOS
     legacy:
       toolPath: /usr/bin/make
       workingDirectory: .wireguard-apple/Sources/WireGuardKitGo

@@ -9,7 +9,7 @@ on:
       - 'services/**'
       - 'Cargo.toml'
       - 'Cargo.lock'
-      - 'apps/console/src-tauri/**'
+      - 'apps/console/**'
       - 'apps/control-api/**'
       - '.github/workflows/native-preview.yml'
 
@@ -51,6 +51,11 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: apps/console/package-lock.json
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
@@ -65,6 +70,12 @@ jobs:
             libappindicator3-dev \
             librsvg2-dev \
             patchelf
+      - name: Install Console dependencies
+        working-directory: apps/console
+        run: npm ci
+      - name: Build Console frontend and Tauri resources
+        working-directory: apps/console
+        run: npm run build:web:tauri
       - name: Compile Console with every storage feature
         run: cargo check --manifest-path apps/console/src-tauri/Cargo.toml --all-targets --all-features
 

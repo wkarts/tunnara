@@ -51,6 +51,12 @@ if (/^9\.2\./.test(agp) && !/^9\.4\./.test(gradle)) {
 if (!androidScript.includes(`Gradle ${gradle}+`)) {
   throw new Error(`Mensagem do build Android não está sincronizada com Gradle ${gradle}.`);
 }
+if (/org\.jetbrains\.kotlin\.android/.test(androidRoot) || /org\.jetbrains\.kotlin\.android/.test(androidApp)) {
+  throw new Error('AGP 9 usa Kotlin integrado; remova o plugin org.jetbrains.kotlin.android.');
+}
+if (!androidApp.includes('kotlin {') || !androidApp.includes('JvmTarget.JVM_17')) {
+  throw new Error('Android deve configurar o compilador Kotlin integrado para JVM 17.');
+}
 
 if (!iosProject.includes('path: .wireguard-apple')) {
   throw new Error('WireGuardKit deve usar o checkout local determinístico .wireguard-apple.');
@@ -63,6 +69,7 @@ if (!iosPrepare.includes('swift-tools-version:5.5')) {
 }
 for (const expected of [
   'WireGuardGoBridgeiOS:',
+  'platform: iOS',
   'toolPath: /usr/bin/make',
   'workingDirectory: .wireguard-apple/Sources/WireGuardKitGo',
   'passSettings: true',
