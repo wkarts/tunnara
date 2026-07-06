@@ -1,4 +1,4 @@
-# Tunnara Platform 1.1.0
+# Tunnara Platform
 
 A Tunnara é uma plataforma self-hosted de conectividade para publicar serviços atrás de NAT/CGNAT, criar túneis HTTP/HTTPS/WebSocket/TCP/UDP, operar redes privadas WireGuard e integrar aplicações por CLI e SDK.
 
@@ -175,7 +175,7 @@ Pull Requests executam apenas validações, sem gerar artifacts temporários. Um
 O workflow cria uma release draft, compila o núcleo, chama os workflows reutilizáveis de Runtime, SDK, Desktop, Mobile e Containers e publica a release somente quando todos os builds obrigatórios terminam.
 
 ```bash
-npm run version:set -- 1.1.1
+npm run version:set -- X.Y.Z
 npm run version:check
 ```
 

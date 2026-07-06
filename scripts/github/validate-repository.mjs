@@ -6,7 +6,7 @@ import { execFileSync } from 'node:child_process';
 const root = process.cwd();
 const required = [
   'README.md', 'LICENSE', 'SECURITY.md', 'CONTRIBUTING.md', 'CODE_OF_CONDUCT.md',
-  '.gitignore', '.gitattributes', '.github/workflows/ci.yml', '.github/workflows/release.yml',
+  '.gitignore', '.gitattributes', '.github/dependabot.yml', '.github/workflows/ci.yml', '.github/workflows/release.yml',
   'runtime/node/bin/tunnara.mjs', 'runtime/node/bin/tunnara-server.mjs',
   'deploy/docker/docker-compose.yml', 'deploy/docker/storage/storage.sh',
   'docs/operations/STORAGE_PROVIDERS.md', 'docs/operations/GITHUB_ACTIONS.md', 'docs/operations/POST_MERGE_RELEASE.md', 'VERSION',
@@ -53,6 +53,21 @@ for (const rel of lockfiles) {
   const content = fs.readFileSync(file, 'utf8');
   if (/applied-caas-gateway|internal\.api\.openai\.org/i.test(content)) {
     findings.push(`Lockfile contém registry interno não acessível pelo GitHub Actions: ${rel}`);
+  }
+}
+
+
+const dependabotFile = path.join(root, '.github', 'dependabot.yml');
+if (fs.existsSync(dependabotFile)) {
+  const dependabot = fs.readFileSync(dependabotFile, 'utf8');
+  if (!dependabot.includes('version-update:semver-major')) {
+    findings.push('Dependabot deve bloquear atualizações major automáticas.');
+  }
+  if (!dependabot.includes('open-pull-requests-limit')) {
+    findings.push('Dependabot deve limitar a quantidade de PRs simultâneos.');
+  }
+  if (!dependabot.includes('update-types: [minor, patch]')) {
+    findings.push('Dependabot deve agrupar atualizações minor/patch.');
   }
 }
 

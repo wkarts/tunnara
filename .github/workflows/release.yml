@@ -137,6 +137,7 @@ jobs:
           npm run validate:shell
           npm run validate:php
           npm run validate:storage
+          npm run validate:mobile
           npm run validate:release
           npm run validate:docker
           npm run runtime:test

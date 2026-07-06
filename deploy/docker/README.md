@@ -71,7 +71,7 @@ curl -fsSL https://raw.githubusercontent.com/wkarts/tunnara/main/deploy/docker/i
 Variáveis opcionais:
 
 ```bash
-TUNNARA_VERSION=1.1.1
+TUNNARA_VERSION=1.1.2
 TUNNARA_INSTALL_DIR=/opt/tunnara
 TUNNARA_START_MODE=image|build|production|none
 GITHUB_TOKEN=token_para_repositorio_privado

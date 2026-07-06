@@ -9,6 +9,7 @@ on:
       - 'services/**'
       - 'Cargo.toml'
       - 'Cargo.lock'
+      - 'apps/console/**'
       - 'apps/control-api/**'
       - '.github/workflows/native-preview.yml'
 
@@ -30,6 +31,53 @@ jobs:
         with:
           components: rustfmt
       - run: cargo fmt --all --check
+
+  workspace-check:
+    name: Rust workspace compile
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: native-workspace
+      - name: Compile all workspace targets
+        run: cargo check --workspace --all-targets
+
+  console-rust-check:
+    name: Tauri Rust compile
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: apps/console/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/console/src-tauri -> target
+          shared-key: native-console
+      - name: Install Tauri Linux dependencies
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf
+      - name: Install Console dependencies
+        working-directory: apps/console
+        run: npm ci
+      - name: Build Console frontend and Tauri resources
+        working-directory: apps/console
+        run: npm run build:web:tauri
+      - name: Compile Console with every storage feature
+        run: cargo check --manifest-path apps/console/src-tauri/Cargo.toml --all-targets --all-features
 
   laravel-static:
     name: Laravel static validation

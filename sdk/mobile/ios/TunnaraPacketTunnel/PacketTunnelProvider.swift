@@ -15,7 +15,7 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
             return
         }
         do {
-            let configuration = try TunnelConfiguration(fromWgQuickConfig: raw, called: "Tunnara")
+            let configuration = try WgQuickConfigParser.parse(raw, name: "Tunnara")
             adapter.start(tunnelConfiguration: configuration) { error in completionHandler(error) }
         } catch { completionHandler(error) }
     }

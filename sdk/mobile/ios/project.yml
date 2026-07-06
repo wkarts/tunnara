@@ -5,9 +5,14 @@ options:
     iOS: "16.0"
 packages:
   WireGuardKit:
-    url: https://git.zx2c4.com/wireguard-apple
-    exactVersion: 1.0.16-27
+    path: .wireguard-apple
 targets:
+  WireGuardGoBridgeiOS:
+    platform: iOS
+    legacy:
+      toolPath: /usr/bin/make
+      workingDirectory: .wireguard-apple/Sources/WireGuardKitGo
+      passSettings: true
   TunnaraMobile:
     type: application
     platform: iOS
@@ -16,11 +21,12 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: br.com.wwsoftwares.tunnara.mobile
         PRODUCT_NAME: TunnaraMobile
+        GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: Tunnara
-        INFOPLIST_KEY_CFBundleShortVersionString: 1.1.1
-        INFOPLIST_KEY_CFBundleVersion: 10101
-        MARKETING_VERSION: 1.1.1
-        CURRENT_PROJECT_VERSION: 10101
+        INFOPLIST_KEY_CFBundleShortVersionString: 1.1.2
+        INFOPLIST_KEY_CFBundleVersion: 10102
+        MARKETING_VERSION: 1.1.2
+        CURRENT_PROJECT_VERSION: 10102
         CODE_SIGN_ENTITLEMENTS: Config/TunnaraMobile.entitlements
         CODE_SIGN_STYLE: Manual
         DEVELOPMENT_TEAM: $(TUNNARA_APPLE_TEAM_ID)
@@ -39,13 +45,14 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: br.com.wwsoftwares.tunnara.mobile.packet-tunnel
         PRODUCT_NAME: TunnaraPacketTunnel
         INFOPLIST_FILE: Config/PacketTunnel-Info.plist
-        MARKETING_VERSION: 1.1.1
-        CURRENT_PROJECT_VERSION: 10101
+        MARKETING_VERSION: 1.1.2
+        CURRENT_PROJECT_VERSION: 10102
         CODE_SIGN_ENTITLEMENTS: Config/TunnaraPacketTunnel.entitlements
         CODE_SIGN_STYLE: Manual
         DEVELOPMENT_TEAM: $(TUNNARA_APPLE_TEAM_ID)
         PROVISIONING_PROFILE_SPECIFIER: $(TUNNARA_PACKET_PROFILE_SPECIFIER)
         SWIFT_VERSION: 5.10
     dependencies:
+      - target: WireGuardGoBridgeiOS
       - package: WireGuardKit
         product: WireGuardKit

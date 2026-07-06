@@ -31,6 +31,7 @@ const values = [
   ['apps/control-api/.env.example', extract('apps/control-api/.env.example', /^APP_VERSION=(.+)$/m, 'APP_VERSION')],
   ['apps/control-api/config/app.php', extract('apps/control-api/config/app.php', /'version' => env\('APP_VERSION', '([^']+)'\)/, 'config.app.version')],
   ['apps/console/VERSION', fs.readFileSync('apps/console/VERSION', 'utf8').trim()],
+  ['ARTIFACT_MANIFEST.md', extract('ARTIFACT_MANIFEST.md', /# Manifesto de artefatos — Tunnara Platform ([^\n]+)/, 'artifact manifest version')],
   ['sdk/c/src/tunnara.c', extract('sdk/c/src/tunnara.c', /#define TUNNARA_VERSION "([^"]+)"/, 'TUNNARA_VERSION')],
   ['sdk/c/CMakeLists.txt', extract('sdk/c/CMakeLists.txt', /project\(tunnara_sdk_c VERSION ([^ )]+)/, 'CMake project version')],
   ['sdk/mobile/android/app/build.gradle.kts', extract('sdk/mobile/android/app/build.gradle.kts', /versionName = "([^"]+)"/, 'Android versionName')],
@@ -62,6 +63,12 @@ for (const absolute of walk(path.resolve('deploy/docker'))) {
   for (const match of source.matchAll(/tunnara-(?:server|agent|console|control-api|caddy-cloudflare|quic-bridge):(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)/g)) {
     if (match[1] !== expected) { console.error(`${relative}: imagem ${match[1]} != ${expected}`); failed = true; }
   }
+  for (const match of source.matchAll(/tunnara-(?:server|agent|console|control-api|caddy-cloudflare|quic-bridge):\$\{TUNNARA_VERSION:-(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)\}/g)) {
+    if (match[1] !== expected) { console.error(`${relative}: imagem com fallback ${match[1]} != ${expected}`); failed = true; }
+  }
+}
+for (const match of fs.readFileSync('ARTIFACT_MANIFEST.md', 'utf8').matchAll(/v(\d+\.\d+\.\d+)(?=-source|-github|-git|-complete|\.zip|\.tar)/g)) {
+  if (match[1] !== expected) { console.error(`ARTIFACT_MANIFEST.md: asset ${match[1]} != ${expected}`); failed = true; }
 }
 if (failed) process.exit(1);
 console.log(`Versão sincronizada em ${values.length} pontos, Docker e build mobile ${expectedBuild}: ${expected}`);

@@ -40,6 +40,14 @@ for (const file of required) {
 }
 
 if (!errors.length) {
+  const cargoToml = read('Cargo.toml');
+  const quicDockerfile = read('deploy/docker/quic/Dockerfile');
+  const rustVersion = cargoToml.match(/rust-version\s*=\s*"([^"]+)"/)?.[1];
+  const dockerRustVersion = quicDockerfile.match(/^FROM rust:([0-9.]+)-bookworm AS builder$/m)?.[1];
+  if (!rustVersion || !dockerRustVersion) errors.push('Não foi possível determinar o MSRV Rust ou a imagem builder QUIC.');
+  else if (rustVersion !== dockerRustVersion) errors.push(`Docker QUIC usa Rust ${dockerRustVersion}, divergente do rust-version ${rustVersion}.`);
+  if (rustVersion && Number(rustVersion.split('.')[1]) < 85) errors.push(`Rust ${rustVersion} é incompatível com reqwest 0.13; use 1.85 ou superior.`);
+
   const rootEnv = read('docker.env.example');
   const rootCompose = read('docker-compose.example.yml');
   if (!rootEnv.includes(`TUNNARA_VERSION=${version}`)) errors.push('docker.env.example não acompanha VERSION.');

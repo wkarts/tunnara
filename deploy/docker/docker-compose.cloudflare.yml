@@ -11,7 +11,7 @@ services:
       TUNNARA_CLOUDFLARE_EDGE_ADDRESS: ${TUNNARA_CLOUDFLARE_EDGE_ADDRESS:-}
       TUNNARA_CLOUDFLARE_EDGE_HOSTNAME: ${TUNNARA_CLOUDFLARE_EDGE_HOSTNAME:-}
   caddy:
-    image: ${TUNNARA_CADDY_IMAGE:-ghcr.io/wkarts/tunnara-caddy-cloudflare:1.1.1}
+    image: ${TUNNARA_CADDY_IMAGE:-ghcr.io/wkarts/tunnara-caddy-cloudflare:1.1.2}
     pull_policy: ${TUNNARA_PULL_POLICY:-missing}
     restart: unless-stopped
     depends_on:

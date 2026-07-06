@@ -46,7 +46,7 @@ for (const name of reusable) {
   const content = read(`.github/workflows/${name}`);
   if (!/workflow_call:/.test(content)) errors.push(`${name}: workflow_call ausente.`);
   if (!content.includes('release_tag:')) errors.push(`${name}: input release_tag ausente.`);
-  if (!/softprops\/action-gh-release@v2|gh release upload|tauri-apps\/tauri-action@v1/.test(content) && name !== 'docker-publish.yml') {
+  if (!/softprops\/action-gh-release@v3|gh release upload|tauri-apps\/tauri-action@v1/.test(content) && name !== 'docker-publish.yml') {
     errors.push(`${name}: não anexa arquivos diretamente à GitHub Release.`);
   }
 }
@@ -59,6 +59,14 @@ for (const image of ['server', 'agent', 'console', 'control-api', 'quic-bridge',
   if (!docker.includes(`image: ${image}`)) errors.push(`docker-publish.yml não publica a imagem ${image}.`);
 }
 if (!docker.includes('linux/amd64,linux/arm64')) errors.push('docker-publish.yml não é multi-arquitetura.');
+for (const expected of [
+  'docker/setup-buildx-action@v4',
+  'docker/metadata-action@v6',
+  'docker/build-push-action@v7',
+  'scope=tunnara-${{ matrix.image }}',
+]) {
+  if (!docker.includes(expected)) errors.push(`docker-publish.yml não contém: ${expected}`);
+}
 
 const validationOnly = ['ci.yml', 'mobile.yml', 'native-preview.yml', 'storage-matrix.yml', 'codeql.yml'];
 for (const name of validationOnly) {

@@ -93,7 +93,7 @@ jobs:
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v6
         with:
-          gradle-version: '8.10.2'
+          gradle-version: '9.4.1'
       - name: Prepare optional Android signing
         shell: bash
         run: |
@@ -106,7 +106,7 @@ jobs:
       - name: Build APK and AAB
         run: bash sdk/mobile/android/scripts/build-artifacts.sh
       - name: Attach Android files directly to GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.prepare-release.outputs.tag }}
           files: sdk/mobile/android/dist/*
@@ -146,6 +146,10 @@ jobs:
       WANT_PUBLISH: ${{ inputs.publish_testflight || vars.TUNNARA_ENABLE_APPSTORE_PUBLISH == 'true' }}
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.19.x'
+          cache: false
       - name: Install XcodeGen
         run: brew install xcodegen
       - name: Prepare optional Apple signing
@@ -166,7 +170,7 @@ jobs:
       - name: Build simulator app and IPA files
         run: bash sdk/mobile/ios/scripts/build-artifacts.sh
       - name: Attach iOS files directly to GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.prepare-release.outputs.tag }}
           files: |

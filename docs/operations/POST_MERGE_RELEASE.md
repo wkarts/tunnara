@@ -5,12 +5,12 @@ A release não é criada em cada merge. O evento automático observa mudanças n
 ## Processo
 
 ```bash
-git switch -c release/v1.1.1
-npm run version:set -- 1.1.1
+git switch -c release/vX.Y.Z
+npm run version:set -- X.Y.Z
 npm run version:check
 git add --all
-git commit -m "chore: prepare Tunnara v1.1.1"
-git push -u origin release/v1.1.1
+git commit -m "chore: prepare Tunnara vX.Y.Z"
+git push -u origin release/vX.Y.Z
 ```
 
 Depois do merge:

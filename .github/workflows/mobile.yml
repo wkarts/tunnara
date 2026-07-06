@@ -21,7 +21,7 @@ concurrency:
 
 jobs:
   validate:
-    name: Mobile config only — no APK/IPA artifacts
+    name: Mobile static configuration
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -33,5 +33,79 @@ jobs:
         run: |
           bash -n sdk/mobile/android/scripts/build-artifacts.sh
           bash -n sdk/mobile/ios/scripts/build-artifacts.sh
+          bash -n sdk/mobile/ios/scripts/prepare-wireguard-kit.sh
           bash -n sdk/mobile/ios/scripts/sign-and-export.sh
           node scripts/ci/validate-mobile-config.mjs
+
+  android-smoke:
+    name: Android debug compile
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '9.4.1'
+      - name: Compile Android debug application
+        run: gradle -p sdk/mobile/android :app:assembleDebug --stacktrace
+
+  ios-package-resolution:
+    name: iOS package and simulator compile
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.19.x'
+          cache: false
+      - name: Install XcodeGen
+        shell: bash
+        run: brew list xcodegen >/dev/null 2>&1 || brew install xcodegen
+      - name: Prepare pinned WireGuardKit package
+        run: bash sdk/mobile/ios/scripts/prepare-wireguard-kit.sh
+      - name: Generate Xcode project and resolve packages
+        shell: bash
+        run: |
+          cd sdk/mobile/ios
+          xcodegen generate
+          xcodebuild -resolvePackageDependencies \
+            -project TunnaraMobile.xcodeproj \
+            -scheme TunnaraMobile
+      - name: Validate generated iOS application Info.plist settings
+        shell: bash
+        run: |
+          cd sdk/mobile/ios
+          SETTINGS_FILE="$RUNNER_TEMP/tunnara-mobile-build-settings.txt"
+          xcodebuild \
+            -project TunnaraMobile.xcodeproj \
+            -target TunnaraMobile \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -showBuildSettings > "$SETTINGS_FILE"
+          if ! grep -Eq '^[[:space:]]*GENERATE_INFOPLIST_FILE = YES[[:space:]]*$' "$SETTINGS_FILE"; then
+            echo 'O target TunnaraMobile não está configurado para gerar Info.plist.' >&2
+            cat "$SETTINGS_FILE" >&2
+            exit 1
+          fi
+      - name: Compile iOS simulator application
+        shell: bash
+        run: |
+          cd sdk/mobile/ios
+          xcodebuild \
+            -project TunnaraMobile.xcodeproj \
+            -scheme TunnaraMobile \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/tunnara-ios-smoke" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY='' \
+            ARCHS=arm64 \
+            ONLY_ACTIVE_ARCH=YES \
+            build
