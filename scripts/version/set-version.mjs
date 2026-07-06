@@ -3,7 +3,8 @@ import path from 'node:path';
 
 const version = process.argv[2];
 if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(version || '')) throw new Error('Versão SemVer inválida');
-const numericVersion = version.split('-')[0].split('.').map(Number);
+const baseVersion = version.split('-')[0];
+const numericVersion = baseVersion.split('.').map(Number);
 const buildNumber = numericVersion[0] * 10000 + numericVersion[1] * 100 + numericVersion[2];
 
 function updateJson(file) {
@@ -37,27 +38,15 @@ replaceRequired('apps/console/src/config/projectConfig.ts', /version:\s*"[^"]+"/
 replaceRequired('apps/control-api/.env.example', /^APP_VERSION=.*$/m, `APP_VERSION=${version}`, 'APP_VERSION');
 replaceRequired('apps/control-api/config/app.php', /'version' => env\('APP_VERSION', '[^']+'\)/, `'version' => env('APP_VERSION', '${version}')`, 'config.app.version');
 replaceRequired('runtime/node/lib/utils.mjs', /export const VERSION = '[^']+';/, `export const VERSION = '${version}';`, 'runtime VERSION');
-{
-  const file = 'ARTIFACT_MANIFEST.md';
-  const source = fs.readFileSync(file, 'utf8');
-  const current = source.match(/# Manifesto de artefatos — Tunnara Platform (\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)/)?.[1];
-  if (!current) throw new Error(`Não foi possível localizar artifact manifest version em ${file}`);
-  fs.writeFileSync(
-    file,
-    source
-      .replace(`# Manifesto de artefatos — Tunnara Platform ${current}`, `# Manifesto de artefatos — Tunnara Platform ${version}`)
-      .replaceAll(`v${current}`, `v${version}`),
-  );
-}
 replaceRequired('sdk/c/src/tunnara.c', /#define TUNNARA_VERSION "[^"]+"/, `#define TUNNARA_VERSION "${version}"`, 'TUNNARA_VERSION');
-replaceRequired('sdk/c/CMakeLists.txt', /project\(tunnara_sdk_c VERSION [^ )]+/, `project(tunnara_sdk_c VERSION ${version}`, 'CMake project version');
+replaceRequired('sdk/c/CMakeLists.txt', /project\(tunnara_sdk_c VERSION [^ )]+/, `project(tunnara_sdk_c VERSION ${baseVersion}`, 'CMake project version');
 replaceRequired('sdk/mobile/android/app/build.gradle.kts', /versionName = "[^"]+"/, `versionName = "${version}"`, 'Android versionName');
 replaceRequired('sdk/mobile/android/app/build.gradle.kts', /versionCode = \d+/, `versionCode = ${buildNumber}`, 'Android versionCode');
-replaceRequired('sdk/mobile/ios/Config/PacketTunnel-Info.plist', /<key>CFBundleShortVersionString<\/key><string>[^<]+<\/string>/, `<key>CFBundleShortVersionString</key><string>${version}</string>`, 'iOS bundle version');
+replaceRequired('sdk/mobile/ios/Config/PacketTunnel-Info.plist', /<key>CFBundleShortVersionString<\/key><string>[^<]+<\/string>/, `<key>CFBundleShortVersionString</key><string>${baseVersion}</string>`, 'iOS bundle version');
 replaceRequired('sdk/mobile/ios/Config/PacketTunnel-Info.plist', /<key>CFBundleVersion<\/key><string>[^<]+<\/string>/, `<key>CFBundleVersion</key><string>${buildNumber}</string>`, 'iOS bundle build');
 for (const [pattern, replacement, description] of [
-  [/INFOPLIST_KEY_CFBundleShortVersionString: [^\n]+/g, `INFOPLIST_KEY_CFBundleShortVersionString: ${version}`, 'iOS project short version'],
-  [/MARKETING_VERSION: [^\n]+/g, `MARKETING_VERSION: ${version}`, 'iOS project marketing version'],
+  [/INFOPLIST_KEY_CFBundleShortVersionString: [^\n]+/g, `INFOPLIST_KEY_CFBundleShortVersionString: ${baseVersion}`, 'iOS project short version'],
+  [/MARKETING_VERSION: [^\n]+/g, `MARKETING_VERSION: ${baseVersion}`, 'iOS project marketing version'],
   [/INFOPLIST_KEY_CFBundleVersion: \d+/g, `INFOPLIST_KEY_CFBundleVersion: ${buildNumber}`, 'iOS project bundle build'],
   [/CURRENT_PROJECT_VERSION: \d+/g, `CURRENT_PROJECT_VERSION: ${buildNumber}`, 'iOS project build number'],
 ]) replaceRequired('sdk/mobile/ios/project.yml', pattern, replacement, description);
@@ -70,7 +59,6 @@ for (const absolute of walk(dockerDir)) {
   source = source.replace(/(TUNNARA_VERSION=)\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?/g, `$1${version}`);
   source = source.replace(/(APP_VERSION:\s*)\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?/g, `$1${version}`);
   source = source.replace(/(tunnara-(?:server|agent|console|control-api|caddy-cloudflare|quic-bridge):)\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?/g, `$1${version}`);
-  source = source.replace(/(tunnara-(?:server|agent|console|control-api|caddy-cloudflare|quic-bridge):\$\{TUNNARA_VERSION:-)\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(\})/g, `$1${version}$2`);
   fs.writeFileSync(absolute, source);
 }
 
@@ -80,6 +68,16 @@ for (const file of ['docker.env.example', 'docker-compose.example.yml']) {
   source = source.replace(/(TUNNARA_VERSION=)\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?/g, `$1${version}`);
   source = source.replace(/(tunnara-(?:server|agent|console|control-api|caddy-cloudflare|quic-bridge):\$\{TUNNARA_VERSION:-)\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(\})/g, `$1${version}$2`);
   fs.writeFileSync(file, source);
+}
+
+if (fs.existsSync('deploy/helm/tunnara/Chart.yaml')) {
+  replaceRequired('deploy/helm/tunnara/Chart.yaml', /^version:\s*.+$/m, `version: ${version}`, 'Helm chart version');
+  replaceRequired('deploy/helm/tunnara/Chart.yaml', /^appVersion:\s*.+$/m, `appVersion: "${version}"`, 'Helm appVersion');
+}
+if (fs.existsSync('deploy/helm/tunnara/values.yaml')) {
+  let helmValues = fs.readFileSync('deploy/helm/tunnara/values.yaml', 'utf8');
+  helmValues = helmValues.replace(/(tag:\s*")[^"]+("\s*)/g, `$1${version}$2`);
+  fs.writeFileSync('deploy/helm/tunnara/values.yaml', helmValues);
 }
 
 fs.writeFileSync('VERSION', `${version}\n`);

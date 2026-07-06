@@ -1,65 +1,39 @@
 # Roadmap Tunnara
 
-## v0.1 — Fundação concluída
+## Entregue até 2.0.0-rc.1
 
-Monorepo, branding, Console, contratos, scaffolding Rust/Laravel, CI/CD e deploys iniciais.
+- HTTP/HTTPS/WebSocket/TCP/UDP.
+- Cloudflare DNS, ACME DNS-01 e QUIC Bridge.
+- WireGuard e redes privadas.
+- Multi-edge/multi-relay e failover.
+- Control Plane distribuído PostgreSQL/MySQL + Redis.
+- Agent sessions, presence, nodes e rotas internas.
+- Policy Engine, JWT/OIDC, Basic Auth, API key, rate limit e transforms.
+- Request Inspector, redação e replay.
+- Múltiplos targets, health check, prioridade, peso e failover.
+- Prometheus/Grafana.
+- Docker single-node/distribuído e Helm Chart.
+- SDK C/Delphi, Console e projetos mobile.
+- Fuzzing, benchmark e suite E2E.
 
-## v0.2 — Túnel HTTP funcional concluído
+## 2.0.0 GA — gates, não novos recursos cosméticos
 
-- Control API operacional.
-- Provisionamento de uso único.
-- Sessão autenticada do Agent.
-- Edge por hostname.
-- Relay e Agent persistentes.
-- HTTP completo e upgrade WebSocket.
-- Console integrado.
-- Docker e instaladores nativos.
-- Teste end-to-end.
+- domínio real com Cloudflare/ACME/QUIC;
+- Composer/PHPUnit e migrations em PostgreSQL/MySQL reais;
+- compilação e E2E do workspace Rust em todos os targets;
+- soak test multi-host de pelo menos 7 dias;
+- chaos tests de Control, PostgreSQL, Redis, Edge e Relay;
+- testes físicos Android/iOS e suspensão/retomada;
+- assinatura/notarização dos binários;
+- pentest e auditoria externa sem achados críticos/altos abertos;
+- SLOs, alertas, runbooks e rollback aprovados.
 
-## v0.3 — Transporte nativo e exposição TCP
+## Pós-GA
 
-- Migração gradual do plano de dados para Rust.
-- QUIC multiplexado.
-- Fallback TLS/443.
-- TCP público genérico.
-- Domínios reservados.
-- ACME automático.
-- Atualização assinada do Agent.
-
-## v0.4 — SDK embarcável
-
-- C ABI estável.
-- Delphi Win32/Win64.
-- Rust SDK.
-- Node N-API.
-- Named Pipe e Unix Domain Socket.
-- Exemplos completos.
-
-## v0.5 — UDP e rede privada
-
-- UDP.
-- WireGuard userspace.
-- IP virtual.
-- DNS interno.
-- Rotas e ACL.
-- Site-to-site e device-to-site.
-
-## v0.6 — Alta disponibilidade
-
-- Multi-edge.
-- Multi-relay.
-- Regiões.
-- Leases distribuídos.
-- Failover.
-- Observabilidade e testes de carga.
-
-## v0.7 — Mobile
-
-- Android VpnService.
-- iOS Network Extension.
-- Bindings Kotlin e Swift.
-- Aplicativos de administração e rede privada.
-
-## v1.0 — Community Edition estável
-
-Hardening, migrações suportadas, backup/restore, atualização assinada, testes NAT, documentação pública, política de compatibilidade e suporte operacional.
+- NAT traversal direto com STUN/hole punching e relay fallback;
+- Kubernetes Operator e CRDs;
+- SAML, SCIM, LDAP e device posture;
+- armazenamento analítico de inspeções em larga escala;
+- geo-routing/Anycast;
+- SDKs Go, Python, .NET, Java, Node e PHP;
+- Terraform Provider.

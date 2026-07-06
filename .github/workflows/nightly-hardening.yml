@@ -1,0 +1,48 @@
+name: Nightly hardening
+on:
+  workflow_dispatch:
+    inputs:
+      load_requests:
+        description: Requisições do teste de carga
+        required: false
+        default: '3000'
+  schedule:
+    - cron: '17 3 * * 1-5'
+permissions:
+  contents: read
+concurrency:
+  group: nightly-hardening
+  cancel-in-progress: false
+env:
+  NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
+  NPM_CONFIG_AUDIT: 'false'
+  NPM_CONFIG_FUND: 'false'
+jobs:
+  runtime-hardening:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: bash scripts/ci/npm-ci.sh .
+      - name: Runtime regression suite
+        run: npm run runtime:test
+      - name: Policy engine fuzzing
+        env: { TUNNARA_FUZZ_ITERATIONS: '10000' }
+        run: npm run runtime:test:security
+      - name: Local tunnel load test
+        env:
+          TUNNARA_LOAD_REQUESTS: ${{ inputs.load_requests || '3000' }}
+          TUNNARA_LOAD_CONCURRENCY: '100'
+          TUNNARA_LOAD_MAX_P95_MS: '2500'
+        run: npm run runtime:test:load
+      - name: Summary
+        if: always()
+        run: |
+          echo '### Tunnara nightly hardening' >> "$GITHUB_STEP_SUMMARY"
+          echo '- Runtime regression, policy fuzzing and local load test executed.' >> "$GITHUB_STEP_SUMMARY"
+          echo '- No build artifact is created by this workflow.' >> "$GITHUB_STEP_SUMMARY"

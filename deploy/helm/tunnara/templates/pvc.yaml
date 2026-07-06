@@ -1,0 +1,15 @@
+{{- if and .Values.server.persistence.enabled (eq .Values.server.storageDriver "sqlite") }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "tunnara.fullname" . }}-data
+  labels: {{- include "tunnara.labels" . | nindent 4 }}
+spec:
+  accessModes: ["ReadWriteOnce"]
+  {{- if .Values.server.persistence.storageClass }}
+  storageClassName: {{ .Values.server.persistence.storageClass }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.server.persistence.size }}
+{{- end }}

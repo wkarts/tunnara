@@ -1,6 +1,8 @@
 <?php
 
+use App\Http\Middleware\AuthenticateClusterToken;
 use App\Http\Middleware\AuthenticateServiceToken;
+use App\Http\Middleware\RequireServiceAbility;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -15,6 +17,8 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'service.token' => AuthenticateServiceToken::class,
+            'service.ability' => RequireServiceAbility::class,
+            'cluster.token' => AuthenticateClusterToken::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

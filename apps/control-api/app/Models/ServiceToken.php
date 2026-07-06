@@ -34,6 +34,12 @@ class ServiceToken extends Model
         ];
     }
 
+    public function hasAbility(string $ability): bool
+    {
+        $abilities = is_array($this->abilities) ? $this->abilities : [];
+        return in_array('*', $abilities, true) || in_array($ability, $abilities, true);
+    }
+
     public function organization(): BelongsTo
     {
         return $this->belongsTo(Organization::class);

@@ -15,8 +15,6 @@ command -v xcodegen >/dev/null 2>&1 || { echo "xcodegen não encontrado; instale
 rm -rf "$OUT_DIR"
 mkdir -p "$OUT_DIR" "$UNSIGNED_BUILD" "$SIMULATOR_BUILD"
 
-bash "$ROOT/scripts/prepare-wireguard-kit.sh"
-
 (
   cd "$ROOT"
   xcodegen generate
@@ -37,8 +35,6 @@ xcodebuild \
   CODE_SIGNING_ALLOWED=NO \
   CODE_SIGNING_REQUIRED=NO \
   CODE_SIGN_IDENTITY='' \
-  ARCHS=arm64 \
-  ONLY_ACTIVE_ARCH=YES \
   build
 
 SIMULATOR_APP="$(find "$SIMULATOR_BUILD" -maxdepth 2 -type d -name 'TunnaraMobile.app' -print -quit)"
@@ -85,12 +81,12 @@ for name in \
 done
 
 if [[ "$SIGNING_READY" == true ]]; then
-  TUNNARA_IOS_OUTPUT_DIR="$OUT_DIR" bash "$ROOT/scripts/sign-and-export.sh"
+  TUNNARA_IOS_OUTPUT_DIR="$OUT_DIR" "$ROOT/scripts/sign-and-export.sh"
 else
   echo "Credenciais Apple ausentes ou incompletas: IPA assinado será ignorado, sem falhar o build."
 fi
 
-cat > "$OUT_DIR/build-metadata-ios.json" <<JSON
+cat > "$OUT_DIR/build-metadata.json" <<JSON
 {
   "product": "Tunnara Mobile iOS",
   "version": "$VERSION",
@@ -104,11 +100,7 @@ JSON
 
 (
   cd "$OUT_DIR"
-  shopt -s nullglob
-  checksum_files=(./*.ipa ./*.zip)
-  shopt -u nullglob
-  ((${#checksum_files[@]} > 0)) || { echo "Nenhum artefato iOS para checksum." >&2; exit 1; }
-  shasum -a 256 "${checksum_files[@]}" > SHA256SUMS-ios.txt
+  find . -maxdepth 1 -type f \( -name '*.ipa' -o -name '*.zip' \) -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS.txt
 )
 
 echo "Artefatos iOS gerados em $OUT_DIR."

@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "tunnara.fullname" . }}-control
+  labels: {{- include "tunnara.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.control.type }}
+  selector: { app.kubernetes.io/instance: {{ .Release.Name }}, app.kubernetes.io/component: server }
+  ports: [{ name: http, port: {{ .Values.service.control.port }}, targetPort: control }]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "tunnara.fullname" . }}-edge
+  labels: {{- include "tunnara.labels" . | nindent 4 }}
+  annotations: {{- toYaml .Values.service.edge.annotations | nindent 4 }}
+spec:
+  type: {{ .Values.service.edge.type }}
+  selector: { app.kubernetes.io/instance: {{ .Release.Name }}, app.kubernetes.io/component: server }
+  ports: [{ name: http, port: {{ .Values.service.edge.port }}, targetPort: edge }]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "tunnara.fullname" . }}-relay
+  labels: {{- include "tunnara.labels" . | nindent 4 }}
+  annotations: {{- toYaml .Values.service.relay.annotations | nindent 4 }}
+spec:
+  type: {{ .Values.service.relay.type }}
+  selector: { app.kubernetes.io/instance: {{ .Release.Name }}, app.kubernetes.io/component: server }
+  ports: [{ name: relay, port: {{ .Values.service.relay.port }}, targetPort: relay }]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "tunnara.fullname" . }}-console
+  labels: {{- include "tunnara.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.console.type }}
+  selector: { app.kubernetes.io/instance: {{ .Release.Name }}, app.kubernetes.io/component: console }
+  ports: [{ name: http, port: {{ .Values.service.console.port }}, targetPort: http }]

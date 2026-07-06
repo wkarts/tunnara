@@ -26,6 +26,17 @@ class Organization extends Model
         return $this->hasMany(Tunnel::class);
     }
 
+
+    public function policies(): HasMany
+    {
+        return $this->hasMany(Policy::class);
+    }
+
+    public function provisioningTokens(): HasMany
+    {
+        return $this->hasMany(ProvisioningToken::class);
+    }
+
     public function serviceTokens(): HasMany
     {
         return $this->hasMany(ServiceToken::class);

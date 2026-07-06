@@ -1,0 +1,193 @@
+name: ${COMPOSE_PROJECT_NAME:-tunnara-distributed}
+
+x-control-env: &control-env
+  APP_NAME: Tunnara Control API
+  APP_ENV: production
+  APP_DEBUG: "false"
+  APP_KEY: ${APP_KEY:?Execute ./tunnara.sh init}
+  APP_VERSION: 2.0.0-rc.1
+  APP_URL: https://control.${TUNNARA_BASE_DOMAIN}
+  LOG_CHANNEL: stderr
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+  DB_CONNECTION: pgsql
+  DB_HOST: postgres
+  DB_PORT: "5432"
+  DB_DATABASE: ${DB_DATABASE:-tunnara}
+  DB_USERNAME: ${DB_USERNAME:-tunnara}
+  DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD obrigatório}
+  CACHE_STORE: redis
+  SESSION_DRIVER: redis
+  QUEUE_CONNECTION: redis
+  REDIS_CLIENT: phpredis
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD obrigatório}
+  REDIS_DB: "0"
+  REDIS_CACHE_DB: "1"
+  TUNNARA_CLUSTER_TOKEN: ${TUNNARA_CLUSTER_TOKEN:?Execute ./tunnara.sh init}
+  TUNNARA_PUBLIC_CONTROL_URL: https://control.${TUNNARA_BASE_DOMAIN}
+  TUNNARA_PUBLIC_RELAY_URL: quic://relay.${TUNNARA_BASE_DOMAIN}:${TUNNARA_QUIC_PORT:-7443}
+  TUNNARA_CORS_ORIGINS: https://console.${TUNNARA_BASE_DOMAIN}
+
+x-data-env: &data-env
+  NODE_NO_WARNINGS: "1"
+  TUNNARA_INTERNAL_CONTROL_URL: http://caddy:8081/api
+  TUNNARA_PUBLIC_CONTROL_URL: https://control.${TUNNARA_BASE_DOMAIN}
+  TUNNARA_CLUSTER_TOKEN: ${TUNNARA_CLUSTER_TOKEN}
+  TUNNARA_BASE_DOMAIN: ${TUNNARA_BASE_DOMAIN}
+  TUNNARA_REGION: ${TUNNARA_REGION:-primary}
+  TUNNARA_LOG_FORMAT: json
+  TUNNARA_PUBLIC_PORT_MIN: ${PUBLIC_PORT_MIN:-20000}
+  TUNNARA_PUBLIC_PORT_MAX: ${PUBLIC_PORT_MAX:-20100}
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-tunnara}
+      POSTGRES_USER: ${DB_USERNAME:-tunnara}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes: [tunnara_postgres:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-tunnara} -d ${DB_DATABASE:-tunnara}"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    networks: [control]
+
+  redis:
+    image: redis:8-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD}"]
+    volumes: [tunnara_redis:/data]
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a '$${REDIS_PASSWORD}' ping | grep PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    networks: [control]
+
+  control-a:
+    image: ${TUNNARA_CONTROL_IMAGE:-ghcr.io/wkarts/tunnara-control-api:2.0.0-rc.1}
+    restart: unless-stopped
+    environment:
+      <<: *control-env
+      RUN_MIGRATIONS: "true"
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    networks: [control]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:8080/api/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  control-b:
+    image: ${TUNNARA_CONTROL_IMAGE:-ghcr.io/wkarts/tunnara-control-api:2.0.0-rc.1}
+    restart: unless-stopped
+    environment:
+      <<: *control-env
+      RUN_MIGRATIONS: "false"
+    depends_on:
+      control-a: { condition: service_healthy }
+    networks: [control]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:8080/api/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  relay-a:
+    image: ${TUNNARA_SERVER_IMAGE:-ghcr.io/wkarts/tunnara-server:2.0.0-rc.1}
+    command: ["relay"]
+    restart: unless-stopped
+    environment:
+      <<: *data-env
+      TUNNARA_NODE_NAME: relay-a
+      TUNNARA_RELAY_HOST: 0.0.0.0
+      TUNNARA_RELAY_PORT: 7300
+      TUNNARA_RELAY_EDGE_HOST: 0.0.0.0
+      TUNNARA_RELAY_EDGE_PORT: 7301
+      TUNNARA_PUBLIC_RELAY_URL: tcp://${TUNNARA_PUBLIC_HOST}:${RELAY_A_PORT:-7300}
+      TUNNARA_RELAY_EDGE_PUBLIC_URL: tcp://relay-a:7301
+    ports: ["${RELAY_A_PORT:-7300}:7300/tcp"]
+    depends_on: [caddy]
+    networks: [control, public]
+
+  relay-b:
+    image: ${TUNNARA_SERVER_IMAGE:-ghcr.io/wkarts/tunnara-server:2.0.0-rc.1}
+    command: ["relay"]
+    restart: unless-stopped
+    environment:
+      <<: *data-env
+      TUNNARA_NODE_NAME: relay-b
+      TUNNARA_RELAY_HOST: 0.0.0.0
+      TUNNARA_RELAY_PORT: 7300
+      TUNNARA_RELAY_EDGE_HOST: 0.0.0.0
+      TUNNARA_RELAY_EDGE_PORT: 7301
+      TUNNARA_PUBLIC_RELAY_URL: tcp://${TUNNARA_PUBLIC_HOST}:${RELAY_B_PORT:-7302}
+      TUNNARA_RELAY_EDGE_PUBLIC_URL: tcp://relay-b:7301
+    ports: ["${RELAY_B_PORT:-7302}:7300/tcp"]
+    depends_on: [caddy]
+    networks: [control, public]
+
+  edge-a:
+    image: ${TUNNARA_SERVER_IMAGE:-ghcr.io/wkarts/tunnara-server:2.0.0-rc.1}
+    command: ["edge"]
+    restart: unless-stopped
+    environment:
+      <<: *data-env
+      TUNNARA_NODE_NAME: edge-a
+      TUNNARA_EDGE_HOST: 0.0.0.0
+      TUNNARA_EDGE_PORT: 7200
+      TUNNARA_PUBLIC_EDGE_URL: https://${TUNNARA_BASE_DOMAIN}
+    depends_on: [caddy, relay-a, relay-b]
+    networks: [control, public]
+
+  edge-b:
+    image: ${TUNNARA_SERVER_IMAGE:-ghcr.io/wkarts/tunnara-server:2.0.0-rc.1}
+    command: ["edge"]
+    restart: unless-stopped
+    environment:
+      <<: *data-env
+      TUNNARA_NODE_NAME: edge-b
+      TUNNARA_EDGE_HOST: 0.0.0.0
+      TUNNARA_EDGE_PORT: 7200
+      TUNNARA_PUBLIC_EDGE_URL: https://${TUNNARA_BASE_DOMAIN}
+    depends_on: [caddy, relay-a, relay-b]
+    networks: [control, public]
+
+  console:
+    image: ${TUNNARA_CONSOLE_IMAGE:-ghcr.io/wkarts/tunnara-console:2.0.0-rc.1}
+    restart: unless-stopped
+    networks: [public]
+
+  caddy:
+    image: ${TUNNARA_CADDY_IMAGE:-ghcr.io/wkarts/tunnara-caddy-cloudflare:2.0.0-rc.1}
+    restart: unless-stopped
+    environment:
+      TUNNARA_BASE_DOMAIN: ${TUNNARA_BASE_DOMAIN}
+      TUNNARA_ACME_EMAIL: ${TUNNARA_ACME_EMAIL}
+      TUNNARA_ACME_CA: ${TUNNARA_ACME_CA:-https://acme-v02.api.letsencrypt.org/directory}
+      CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN}
+    volumes:
+      - ./distributed/Caddyfile:/etc/caddy/Caddyfile:ro
+      - tunnara_caddy_data:/data
+      - tunnara_caddy_config:/config
+    ports: ["80:80/tcp", "443:443/tcp", "443:443/udp"]
+    depends_on:
+      control-a: { condition: service_healthy }
+      control-b: { condition: service_healthy }
+    networks: [control, public]
+
+volumes:
+  tunnara_postgres:
+  tunnara_redis:
+  tunnara_caddy_data:
+  tunnara_caddy_config:
+
+networks:
+  control: { internal: true }
+  public: { driver: bridge }

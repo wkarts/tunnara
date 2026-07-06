@@ -1,42 +1,45 @@
-# Manifesto de artefatos — Tunnara Platform 1.1.3
+# Manifesto de artefatos — Tunnara Platform 2.0.0-rc.1
 
-## Assets centrais
+## Pacotes centrais
 
-- `tunnara-platform-v1.1.3-source.zip`
-- `tunnara-platform-v1.1.3-source.tar.gz`
-- `tunnara-platform-v1.1.3-github-ready.zip`
-- `tunnara-platform-v1.1.3-git-repository.bundle`
-- `tunnara-platform-v1.1.3-complete.zip`
-- `tunnara-console-web-v1.1.3.zip`
-- `tunnara-runtime-linux-x64-v1.1.3.zip`
-- `tunnara-runtime-linux-x64-v1.1.3.tar.gz`
-- `tunnara-sdk-c-linux-x64-v1.1.3.zip`
-- `Tunnara-Docker-v1.1.3.zip`
-- `release-manifest.json`
-- `SHA256SUMS-core.txt`
+- `Tunnara-Platform-v2.0.0-rc.1-GitHub-Ready.zip`
+- `Tunnara-Platform-v2.0.0-rc.1-Pacote-Completo.zip`
+- `Tunnara-Platform-v2.0.0-rc.1-Codigo-Fonte.zip`
+- `Tunnara-Platform-v2.0.0-rc.1-Codigo-Fonte.tar.gz`
+- `Tunnara-Platform-v2.0.0-rc.1-Git-Repository.bundle`
+- `Tunnara-Platform-v2.0.0-rc.1.patch`
+- `Tunnara-Platform-v2.0.0-rc.1-Arquivos-Alterados.zip`
 
-## Assets multiplataforma gerados pelo GitHub Actions
+## Distribuição
 
-- Runtime Agent, Server e QUIC Bridge para Linux x64, Windows x64, macOS ARM64 e macOS x64.
-- SDK C para Linux x64, Windows x64, macOS ARM64 e macOS x64.
-- Instaladores Tauri para Linux, Windows e macOS.
-- APK/AAB Android e IPA/simulador iOS conforme disponibilidade de assinatura.
-- Metadados mobile separados em `build-metadata-android.json` e `build-metadata-ios.json`.
-- Checksums mobile separados em `SHA256SUMS-android.txt` e `SHA256SUMS-ios.txt`.
-- Imagens OCI `amd64` e `arm64` para Server, Agent, Console, Control API, QUIC Bridge e Caddy Cloudflare.
+- `Tunnara-Console-Web-v2.0.0-rc.1.zip`
+- `Tunnara-Runtime-Linux-x64-v2.0.0-rc.1.zip`
+- `Tunnara-Runtime-Linux-x64-v2.0.0-rc.1.tar.gz`
+- `Tunnara-SDK-C-Linux-x64-v2.0.0-rc.1.zip`
+- `Tunnara-Docker-v2.0.0-rc.1.zip`
+- `Tunnara-Helm-v2.0.0-rc.1.zip`
+- `Tunnara-Platform-v2.0.0-rc.1-SHA256SUMS.txt`
 
-## Bundle Docker
+## Conteúdo do pacote completo
 
-`Tunnara-Docker-v1.1.3.zip` contém:
+- código-fonte sem caches, bancos, segredos ou dependências reconstruíveis;
+- Console Web compilado;
+- Agent e Server standalone Linux x64;
+- SDK C dinâmico e estático Linux x64;
+- Docker single-node, produção, distribuído e observabilidade;
+- Helm Chart;
+- Control API Laravel, runtime, serviços Rust e projetos mobile;
+- documentação, OpenAPI, testes, workflows e scripts de release.
 
-- Compose Community single-node;
-- Compose de produção Cloudflare/ACME/QUIC;
-- Compose HA;
-- perfis SQLite/PostgreSQL/MySQL/Redis da Control API;
-- scripts de instalação, atualização, diagnóstico, backup e restore;
-- documentação operacional.
+## Artefatos produzidos pelo GitHub Actions
 
-## Política de release
+- Runtime Agent/Server e QUIC Bridge para Linux, Windows e macOS;
+- SDK C para Linux, Windows e macOS;
+- instaladores Tauri;
+- APK/AAB e artefatos iOS compatíveis com as credenciais disponíveis;
+- imagens OCI amd64/arm64 para Server, Agent, Console, Control API, QUIC Bridge e Caddy Cloudflare;
+- SBOM, provenance e checksums quando habilitados no workflow de release.
 
-A release permanece em draft até que os assets centrais e todos os builds obrigatórios terminem. Os arquivos são anexados diretamente à GitHub Release; o pipeline não utiliza Actions Artifact Storage.
-Cada merge elegível incrementa a versão SemVer antes dos builds. Releases publicadas são imutáveis; apenas drafts da mesma versão podem ser retomados e ter seus assets substituídos.
+## Política
+
+Pull Requests não criam artefatos de distribuição. A release permanece em draft até a conclusão dos workflows obrigatórios e os arquivos finais são anexados diretamente à GitHub Release.

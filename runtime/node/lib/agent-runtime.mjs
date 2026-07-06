@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import childProcess from 'node:child_process';
 import dgram from 'node:dgram';
 import http from 'node:http';
+import https from 'node:https';
 import net from 'node:net';
 import tls from 'node:tls';
 import { URL } from 'node:url';
@@ -152,6 +153,7 @@ export class AgentRuntime {
 
   async #onFrame(connection, frame) {
     if (frame.type === 'proxy_request') return this.#proxyHttp(connection, frame);
+    if (frame.type === 'health_probe') return this.#healthProbe(connection, frame);
     if (frame.type === 'stream_open') return this.#streamOpen(connection, frame);
     if (frame.type === 'stream_data') {
       const socket = this.streams.get(frame.streamId);
@@ -169,6 +171,44 @@ export class AgentRuntime {
       const session = this.udpSessions.get(frame.sessionId);
       if (session) session.socket.close();
       this.udpSessions.delete(frame.sessionId);
+    }
+  }
+
+  async #healthProbe(connection, frame) {
+    const startedAt = process.hrtime.bigint();
+    const reply = (healthy, error = null, status = null) => connection.send({
+      type: 'health_probe_response', probeId: frame.probeId, targetId: frame.targetId,
+      healthy, error, status, latencyMs: Number(process.hrtime.bigint() - startedAt) / 1e6,
+    });
+    try {
+      if (!isLoopbackHost(frame.targetHost) && !this.options.allowRemoteTargets) throw new Error('Destino remoto bloqueado pelo agente.');
+      const check = frame.healthCheck || {};
+      const timeoutMs = Math.max(250, Number(frame.timeoutMs || check.timeoutSeconds * 1000 || 5000));
+      const type = String(check.type || 'tcp').toLowerCase();
+      if (type === 'http' || type === 'https') {
+        const client = type === 'https' ? https : http;
+        const status = await new Promise((resolve, reject) => {
+          const req = client.request({
+            host: frame.targetHost, port: Number(frame.targetPort), method: String(check.method || 'GET'),
+            path: String(check.path || '/healthz'), timeout: timeoutMs,
+            rejectUnauthorized: check.insecureTls !== true,
+            headers: { 'user-agent': `Tunnara-Health/${VERSION}`, ...(check.headers || {}) },
+          }, (res) => { res.resume(); res.once('end', () => resolve(res.statusCode || 0)); });
+          req.once('timeout', () => req.destroy(new Error('health_check_timeout')));
+          req.once('error', reject); req.end();
+        });
+        const expected = Array.isArray(check.expectedStatuses) && check.expectedStatuses.length ? check.expectedStatuses.map(Number) : [200, 204];
+        return reply(expected.includes(status), expected.includes(status) ? null : `unexpected_status_${status}`, status);
+      }
+      await new Promise((resolve, reject) => {
+        const socket = net.connect({ host: frame.targetHost, port: Number(frame.targetPort) });
+        const timer = setTimeout(() => socket.destroy(new Error('health_check_timeout')), timeoutMs);
+        socket.once('connect', () => { clearTimeout(timer); socket.destroy(); resolve(); });
+        socket.once('error', (error) => { clearTimeout(timer); reject(error); });
+      });
+      return reply(true);
+    } catch (error) {
+      return reply(false, error.message);
     }
   }
 

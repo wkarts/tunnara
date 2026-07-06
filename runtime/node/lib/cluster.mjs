@@ -35,8 +35,10 @@ export class ClusterControlClient {
   authenticateAgent(hello) { return this.request('/internal/v1/agents/authenticate', { method: 'POST', body: hello }); }
   agentPresence(body) { return this.request('/internal/v1/agents/presence', { method: 'POST', body }); }
   agentHeartbeat(body) { return this.request('/internal/v1/agents/heartbeat', { method: 'POST', body }); }
-  resolveHostname(hostname) { return this.request(`/internal/v1/routes/hostname/${encodeURIComponent(hostname)}`); }
-  getTunnel(id) { return this.request(`/internal/v1/tunnels/${encodeURIComponent(id)}`); }
+  resolveHostname(hostname, targetId = '') { return this.request(`/internal/v1/routes/hostname/${encodeURIComponent(hostname)}${targetId ? `?targetId=${encodeURIComponent(targetId)}` : ''}`); }
+  getTunnel(id, targetId = '') { return this.request(`/internal/v1/tunnels/${encodeURIComponent(id)}${targetId ? `?targetId=${encodeURIComponent(targetId)}` : ''}`); }
+  updateTargetHealth(id, body) { return this.request(`/internal/v1/tunnel-targets/${encodeURIComponent(id)}/health`, { method: 'POST', body }); }
+  saveInspection(body) { return this.request('/internal/v1/inspections', { method: 'POST', body }); }
   listTunnels(protocol) { return this.request(`/internal/v1/tunnels?protocol=${encodeURIComponent(protocol || '')}`); }
 }
 

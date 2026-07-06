@@ -1,0 +1,84 @@
+nameOverride: ""
+fullnameOverride: ""
+
+imagePullSecrets: []
+
+server:
+  replicaCount: 1
+  image:
+    repository: ghcr.io/wkarts/tunnara-server
+    tag: "2.0.0-rc.1"
+    pullPolicy: IfNotPresent
+  storageDriver: sqlite
+  baseDomain: tunnara.local
+  publicScheme: https
+  publicControlUrl: https://control.tunnara.local
+  publicRelayUrl: tcp://relay.tunnara.local:7300
+  corsOrigin: https://console.tunnara.local
+  logFormat: json
+  existingSecret: ""
+  bootstrapOrganization: Tunnara Community
+  persistence:
+    enabled: true
+    size: 10Gi
+    storageClass: ""
+  resources:
+    requests: { cpu: 100m, memory: 128Mi }
+    limits: { cpu: "2", memory: 1Gi }
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+console:
+  replicaCount: 1
+  image:
+    repository: ghcr.io/wkarts/tunnara-console
+    tag: "2.0.0-rc.1"
+    pullPolicy: IfNotPresent
+  resources:
+    requests: { cpu: 25m, memory: 32Mi }
+    limits: { cpu: 250m, memory: 128Mi }
+
+service:
+  control:
+    type: ClusterIP
+    port: 7100
+  edge:
+    type: LoadBalancer
+    port: 80
+    annotations: {}
+  relay:
+    type: LoadBalancer
+    port: 7300
+    annotations: {}
+  console:
+    type: ClusterIP
+    port: 80
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  controlHost: control.tunnara.local
+  consoleHost: console.tunnara.local
+  wildcardHost: "*.tunnara.local"
+  tls: []
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+
+networkPolicy:
+  enabled: true
+
+serviceMonitor:
+  enabled: false
+  interval: 15s
+  labels: {}

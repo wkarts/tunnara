@@ -152,13 +152,9 @@ async fn run_server(
     info!(listen = %server.local_addr()?, %upstream, "Tunnara QUIC Bridge Server iniciado");
     loop {
         match server.accept().await {
-            Ok(connection) => {
-                tokio::spawn(serve_connection(connection, upstream));
-            }
-            Err(error) => {
-                warn!(%error, "handshake QUIC recusado");
-            }
-        }
+            Ok(connection) => tokio::spawn(serve_connection(connection, upstream)),
+            Err(error) => warn!(%error, "handshake QUIC recusado"),
+        };
     }
 }
 

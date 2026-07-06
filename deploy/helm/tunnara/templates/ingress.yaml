@@ -1,0 +1,20 @@
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "tunnara.fullname" . }}
+  labels: {{- include "tunnara.labels" . | nindent 4 }}
+  annotations: {{- toYaml .Values.ingress.annotations | nindent 4 }}
+spec:
+  {{- if .Values.ingress.className }}
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.ingress.controlHost }}
+      http: { paths: [{ path: /, pathType: Prefix, backend: { service: { name: {{ include "tunnara.fullname" . }}-control, port: { name: http } } } }] }
+    - host: {{ .Values.ingress.consoleHost }}
+      http: { paths: [{ path: /, pathType: Prefix, backend: { service: { name: {{ include "tunnara.fullname" . }}-console, port: { name: http } } } }] }
+    - host: {{ .Values.ingress.wildcardHost | quote }}
+      http: { paths: [{ path: /, pathType: Prefix, backend: { service: { name: {{ include "tunnara.fullname" . }}-edge, port: { name: http } } } }] }
+  tls: {{- toYaml .Values.ingress.tls | nindent 4 }}
+{{- end }}

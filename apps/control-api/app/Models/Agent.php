@@ -18,7 +18,10 @@ class Agent extends Model
         'architecture',
         'version',
         'public_key',
+        'session_token_hash',
+        'session_expires_at',
         'status',
+        'region',
         'last_seen_at',
     ];
 
@@ -26,12 +29,23 @@ class Agent extends Model
     {
         return [
             'last_seen_at' => 'datetime',
+            'session_expires_at' => 'datetime',
         ];
     }
 
     public function organization(): BelongsTo
     {
         return $this->belongsTo(Organization::class);
+    }
+
+    public function presence(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(AgentPresence::class);
+    }
+
+    public function targets(): HasMany
+    {
+        return $this->hasMany(TunnelTarget::class);
     }
 
     public function tunnels(): HasMany

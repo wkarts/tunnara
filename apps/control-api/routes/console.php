@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Str;
 
 Artisan::command(
-    'tunnara:bootstrap {organization : Nome da organização} {--slug=} {--token-name=Console}',
+    'tunnara:bootstrap {organization : Nome da organização} {--slug=} {--token-name=Console} {--token=}',
     function (): int {
         $name = trim((string) $this->argument('organization'));
         $slug = trim((string) ($this->option('slug') ?: Str::slug($name)));
@@ -22,7 +22,7 @@ Artisan::command(
             ['name' => $name, 'status' => 'active']
         );
 
-        $plainToken = 'wwl_'.Str::random(64);
+        $plainToken = trim((string) $this->option('token')) ?: 'tnr_admin_'.Str::random(64);
 
         ServiceToken::query()->create([
             'organization_id' => $organization->id,

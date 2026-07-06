@@ -93,7 +93,7 @@ jobs:
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v6
         with:
-          gradle-version: '9.4.1'
+          gradle-version: '8.10.2'
       - name: Prepare optional Android signing
         shell: bash
         run: |
@@ -106,11 +106,11 @@ jobs:
       - name: Build APK and AAB
         run: bash sdk/mobile/android/scripts/build-artifacts.sh
       - name: Attach Android files directly to GitHub Release
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ needs.prepare-release.outputs.tag }}
-        run: bash scripts/release/upload-release-assets.sh "$TAG" sdk/mobile/android/dist
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.prepare-release.outputs.tag }}
+          files: sdk/mobile/android/dist/*
+          fail_on_unmatched_files: true
       - name: Locate signed AAB
         id: signed-aab
         shell: bash
@@ -146,19 +146,15 @@ jobs:
       WANT_PUBLISH: ${{ inputs.publish_testflight || vars.TUNNARA_ENABLE_APPSTORE_PUBLISH == 'true' }}
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-go@v6
-        with:
-          go-version: '1.19.x'
-          cache: false
       - name: Install XcodeGen
         run: brew install xcodegen
       - name: Prepare optional Apple signing
         shell: bash
         run: |
           if [[ -n "$APPLE_CERTIFICATE_BASE64" && -n "$APPLE_APP_PROFILE_BASE64" && -n "$APPLE_PACKET_PROFILE_BASE64" && -n "$TUNNARA_APPLE_CERTIFICATE_PASSWORD" && -n "$TUNNARA_APPLE_TEAM_ID" ]]; then
-            printf '%s' "$APPLE_CERTIFICATE_BASE64" | base64 -D > "$RUNNER_TEMP/tunnara-distribution.p12"
-            printf '%s' "$APPLE_APP_PROFILE_BASE64" | base64 -D > "$RUNNER_TEMP/tunnara-app.mobileprovision"
-            printf '%s' "$APPLE_PACKET_PROFILE_BASE64" | base64 -D > "$RUNNER_TEMP/tunnara-packet.mobileprovision"
+            echo "$APPLE_CERTIFICATE_BASE64" | base64 --decode > "$RUNNER_TEMP/tunnara-distribution.p12"
+            echo "$APPLE_APP_PROFILE_BASE64" | base64 --decode > "$RUNNER_TEMP/tunnara-app.mobileprovision"
+            echo "$APPLE_PACKET_PROFILE_BASE64" | base64 --decode > "$RUNNER_TEMP/tunnara-packet.mobileprovision"
             {
               echo "TUNNARA_APPLE_CERTIFICATE_P12=$RUNNER_TEMP/tunnara-distribution.p12"
               echo "TUNNARA_APPLE_APP_PROFILE=$RUNNER_TEMP/tunnara-app.mobileprovision"
@@ -170,27 +166,15 @@ jobs:
       - name: Build simulator app and IPA files
         run: bash sdk/mobile/ios/scripts/build-artifacts.sh
       - name: Attach iOS files directly to GitHub Release
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ needs.prepare-release.outputs.tag }}
-        run: |
-          set -Eeuo pipefail
-          release_dir="$RUNNER_TEMP/tunnara-ios-release-assets"
-          rm -rf "$release_dir"
-          mkdir -p "$release_dir"
-          shopt -s nullglob
-          files=(
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.prepare-release.outputs.tag }}
+          files: |
             sdk/mobile/ios/dist/*.ipa
             sdk/mobile/ios/dist/*.zip
             sdk/mobile/ios/dist/*.json
-            sdk/mobile/ios/dist/SHA256SUMS-ios.txt
-          )
-          for file in "${files[@]}"; do
-            [[ -f "$file" ]] && cp "$file" "$release_dir/"
-          done
-          shopt -u nullglob
-          bash scripts/release/upload-release-assets.sh "$TAG" "$release_dir"
+            sdk/mobile/ios/dist/SHA256SUMS.txt
+          fail_on_unmatched_files: false
       - name: Locate signed IPA
         id: signed-ipa
         shell: bash
@@ -203,7 +187,7 @@ jobs:
       - name: Publish optionally to TestFlight
         if: steps.signed-ipa.outputs.ready == 'true'
         continue-on-error: true
-        uses: apple-actions/upload-testflight-build@v5
+        uses: apple-actions/upload-testflight-build@v4
         with:
           app-path: ${{ steps.signed-ipa.outputs.path }}
           issuer-id: ${{ secrets.TUNNARA_APPSTORE_ISSUER_ID }}

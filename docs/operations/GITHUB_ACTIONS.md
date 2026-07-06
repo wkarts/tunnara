@@ -2,14 +2,14 @@
 
 ## Pull Requests
 
-Executam validações direcionadas e não geram artifacts de distribuição:
+Executam somente validações rápidas e não geram artifacts de distribuição:
 
 - integridade e versão;
 - testes do runtime;
 - typecheck/build do Console;
-- formatação e compilação do workspace Rust e do backend Tauri quando afetados;
+- Rust fmt/check quando necessário;
 - validação Laravel quando necessário;
-- validação mobile estática, compilação Android e compilação iOS Simulator quando afetados.
+- validação mobile de configuração.
 
 ## Release
 
@@ -35,11 +35,11 @@ Nenhum job usa `actions/upload-artifact`.
 ## Nova versão
 
 ```bash
-npm run version:set -- X.Y.Z
+npm run version:set -- 1.1.1
 npm run version:check
 ```
 
-O PR deve conter a mudança do `VERSION`. Após o merge, o workflow cria a tag `vX.Y.Z` correspondente.
+O PR deve conter a mudança do `VERSION`. Após o merge, o workflow cria `v1.1.1`.
 
 ## Rebuild
 

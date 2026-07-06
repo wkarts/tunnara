@@ -44,6 +44,11 @@ export interface TunnaraTunnel {
   status: string;
   createdAt: string;
   updatedAt: string;
+  policyId?: string | null;
+  inspectorEnabled?: boolean;
+  inspectorBodyLimit?: number;
+  healthStatus?: string;
+  targets?: TunnelTarget[];
 }
 
 export interface AuditRow {
@@ -159,6 +164,10 @@ export async function createTunnel(input: {
   targetPort: number;
   autoDns?: boolean;
   transport?: "auto" | "tcp" | "quic";
+  policyId?: string | null;
+  inspectorEnabled?: boolean;
+  inspectorBodyLimit?: number;
+  targets?: Array<{ agentId: string; name: string; targetHost: string; targetPort: number; weight?: number; priority?: number; enabled?: boolean; healthCheck?: Record<string, unknown> }>;
 }): Promise<TunnaraTunnel> {
   return apiRequest("/api/v1/tunnels", {
     method: "POST",
@@ -290,4 +299,120 @@ export async function deleteNetwork(id: string): Promise<void> {
 
 export async function listNetworkPeers(id: string): Promise<{ network: PrivateNetwork; data: NetworkPeer[] }> {
   return apiRequest(`/api/v1/networks/${encodeURIComponent(id)}/peers`);
+}
+
+export interface TrafficPolicy {
+  id: string;
+  organization_id: string;
+  name: string;
+  description: string;
+  document: Record<string, unknown>;
+  enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TunnelTarget {
+  id: string;
+  tunnelId?: string;
+  tunnel_id?: string;
+  agentId?: string;
+  agent_id?: string;
+  name: string;
+  targetHost?: string;
+  target_host?: string;
+  targetPort?: number;
+  target_port?: number;
+  target?: string;
+  weight: number;
+  priority: number;
+  enabled: boolean;
+  healthStatus?: string;
+  health_status?: string;
+  healthCheck?: Record<string, unknown>;
+  health_check?: Record<string, unknown>;
+  lastCheckedAt?: string | null;
+  last_checked_at?: string | null;
+  lastError?: string | null;
+  last_error?: string | null;
+}
+
+export interface RequestInspection {
+  id: string;
+  tunnel_id: string;
+  request_id: string;
+  method: string;
+  path: string;
+  request_headers: Record<string, string>;
+  request_body: { encoding?: string; data?: string; truncated?: boolean } | null;
+  response_status: number | null;
+  response_headers: Record<string, string>;
+  response_body: { encoding?: string; data?: string; truncated?: boolean } | null;
+  duration_ms: number | null;
+  source_ip: string | null;
+  created_at: string;
+}
+
+export async function listPolicies(): Promise<TrafficPolicy[]> {
+  const response = await apiRequest<{ data: TrafficPolicy[] }>("/api/v1/policies");
+  return response.data;
+}
+
+export async function createPolicy(input: { name: string; description?: string; document: Record<string, unknown>; enabled?: boolean }): Promise<TrafficPolicy> {
+  return apiRequest("/api/v1/policies", { method: "POST", body: JSON.stringify(input) });
+}
+
+export async function updatePolicy(id: string, input: Partial<{ name: string; description: string; document: Record<string, unknown>; enabled: boolean }>): Promise<TrafficPolicy> {
+  return apiRequest(`/api/v1/policies/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(input) });
+}
+
+export async function deletePolicy(id: string): Promise<void> {
+  await apiRequest(`/api/v1/policies/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
+export async function listInspections(tunnelId = "", limit = 100): Promise<RequestInspection[]> {
+  const query = new URLSearchParams({ limit: String(limit) });
+  if (tunnelId) query.set("tunnelId", tunnelId);
+  const response = await apiRequest<{ data: RequestInspection[] }>(`/api/v1/inspections?${query.toString()}`);
+  return response.data;
+}
+
+export async function getInspection(id: string): Promise<RequestInspection> {
+  return apiRequest(`/api/v1/inspections/${encodeURIComponent(id)}`);
+}
+
+export async function replayInspection(id: string): Promise<{ status: number; headers: Record<string, string | string[]>; bodyBase64: string; truncated: boolean }> {
+  return apiRequest(`/api/v1/inspections/${encodeURIComponent(id)}/replay`, { method: "POST", body: "{}" });
+}
+
+export async function deleteInspection(id: string): Promise<void> {
+  await apiRequest(`/api/v1/inspections/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
+export async function purgeInspections(olderThanDays = 0): Promise<number> {
+  const response = await apiRequest<{ deleted: number }>(`/api/v1/inspections?olderThanDays=${olderThanDays}`, { method: "DELETE" });
+  return response.deleted;
+}
+
+export async function listTunnelTargets(tunnelId: string): Promise<TunnelTarget[]> {
+  const response = await apiRequest<{ data: TunnelTarget[] }>(`/api/v1/tunnels/${encodeURIComponent(tunnelId)}/targets`);
+  return response.data;
+}
+
+export async function createTunnelTarget(tunnelId: string, input: {
+  agentId: string; name: string; targetHost: string; targetPort: number; weight?: number; priority?: number; enabled?: boolean; healthCheck?: Record<string, unknown>;
+}): Promise<TunnelTarget> {
+  return apiRequest(`/api/v1/tunnels/${encodeURIComponent(tunnelId)}/targets`, { method: "POST", body: JSON.stringify(input) });
+}
+
+export async function updateTunnelTarget(id: string, input: Record<string, unknown>): Promise<TunnelTarget> {
+  return apiRequest(`/api/v1/tunnel-targets/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(input) });
+}
+
+export async function deleteTunnelTarget(id: string): Promise<void> {
+  await apiRequest(`/api/v1/tunnel-targets/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
+export async function updateTunnel(id: string, input: Record<string, unknown>): Promise<TunnaraTunnel> {
+  return apiRequest(`/api/v1/tunnels/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(input) });
 }
