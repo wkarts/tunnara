@@ -57,9 +57,14 @@ grep -Eq 'GENERATE_INFOPLIST_FILE = YES' <<<"$BUILD_SETTINGS" || {
   exit 1
 }
 
+# O WireGuardGoBridge é compilado somente para iphoneos. O runtime Go iOS não
+# é um binário de simulador e, quando ligado em iphonesimulator/arm64, deixa
+# símbolos de exceção Mach sem implementação. O alvo de simulador exercita a
+# UI/NetworkExtension manager sem embutir o Packet Tunnel; o alvo device logo
+# abaixo continua contendo a extensão e o bridge reais.
 xcodebuild \
   -project "$ROOT/TunnaraMobile.xcodeproj" \
-  -scheme TunnaraMobile \
+  -scheme TunnaraMobileSimulator \
   -configuration Release \
   -sdk iphonesimulator \
   -destination 'generic/platform=iOS Simulator' \
@@ -131,6 +136,8 @@ cat > "$OUT_DIR/build-metadata-ios.json" <<JSON
   "unsignedIpaGenerated": true,
   "unsignedIpaInstallableOnStockDevices": false,
   "simulatorAppGenerated": true,
+  "simulatorIncludesPacketTunnel": false,
+  "deviceAppIncludesPacketTunnel": true,
   "signedIpaGenerated": $SIGNING_READY,
   "storePublicationExecuted": false
 }

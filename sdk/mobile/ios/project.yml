@@ -17,6 +17,24 @@ targets:
     settings:
       base:
         SDKROOT: iphoneos
+  TunnaraMobileSimulator:
+    type: application
+    platform: iOS
+    sources: [TunnaraApp]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: br.com.wwsoftwares.tunnara.mobile.simulator
+        PRODUCT_NAME: TunnaraMobile
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Tunnara
+        INFOPLIST_KEY_CFBundleShortVersionString: 2.0.0
+        INFOPLIST_KEY_CFBundleVersion: 200007008
+        MARKETING_VERSION: 2.0.0
+        CURRENT_PROJECT_VERSION: 200007008
+        SWIFT_VERSION: 5.10
+        ENABLE_BITCODE: NO
+        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGNING_REQUIRED: NO
   TunnaraMobile:
     type: application
     platform: iOS
@@ -28,9 +46,9 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: Tunnara
         INFOPLIST_KEY_CFBundleShortVersionString: 2.0.0
-        INFOPLIST_KEY_CFBundleVersion: 200007007
+        INFOPLIST_KEY_CFBundleVersion: 200007008
         MARKETING_VERSION: 2.0.0
-        CURRENT_PROJECT_VERSION: 200007007
+        CURRENT_PROJECT_VERSION: 200007008
         CODE_SIGN_ENTITLEMENTS: Config/TunnaraMobile.entitlements
         CODE_SIGN_STYLE: Manual
         DEVELOPMENT_TEAM: $(TUNNARA_APPLE_TEAM_ID)
@@ -53,7 +71,7 @@ targets:
         PRODUCT_NAME: TunnaraPacketTunnel
         INFOPLIST_FILE: Config/PacketTunnel-Info.plist
         MARKETING_VERSION: 2.0.0
-        CURRENT_PROJECT_VERSION: 200007007
+        CURRENT_PROJECT_VERSION: 200007008
         CODE_SIGN_ENTITLEMENTS: Config/TunnaraPacketTunnel.entitlements
         CODE_SIGN_STYLE: Manual
         DEVELOPMENT_TEAM: $(TUNNARA_APPLE_TEAM_ID)

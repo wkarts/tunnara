@@ -1,9 +1,9 @@
-# Publicação da correção Tunnara 2.0.0-rc.7 no GitHub
+# Publicação da correção Tunnara 2.0.0-rc.8 no GitHub
 
 ## Branch
 
 ```text
-fix/v2.0.0-rc7-draft-release-id
+fix/v2.0.0-rc8-ios-runtime-idempotency
 ```
 
 ## Aplicação
@@ -11,19 +11,26 @@ fix/v2.0.0-rc7-draft-release-id
 ```bash
 git switch main
 git pull --rebase origin main
-git switch -c fix/v2.0.0-rc7-draft-release-id
-git am /caminho/Tunnara-Platform-v2.0.0-rc.7.patch
-git push -u origin fix/v2.0.0-rc7-draft-release-id
+
+git switch -c fix/v2.0.0-rc8-ios-runtime-idempotency
+git am /caminho/Tunnara-Platform-v2.0.0-rc.8.patch
+git push -u origin fix/v2.0.0-rc8-ios-runtime-idempotency
 ```
 
 ## Commit
 
 ```text
-fix(release): use release id for draft asset uploads
+fix(release): stabilize runtime uploads and isolate iOS simulator build
 ```
 
-## Release
+## Após o merge
 
-O merge deve criar a nova draft `v2.0.0-rc.7`. Não reexecute o workflow da RC.6,
-pois ele continuará usando o uploader e o SHA anteriores. Após a RC.7 ser publicada,
-a draft incompleta da RC.6 pode ser excluída.
+Aguarde a nova execução criar a draft `v2.0.0-rc.8`. Não use **Re-run jobs**
+no workflow da RC.7, pois ele continuará executando o SHA anterior.
+
+O uploader aceita assets completos já anexados à mesma draft. Para substituir
+intencionalmente um asset completo durante uma manutenção manual, defina:
+
+```bash
+TUNNARA_RELEASE_ASSET_REPLACE=1
+```

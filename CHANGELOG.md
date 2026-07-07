@@ -1,5 +1,25 @@
 # Changelog
 
+## 2.0.0-rc.8 - 2026-07-06
+
+### Corrigido
+
+- Corrige o upload do Runtime Linux quando outro job ou reexecução já reservou o mesmo nome de asset e o GitHub responde HTTP 422 `already_exists`.
+- O uploader passa a aceitar assets completos já existentes como resultado idempotente, remover apenas assets `starter`/vazios e aguardar uploads concorrentes ficarem visíveis antes de falhar.
+- A paginação de assets passou a ser explícita, evitando diferenças de comportamento do `gh api --paginate` entre runners.
+- Adicionados testes funcionais para asset completo existente, asset `starter` e corrida HTTP 422 seguida de conclusão por outro job.
+- Corrige o build iOS que tentava ligar o `wireguard-go` compilado para `GOOS=ios` no alvo `iphonesimulator/arm64`, resultando em símbolos Mach não resolvidos.
+- Adicionado alvo `TunnaraMobileSimulator`, destinado ao smoke test de UI e `NETunnelProviderManager`, sem embutir a Packet Tunnel Extension ou o bridge Go.
+- O alvo device `TunnaraMobile` continua contendo `TunnaraPacketTunnel`, `WireGuardKit` e `WireGuardGoBridgeiOS`, preservando integralmente a geração do IPA.
+- Removida a adaptação legada `GOOS_iphonesimulator := ios`; o bridge externo permanece restrito ao `iphoneos`, conforme o fluxo suportado pelo WireGuardKit.
+
+### Versionamento e validação
+
+- Versão elevada para `2.0.0-rc.8`.
+- Build Android/iOS sincronizado em `200007008`.
+- Versão MSI sincronizada em `2.0.0-7008`.
+- Validadores mobile e nativo agora rejeitam qualquer retorno do bridge Go ao alvo de simulador.
+
 ## 2.0.0-rc.7 - 2026-07-06
 
 ### Corrigido
