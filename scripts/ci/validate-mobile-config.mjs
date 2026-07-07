@@ -86,9 +86,13 @@ for (const expected of [
   'bash "$ROOT/scripts/prepare-wireguard-kit.sh"',
   'WIREGUARD_CHECKOUT="$ROOT/.wireguard-apple"',
   'GENERATE_INFOPLIST_FILE = YES',
+  '-scheme TunnaraMobileSimulator',
+  '-scheme TunnaraMobile',
   'ARCHS=arm64',
   'ONLY_ACTIVE_ARCH=YES',
   'build-metadata-ios.json',
+  '"simulatorIncludesPacketTunnel": false',
+  '"deviceAppIncludesPacketTunnel": true',
   'SHA256SUMS-ios.txt',
   'shasum -a 256',
 ]) {
@@ -102,12 +106,27 @@ for (const expected of ['#include <stdint.h>', "'u_int32_t': 'uint32_t'", "'u_ch
 }
 for (const expected of [
   'path: .wireguard-apple',
+  'TunnaraMobileSimulator:',
   'WireGuardGoBridgeiOS:',
   'toolPath: /usr/bin/make',
   'workingDirectory: $(PROJECT_DIR)/.wireguard-apple/Sources/WireGuardKitGo',
   '- target: WireGuardGoBridgeiOS',
 ]) {
   if (!ios.includes(expected)) throw new Error(`Projeto iOS não contém a integração local obrigatória: ${expected}.`);
+}
+
+const simulatorTarget = ios.match(/  TunnaraMobileSimulator:\n([\s\S]*?)(?=\n  TunnaraMobile:)/)?.[1] ?? '';
+if (!simulatorTarget) {
+  throw new Error('Projeto iOS deve possuir alvo TunnaraMobileSimulator isolado.');
+}
+if (/WireGuardGoBridgeiOS|TunnaraPacketTunnel|product:\s*WireGuardKit/.test(simulatorTarget)) {
+  throw new Error('O alvo TunnaraMobileSimulator não pode ligar Packet Tunnel, WireGuardKit ou o bridge Go iOS.');
+}
+if (!/PRODUCT_NAME:\s*TunnaraMobile/.test(simulatorTarget)) {
+  throw new Error('O alvo TunnaraMobileSimulator deve gerar TunnaraMobile.app.');
+}
+if (/GOOS_iphonesimulator\s*:=/.test(wireGuardPrepare)) {
+  throw new Error('prepare-wireguard-kit.sh não pode forçar GOOS=ios no iphonesimulator.');
 }
 if (/url:\s*https:\/\/git\.zx2c4\.com\/wireguard-apple/.test(ios)) {
   throw new Error('WireGuardKit deve ser um pacote local preparado antes do XcodeGen.');

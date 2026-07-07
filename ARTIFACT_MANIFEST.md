@@ -1,30 +1,33 @@
-# Manifesto de artefatos — Tunnara Platform 2.0.0-rc.7
+# Manifesto de artefatos — Tunnara Platform 2.0.0-rc.8
 
 ## Pacotes
 
-- `Tunnara-Platform-v2.0.0-rc.7-GitHub-Ready.zip`
-- `Tunnara-Platform-v2.0.0-rc.7-Pacote-Completo.zip`
-- `Tunnara-Platform-v2.0.0-rc.7-Codigo-Fonte.zip`
-- `Tunnara-Platform-v2.0.0-rc.7-Codigo-Fonte.tar.gz`
-- `Tunnara-Platform-v2.0.0-rc.7.patch`
-- `Tunnara-Platform-v2.0.0-rc.7.diff`
-- `Tunnara-Platform-v2.0.0-rc.7-Arquivos-Alterados.zip`
-- `Tunnara-Platform-v2.0.0-rc.7-PR-Git-Repository.bundle`
-- `Tunnara-Platform-v2.0.0-rc.7-Pull-Request.md`
-- `Tunnara-Platform-v2.0.0-rc.7-Relatorio-Validacao.md`
-- `Tunnara-Platform-v2.0.0-rc.7-SHA256SUMS.txt`
+- `Tunnara-Platform-v2.0.0-rc.8-GitHub-Ready.zip`
+- `Tunnara-Platform-v2.0.0-rc.8-Pacote-Completo.zip`
+- `Tunnara-Platform-v2.0.0-rc.8-Codigo-Fonte.zip`
+- `Tunnara-Platform-v2.0.0-rc.8-Codigo-Fonte.tar.gz`
+- `Tunnara-Platform-v2.0.0-rc.8.patch`
+- `Tunnara-Platform-v2.0.0-rc.8.diff`
+- `Tunnara-Platform-v2.0.0-rc.8-Arquivos-Alterados.zip`
+- `Tunnara-Platform-v2.0.0-rc.8-PR-Git-Repository.bundle`
+- `Tunnara-Platform-v2.0.0-rc.8-Git-Repository.bundle`
+- `Tunnara-Platform-v2.0.0-rc.8-Pull-Request.md`
+- `Tunnara-Platform-v2.0.0-rc.8-Relatorio-Validacao.md`
+- `Tunnara-Platform-v2.0.0-rc.8-SHA256SUMS.txt`
 
 ## Correções centrais
 
-1. identidade canônica da draft pelo `release_id`;
-2. upload direto pelo endpoint `uploads.github.com`;
-3. propagação do ID para Core, Runtime, SDK, Desktop e Mobile;
-4. publicação final por ID;
-5. teste funcional impedindo regressão para `/releases/tags/{tag}`.
+1. upload idempotente diante de assets completos já existentes;
+2. recuperação de corrida HTTP 422 com polling do upload concorrente;
+3. remoção segura de assets `starter` ou vazios;
+4. alvo de simulador iOS isolado do runtime Go e da Packet Tunnel Extension;
+5. alvo device/IPA preservado com WireGuardKit completo;
+6. validações preventivas e testes funcionais de regressão.
 
 ## Política
 
 - releases e tags publicadas permanecem imutáveis;
 - cada correção pós-merge recebe nova versão;
 - todos os jobs compilam o mesmo SHA e publicam na mesma draft;
+- assets completos da mesma draft são tratados como resultado idempotente;
 - a release somente é publicada após sucesso integral dos grupos obrigatórios.

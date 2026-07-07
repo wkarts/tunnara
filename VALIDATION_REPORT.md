@@ -1,39 +1,57 @@
-# Tunnara Platform 2.0.0-rc.7 — relatório de validação
+# Tunnara Platform 2.0.0-rc.8 — relatório de validação
 
-## Falha confirmada no run da RC.6
+## Falhas confirmadas na RC.7
 
-- A draft foi criada com sucesso e recebeu URL `untagged-*`.
-- `scripts/release/upload-release-assets.sh` chamou o endpoint
-  `repos/wkarts/tunnara/releases/tags/v2.0.0-rc.6`.
-- O GitHub retornou HTTP 404 antes do primeiro upload do Core.
-- Runtime, SDK, Desktop, Mobile e Containers ficaram `skipped` porque dependiam do Core.
+### Runtime Linux
 
-## Correção
+- Agent, Server e QUIC Bridge foram compilados e aprovados no smoke test.
+- `SHA256SUMS-runtime-linux-x64.txt` foi enviado normalmente.
+- O pacote `Tunnara-Runtime-linux-x64-v2.0.0-rc.7.tar.gz` recebeu HTTP 422
+  `already_exists` em três tentativas.
+- A causa é uma corrida de publicação: o nome pode estar reservado por outro
+  upload antes de o asset aparecer na listagem da release.
 
-- A API de criação retorna o `release_id`, que é preservado em todos os jobs.
-- A retomada de drafts usa `GET /releases` e filtra `tag_name`, incluindo drafts.
-- O upload usa `POST https://uploads.github.com/.../releases/{release_id}/assets`.
-- Assets anteriores são listados e excluídos pelo mesmo ID antes de cada tentativa.
-- A publicação final usa `PATCH /releases/{release_id}` com `draft=false`.
+### iOS
+
+- XcodeGen, SwiftPM, WireGuardKit e o bridge Go foram preparados corretamente.
+- O parser wg-quick compilou, eliminando a falha anterior de initializer.
+- O link do Packet Tunnel para `iphonesimulator/arm64` falhou porque o projeto
+  ligava `libwg-go.a` construído como runtime iOS no simulador.
+- Os símbolos ausentes foram
+  `_darwin_arm_init_mach_exception_handler` e
+  `_darwin_arm_init_thread_exception_port`.
+
+## Correções
+
+- uploads completos existentes passam a ser aceitos como sucesso idempotente;
+- uploads `starter` ou com tamanho zero são removidos;
+- HTTP 422 inicia polling do asset concorrente por até 60 segundos;
+- paginação de assets é explícita;
+- substituição forçada continua disponível por variável de ambiente;
+- simulador usa alvo isolado sem Packet Tunnel e sem bridge Go;
+- device/IPA mantém Packet Tunnel, WireGuardKit e WireGuardGoBridgeiOS;
+- removido `GOOS_iphonesimulator := ios` da preparação do pacote.
 
 ## Validações executadas
 
-- versão sincronizada em 26 pontos: `2.0.0-rc.7`;
-- build Android/iOS: `200007007`;
-- versão MSI: `2.0.0-7007`;
+- versão sincronizada em 26 pontos: `2.0.0-rc.8`;
+- build Android/iOS: `200007008`;
+- versão MSI: `2.0.0-7008`;
 - testes SemVer/MSI: 6/6;
-- YAML de todos os workflows;
-- sintaxe Bash, Node.js e PHP;
-- repository, storage, Docker, mobile, dependências nativas e SEA;
-- teste funcional do uploader com `gh` e `curl` simulados;
-- teste negativo impedindo uso de `/releases/tags/` para drafts;
-- Console Vue: typecheck e build Vite;
-- Runtime E2E: HTTP/WebSocket, TCP/UDP, Cloudflare, HA, WireGuard, rede privada, produção e Policy Engine;
-- SDK C compartilhado, estático e exemplo de versão.
+- testes do uploader: 4/4;
+- sintaxe Node.js, Bash e PHP;
+- repository, storage, release, Docker, mobile, dependências nativas e SEA;
+- Runtime E2E: HTTP/WebSocket, TCP/UDP, Cloudflare, HA, WireGuard, rede privada,
+  produção e Policy Engine;
+- SDK C compartilhado, estático e exemplo de versão;
+- Console Vue: typecheck e build Vite com 179 módulos;
+- build SEA Linux x64 do Agent e Server;
+- aplicação limpa do patch sobre a RC.7;
+- integridade e SHA-256 dos pacotes gerados.
 
 ## Limites do ambiente
 
-Cargo/Rust, Docker Engine, Android SDK completo e Xcode não estavam disponíveis para
-reexecutar a matriz nativa completa. A RC.6, porém, não chegou a esses jobs no run
-anexado: eles foram ignorados após a falha de upload do Core. A correção atua exatamente
-na causa do HTTP 404 e possui teste funcional local do protocolo de upload.
+O ambiente local não possui Xcode, Android SDK, Docker Engine ou Cargo/Rust.
+Portanto, o build final do IPA, MSI e containers multi-arquitetura permanece a
+cargo dos runners nativos. A correção iOS isola exatamente a etapa de simulador
+que falhou, sem modificar o alvo device que gera o IPA.

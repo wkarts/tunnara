@@ -62,18 +62,17 @@ for header in (source / 'Sources').rglob('*.h'):
         header.write_text(updated)
         patched += 1
 
+# O Makefile oficial suporta iphoneos. Não force GOOS=ios para
+# iphonesimulator: o c-archive do runtime Go iOS não é um bridge válido para
+# o simulador e gera símbolos Mach não resolvidos no link arm64.
 for makefile in (source / 'Sources').rglob('Makefile'):
     text = makefile.read_text(errors='ignore')
-    updated = text
-    if 'GOOS_iphonesimulator :=' in updated:
-        updated = re.sub(
-            r'^GOOS_iphonesimulator\s*:=.*$',
-            'GOOS_iphonesimulator := ios',
-            updated,
-            flags=re.M,
-        )
-    elif 'GOOS_iphoneos :=' in updated:
-        updated += '\nGOOS_iphonesimulator := ios\n'
+    updated = re.sub(
+        r'\n?GOOS_iphonesimulator\s*:=.*\n?',
+        '\n',
+        text,
+        flags=re.M,
+    )
     if updated != text:
         makefile.write_text(updated)
         patched += 1

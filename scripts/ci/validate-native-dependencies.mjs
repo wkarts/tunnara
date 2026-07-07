@@ -47,6 +47,7 @@ if (!androidRoot.includes('version "9.2.1"')) errors.push('Android: AGP 9.2.1 es
 const iosProject = read('sdk/mobile/ios/project.yml');
 for (const expected of [
   'path: .wireguard-apple',
+  'TunnaraMobileSimulator:',
   'WireGuardGoBridgeiOS:',
   'toolPath: /usr/bin/make',
   'workingDirectory: $(PROJECT_DIR)/.wireguard-apple/Sources/WireGuardKitGo',
@@ -54,11 +55,19 @@ for (const expected of [
 ]) {
   if (!iosProject.includes(expected)) errors.push(`iOS project.yml: configuração ausente: ${expected}`);
 }
+
+const simulatorTarget = iosProject.match(/  TunnaraMobileSimulator:\n([\s\S]*?)(?=\n  TunnaraMobile:)/)?.[1] ?? '';
+if (!simulatorTarget || /WireGuardGoBridgeiOS|TunnaraPacketTunnel|product:\s*WireGuardKit/.test(simulatorTarget)) {
+  errors.push('iOS project.yml: o alvo de simulador deve ser independente do bridge Go e da Packet Tunnel Extension.');
+}
 if (/url:\s*https:\/\/git\.zx2c4\.com\/wireguard-apple/.test(iosProject)) {
   errors.push('iOS project.yml não deve resolver WireGuardKit remoto antes do patch de Package.swift.');
 }
 
 const prepare = read('sdk/mobile/ios/scripts/prepare-wireguard-kit.sh');
+if (/GOOS_iphonesimulator\s*:=/.test(prepare)) {
+  errors.push('prepare-wireguard-kit.sh não pode compilar o runtime Go iOS para iphonesimulator.');
+}
 if (!prepare.includes("'// swift-tools-version:5.9'")) {
   errors.push('prepare-wireguard-kit.sh deve atualizar Package.swift para swift-tools-version 5.9.');
 }
@@ -69,6 +78,8 @@ if (prepareIndex < 0 || xcodegenIndex < 0 || prepareIndex > xcodegenIndex) {
   errors.push('Build iOS deve preparar WireGuardKit antes de executar xcodegen.');
 }
 if (!iosBuild.includes('command -v go')) errors.push('Build iOS deve validar a presença de Go.');
+if (!iosBuild.includes('-scheme TunnaraMobileSimulator')) errors.push('Build iOS deve usar o alvo isolado no simulador.');
+if (!iosBuild.includes('-scheme TunnaraMobile')) errors.push('Build iOS device deve manter o alvo completo com Packet Tunnel.');
 
 if (errors.length) {
   console.error('NATIVE_DEPENDENCIES_INVALID');
