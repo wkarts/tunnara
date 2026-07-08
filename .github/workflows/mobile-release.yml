@@ -215,7 +215,7 @@ jobs:
       - name: Publish optionally to TestFlight
         if: steps.signed-ipa.outputs.ready == 'true'
         continue-on-error: true
-        uses: apple-actions/upload-testflight-build@v4
+        uses: apple-actions/upload-testflight-build@v5
         with:
           app-path: ${{ steps.signed-ipa.outputs.path }}
           issuer-id: ${{ secrets.TUNNARA_APPSTORE_ISSUER_ID }}
